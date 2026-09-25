@@ -23,6 +23,9 @@ export async function updatePassword(_prev: PasswordState, formData: FormData): 
       error: error.code === "same_password" ? "現在と同じパスワードは使えません" : "パスワードを変更できませんでした。もう一度お試しください",
     };
   }
-  await createAdminClient().from("staff").update({ first_login: false }).eq("auth_user_id", userId);
+  await createAdminClient()
+    .from("staff")
+    .update({ first_login: false, password_set_at: new Date().toISOString() })
+    .eq("auth_user_id", userId);
   redirect("/");
 }
