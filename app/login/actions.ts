@@ -30,19 +30,18 @@ async function migrateFromFirebase(email: string, password: string): Promise<boo
   const admin = createAdminClient();
   const { data: staff } = await admin
     .from("staff")
-    .select("id, auth_user_id, firebase_uid, retired")
+    .select("id, auth_user_id, firebase_uid, retired, password_set_at")
     .ilike("email", email.replace(/[\\%_]/g, "\\$&"))
     .maybeSingle();
-  if (!staff?.auth_user_id || !staff.firebase_uid || staff.retired) return false;
-
-  const { data: passwordSet } = await admin.rpc("auth_password_set", { p_user_id: staff.auth_user_id });
-  if (passwordSet !== false) return false;
+  if (!staff?.auth_user_id || !staff.firebase_uid || staff.retired || staff.password_set_at) return false;
 
   const firebaseUid = await verifyFirebasePassword(email, password);
   if (firebaseUid !== staff.firebase_uid) return false;
 
   const { error } = await admin.auth.admin.updateUserById(staff.auth_user_id, { password });
-  return !error;
+  if (error) return false;
+  await admin.from("staff").update({ password_set_at: new Date().toISOString() }).eq("id", staff.id);
+  return true;
 }
 
 export async function logout() {

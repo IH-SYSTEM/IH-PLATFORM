@@ -1,6 +1,5 @@
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { Header } from "@/app/header";
 
 type StatusRow = {
   staff_id: string;
@@ -26,16 +25,15 @@ function daysAgo(iso: string, now: number) {
 }
 
 export default async function LoginStatusPage() {
-  const me = await requireAdmin();
+  await requireAdmin();
   const { rows, now } = await loadLoginStatus();
   const active = rows.filter((r) => r.state !== "retired");
   const migrated = active.filter((r) => r.state === "migrated").length;
 
   return (
     <>
-      <Header staff={me} />
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="text-lg font-semibold">ログイン状況</h1>
+      <div className="mx-auto max-w-6xl">
+        <h1 className="text-2xl font-bold text-slate-900">ログイン状況</h1>
         <p className="mt-1 text-sm text-slate-500">
           新システムへの移行：在籍 {active.length} 名中 <span className="font-semibold text-emerald-700">{migrated} 名</span>
           が移行済み（未移行 {active.length - migrated} 名）
@@ -78,7 +76,7 @@ export default async function LoginStatusPage() {
             </tbody>
           </table>
         </div>
-      </main>
+      </div>
     </>
   );
 }
