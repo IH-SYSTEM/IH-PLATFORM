@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayJa } from "@/lib/format";
 import { RosterSheet, ROSTER_COLUMNS, type RosterStaff } from "../roster-sheet";
-import { PrintButton } from "../print-button";
+import { PrintButton } from "@/app/print-button";
 
 export default async function RosterPrintPage({ searchParams }: PageProps<"/admin/roster/print">) {
   await requireAdmin();
