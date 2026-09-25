@@ -6,8 +6,8 @@ export default async function StaffLayout({ children }: LayoutProps<"/me">) {
   const staff = await requireStaff();
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <header className="sticky top-0 z-10 border-b border-stone-200/80 bg-white/90 backdrop-blur">
+    <div className="min-h-screen bg-stone-50 print:bg-white">
+      <header className="no-print sticky top-0 z-10 border-b border-stone-200/80 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <Link href="/me" className="flex items-center gap-2">
             <span className="grid size-8 place-items-center rounded-lg bg-emerald-600 text-sm font-bold text-white">I</span>

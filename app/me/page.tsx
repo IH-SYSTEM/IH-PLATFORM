@@ -49,6 +49,12 @@ export default async function StaffHome() {
                 <dd className="mt-0.5 font-semibold tabular-nums">{yen(latest.total_deduction)}</dd>
               </div>
             </dl>
+            <Link
+              href={`/me/salary/${latest.id}`}
+              className="mt-5 block rounded-xl bg-white/15 py-2.5 text-center text-sm font-semibold hover:bg-white/25"
+            >
+              明細を見る
+            </Link>
           </>
         ) : (
           <div className="py-4">
@@ -63,11 +69,16 @@ export default async function StaffHome() {
           <h2 className="mb-3 text-sm font-semibold text-stone-500">過去の明細</h2>
           <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl border border-stone-200 bg-white">
             {past.map((s) => (
-              <li key={s.id} className="flex items-center justify-between px-5 py-3.5">
-                <span className="text-sm font-medium text-stone-700">
-                  {s.year}年{s.month}月分
-                </span>
-                <span className="text-sm font-semibold tabular-nums text-stone-900">{yen(s.net_payment)}</span>
+              <li key={s.id}>
+                <Link href={`/me/salary/${s.id}`} className="flex items-center justify-between px-5 py-3.5 hover:bg-stone-50">
+                  <span className="text-sm font-medium text-stone-700">
+                    {s.year}年{s.month}月分
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums text-stone-900">
+                    {yen(s.net_payment)}
+                    <span aria-hidden className="ml-2 text-stone-400">›</span>
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
