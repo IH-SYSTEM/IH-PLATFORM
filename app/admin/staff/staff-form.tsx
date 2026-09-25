@@ -5,6 +5,7 @@ import { ROLE_LABELS } from "@/lib/format";
 import { AGE_GROUPS, ALLOWANCES, DEDUCTIONS, EMPLOYMENT_TYPES, PERMISSIONS, ageGroupFor, type StaffRecord } from "@/lib/staff";
 import { Toast } from "@/app/toast";
 import type { SaveState } from "./actions";
+import { Field, Money, SaveBar, Section, inputClass as input } from "../form-ui";
 
 type Props = {
   staff: StaffRecord | null;
@@ -14,42 +15,6 @@ type Props = {
   canGrantSuperadmin: boolean;
   createdNotice: boolean;
 };
-
-const input =
-  "block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:bg-slate-100 disabled:text-slate-500";
-
-function Field({ label, required, children, className = "" }: { label: string; required?: boolean; children: React.ReactNode; className?: string }) {
-  return (
-    <label className={`block space-y-1 ${className}`}>
-      <span className="text-xs font-medium text-slate-600">
-        {label}
-        {required && <span className="ml-0.5 text-rose-500">*</span>}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function Section({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
-      {note && <p className="mt-0.5 text-xs text-slate-500">{note}</p>}
-      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
-    </section>
-  );
-}
-
-function Money({ name, label, value, hidden }: { name: string; label: string; value?: number; hidden?: boolean }) {
-  return (
-    <Field label={label} className={hidden ? "hidden" : ""}>
-      <div className="relative">
-        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-slate-400">¥</span>
-        <input name={name} inputMode="decimal" defaultValue={value ?? 0} className={`${input} pl-7 text-right tabular-nums`} />
-      </div>
-    </Field>
-  );
-}
 
 export function StaffForm({ staff, stores, action, isSelf, canGrantSuperadmin, createdNotice }: Props) {
   const [state, formAction, pending] = useActionState(action, undefined);
@@ -298,18 +263,7 @@ export function StaffForm({ staff, stores, action, isSelf, canGrantSuperadmin, c
         </Field>
       </Section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur lg:left-60">
-        <div className="mx-auto flex max-w-5xl items-center justify-end gap-3 px-4 py-3">
-          {state?.error && <p className="mr-auto text-sm font-medium text-rose-600">{state.error}</p>}
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-60"
-          >
-            {pending ? "保存中…" : staff ? "保存する" : "登録する"}
-          </button>
-        </div>
-      </div>
+      <SaveBar pending={pending} error={state?.error} label={staff ? "保存する" : "登録する"} />
 
       {state?.ok && <Toast key={state.at} message="保存しました" />}
       {state?.error && <Toast key={state.at} message={state.error} tone="error" />}
