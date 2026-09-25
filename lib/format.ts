@@ -22,3 +22,7 @@ export const ROLE_LABELS: Record<string, string> = {
 export function roleLabel(role: string | null | undefined) {
   return (role && ROLE_LABELS[role]) || "—";
 }
+
+export function todayJa() {
+  return new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", dateStyle: "long" }).format(new Date());
+}
