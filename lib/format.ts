@@ -1,7 +1,8 @@
 const yenFormat = new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 2 });
 
 export function yen(value: number | string | null | undefined) {
-  return `¥${yenFormat.format(Number(value ?? 0))}`;
+  const n = Number(value ?? 0);
+  return `${n < 0 ? "−" : ""}¥${yenFormat.format(Math.abs(n))}`;
 }
 
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "long", day: "numeric" });
