@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+@keyframes toast-life {
+  0% { opacity: 0; transform: translateY(12px); }
+  6%, 85% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(12px); visibility: hidden; }
+}
+
+.toast {
+  animation: toast-life 3.5s ease forwards;
+}
+
 body {
   font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
 }
