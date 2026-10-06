@@ -20,8 +20,8 @@ export default async function PasswordPage() {
         <div className="mt-6 rounded-md border border-line bg-white p-6">
           <PasswordForm />
         </div>
-        <Link href="/" className="mt-4 inline-block text-sm text-slate-500 hover:text-brand">
-          ← ポータルに戻る
+        <Link href="/account" className="mt-4 inline-block text-sm text-slate-500 hover:text-brand">
+          ← アカウントに戻る
         </Link>
       </div>
       <MobileTabBar />

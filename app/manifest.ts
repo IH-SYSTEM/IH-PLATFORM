@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "一鴻ホールディングス ポータル",
+    name: "IKKOU HOLDINGS ポータル",
     short_name: "IKKOUポータル",
     start_url: "/",
     display: "standalone",

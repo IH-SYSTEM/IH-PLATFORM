@@ -7,7 +7,7 @@ import { Icon } from "./icons";
 const TABS = [
   { href: "/", label: "ホーム", icon: "home" as const, match: (p: string) => p === "/" },
   { href: "/me", label: "給与明細", icon: "payslip" as const, match: (p: string) => p.startsWith("/me") },
-  { href: "/account/password", label: "アカウント", icon: "user" as const, match: (p: string) => p.startsWith("/account") },
+  { href: "/account", label: "アカウント", icon: "user" as const, match: (p: string) => p.startsWith("/account") },
 ];
 
 export function MobileTabBar() {
