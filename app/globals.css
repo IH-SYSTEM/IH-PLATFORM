@@ -22,6 +22,11 @@
   animation: toast-life 3.5s ease forwards;
 }
 
+body {
+  word-break: auto-phrase;
+  line-break: strict;
+}
+
 @media print {
   .no-print {
     display: none !important;
