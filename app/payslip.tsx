@@ -91,7 +91,7 @@ export function Payslip({ r, department }: { r: PayslipRecord; department?: stri
         </Block>
       </div>
 
-      <div className="mt-5 flex items-center justify-between rounded-xl bg-slate-900 px-5 py-4 text-white print:[-webkit-print-color-adjust:exact]">
+      <div className="mt-5 flex items-center justify-between rounded-md bg-slate-900 px-5 py-4 text-white print:[-webkit-print-color-adjust:exact]">
         <span className="text-sm font-semibold">差引支給額</span>
         <span className="text-2xl font-bold tabular-nums">{yen(r.net_payment)}</span>
       </div>

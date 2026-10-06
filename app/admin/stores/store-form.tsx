@@ -92,7 +92,7 @@ export function StoreForm({
       </Section>
 
       {store && staff.length > 0 && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-800">店長</h2>
           <p className="mt-0.5 text-xs text-slate-500">この店舗に所属する在籍スタッフから選びます</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

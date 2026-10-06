@@ -44,7 +44,7 @@ export default async function SalaryMonthPage({ searchParams }: PageProps<"/admi
           <h1 className="text-2xl font-bold text-slate-900">給与入力</h1>
           <p className="mt-1 text-sm text-slate-500">スタッフを選んで勤怠・支給・控除を入力し、確定します</p>
         </div>
-        <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-white p-1 shadow-sm">
           <Link href={`/admin/salary?ym=${ym(shiftPeriod(period, -1))}`} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100" aria-label="前の月">
             ‹
           </Link>
@@ -62,14 +62,14 @@ export default async function SalaryMonthPage({ searchParams }: PageProps<"/admi
           ["未入力", `${missing.length}名`, missing.length ? "text-rose-600" : "text-slate-900"],
           ["差引支給 合計（確定分）", yen(sum("net_payment")), "text-slate-900"],
         ].map(([label, value, cls]) => (
-          <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div key={label} className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-medium text-slate-500">{label}</p>
             <p className={`mt-2 text-2xl font-bold tabular-nums ${cls}`}>{value}</p>
           </div>
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -109,7 +109,7 @@ export default async function SalaryMonthPage({ searchParams }: PageProps<"/admi
                 <td className="px-4 py-3 text-right">
                   <Link
                     href={`/admin/salary/${r.id}?ym=${ym(period)}`}
-                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-indigo-400 hover:text-indigo-700"
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-brand hover:text-brand"
                   >
                     {r.record ? "編集" : "入力"}
                   </Link>

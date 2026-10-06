@@ -30,13 +30,13 @@ export default async function StoreEditPage({ params, searchParams }: PageProps<
       </div>
 
       <StoreForm store={store} staff={staff ?? []} action={saveStore.bind(null, store.id)} createdNotice={created === "1"}>
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-800">所属スタッフ（{staff?.length ?? 0}名）</h2>
         {staff && staff.length > 0 ? (
           <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {staff.map((s) => (
               <li key={s.id}>
-                <Link href={`/admin/staff/${s.id}`} className="flex justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm hover:border-indigo-400">
+                <Link href={`/admin/staff/${s.id}`} className="flex justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm hover:border-brand">
                   <span className="font-medium text-slate-800">{s.name}</span>
                   <span className="text-xs text-slate-500">{roleLabel(s.role)}</span>
                 </Link>

@@ -39,7 +39,7 @@ export default async function StaffListPage({ searchParams }: PageProps<"/admin/
           <h1 className="text-2xl font-bold text-slate-900">スタッフ管理</h1>
           <p className="mt-1 text-sm text-slate-500">登録・編集・給与マスタの設定</p>
         </div>
-        <Link href="/admin/staff/new" className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">
+        <Link href="/admin/staff/new" className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-2">
           ＋ スタッフを登録
         </Link>
       </div>
@@ -83,7 +83,7 @@ export default async function StaffListPage({ searchParams }: PageProps<"/admin/
         </form>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -99,7 +99,7 @@ export default async function StaffListPage({ searchParams }: PageProps<"/admin/
             {rows.map((s) => (
               <tr key={s.id} className="group">
                 <td className="px-4 py-3">
-                  <Link href={`/admin/staff/${s.id}`} className="block font-medium text-slate-900 group-hover:text-indigo-600">
+                  <Link href={`/admin/staff/${s.id}`} className="block font-medium text-slate-900 group-hover:text-brand">
                     {s.name}
                     {s.furigana && <span className="block text-xs font-normal text-slate-400">{s.furigana}</span>}
                   </Link>
@@ -113,7 +113,7 @@ export default async function StaffListPage({ searchParams }: PageProps<"/admin/
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                       s.permission === "admin" || s.permission === "superadmin"
-                        ? "bg-indigo-50 text-indigo-700"
+                        ? "bg-brand-soft text-brand"
                         : s.permission === "store"
                           ? "bg-sky-50 text-sky-700"
                           : "bg-slate-100 text-slate-600"

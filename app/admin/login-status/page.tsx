@@ -39,7 +39,7 @@ export default async function LoginStatusPage() {
           が移行済み（未移行 {active.length - migrated} 名）
         </p>
 
-        <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="mt-6 overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-slate-50 text-left text-slate-500">
               <tr>

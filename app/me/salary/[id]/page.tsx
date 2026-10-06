@@ -21,12 +21,12 @@ export default async function MyPayslipPage({ params }: PageProps<"/me/salary/[i
   return (
     <div className="space-y-4">
       <div className="no-print flex items-center justify-between">
-        <Link href="/me" className="text-sm text-stone-500 hover:text-stone-800">
-          ← マイページ
+        <Link href="/me" className="text-sm text-slate-500 hover:text-brand">
+          ← 給与明細
         </Link>
         <PrintButton label="印刷・PDF保存" />
       </div>
-      <div className="rounded-2xl border border-stone-200 bg-white p-5 print:border-0 print:p-0">
+      <div className="rounded-md border border-line bg-white p-5 print:border-0 print:p-0">
         <Payslip r={data} />
       </div>
     </div>

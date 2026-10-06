@@ -1,15 +1,26 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Noto_Sans_JP, Roboto } from "next/font/google";
 import "./globals.css";
 
+const noto = Noto_Sans_JP({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-noto", display: "swap" });
+const roboto = Roboto({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-roboto", display: "swap" });
+
 export const metadata: Metadata = {
-  title: "IKKOU HOLDING SYSTEM",
-  description: "給与・スタッフ管理",
+  title: { default: "一鴻ホールディングス ポータル", template: "%s | 一鴻ホールディングス ポータル" },
+  description: "株式会社一鴻ホールディングス グループ従業員向けポータル",
+  robots: { index: false, follow: false },
+  appleWebApp: { capable: true, title: "IKKOUポータル", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#011b4a",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ja" className="h-full antialiased">
-      <body className="min-h-full bg-slate-50 text-slate-900">{children}</body>
+    <html lang="ja" className={`h-full antialiased ${noto.variable} ${roboto.variable}`}>
+      <body className="min-h-full bg-canvas font-sans text-slate-900">{children}</body>
     </html>
   );
 }
