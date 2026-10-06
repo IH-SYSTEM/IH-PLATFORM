@@ -11,7 +11,7 @@ export default function ForgotPasswordPage() {
   return (
     <main className="flex min-h-screen items-start justify-center bg-white px-6 pb-12 pt-14 sm:items-center sm:py-12">
       <div className="w-full max-w-sm">
-        <Image src="/brand/logo.png" alt="IKKOU HOLDINGS" width={140} height={35} priority />
+        <Image src="/brand/logo.png" alt="IKKOU HOLDINGS" unoptimized width={140} height={35} priority />
         <h1 className="mt-8 text-xl font-bold text-brand">パスワードの再設定</h1>
         {state?.sent ? (
           <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-700">

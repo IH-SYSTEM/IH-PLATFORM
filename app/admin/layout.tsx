@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { logout } from "@/app/login/actions";
@@ -18,11 +19,8 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     <div className="min-h-screen bg-canvas lg:flex print:block print:bg-white">
       <aside className="no-print hidden w-60 shrink-0 flex-col bg-brand py-5 lg:flex lg:min-h-screen">
         <Link href="/" className="mb-6 block px-5">
-          <span className="block text-[11px] font-medium tracking-[0.25em] text-white/50">IKKOU HOLDINGS</span>
-          <span className="mt-1 flex items-center gap-2 text-sm font-bold text-white">
-            PORTAL
-            <span className="rounded-sm bg-accent px-1.5 py-0.5 text-[10px] font-bold tracking-wider">ADMIN</span>
-          </span>
+          <Image src="/brand/logo-white.png" alt="IKKOU HOLDINGS" unoptimized width={128} height={32} />
+          <span className="mt-2 inline-block rounded-sm bg-accent px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-white">ADMIN</span>
         </Link>
         <Link href="/" className="mx-3 mb-4 rounded-sm border border-white/15 px-3 py-2 text-xs font-medium text-white/80 hover:bg-white/10 hover:text-white">
           ← ポータルトップ

@@ -9,7 +9,6 @@
   --color-accent-soft: #fdecec;
   --color-line: #e6e9ed;
   --color-canvas: #f4f6f9;
-  --font-display: var(--font-montserrat), var(--font-roboto), sans-serif;
   --font-sans: var(--font-roboto), var(--font-noto), "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
 }
 
