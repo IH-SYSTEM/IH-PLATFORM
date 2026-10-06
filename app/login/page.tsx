@@ -17,16 +17,17 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <p className="relative text-xs font-medium tracking-[0.3em] text-white/50">IKKOU HOLDINGS</p>
         <div className="relative">
           <p className="text-sm font-medium tracking-[0.2em] text-accent">GROUP PORTAL</p>
-          <h1 className="mt-3 text-4xl font-bold leading-tight">
-            一鴻ホールディングス
-            <br />
-            ポータル
+          <h1 className="mt-4">
+            <span className="block whitespace-nowrap text-[clamp(2rem,3.2vw,2.75rem)] font-bold leading-tight tracking-wide">一鴻ホールディングス</span>
+            <span className="mt-1 flex items-center gap-3 text-[clamp(1.25rem,2vw,1.625rem)] font-normal tracking-[0.3em] text-white/80">
+              <span className="h-px w-8 bg-accent" />
+              ポータル
+            </span>
           </h1>
-          <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/70">
-            グループ各社・各店舗の業務を、ひとつの入口から。
-            <br />
-            給与明細の確認から店舗運営まで、権限に応じてご利用いただけます。
-          </p>
+          <div className="mt-8 space-y-1 text-sm leading-relaxed text-white/70">
+            <p>グループ各社・各店舗の業務を、ひとつの入口から。</p>
+            <p>給与明細の確認から店舗運営まで、権限に応じてご利用いただけます。</p>
+          </div>
         </div>
         <p className="relative text-xs text-white/40">© IKKOU HOLDINGS Co., Ltd.</p>
       </section>
@@ -34,9 +35,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       <section className="flex flex-col bg-white lg:items-center lg:justify-center lg:px-6 lg:py-12">
         <div className="bg-brand px-6 pb-10 pt-[max(2.5rem,env(safe-area-inset-top))] text-white lg:hidden">
           <p className="text-[11px] font-medium tracking-[0.25em] text-accent">GROUP PORTAL</p>
-          <p className="mt-2 text-2xl font-bold leading-snug">
-            一鴻ホールディングス
-            <br />
+          <p className="mt-2 whitespace-nowrap text-2xl font-bold leading-snug">一鴻ホールディングス</p>
+          <p className="mt-1 flex items-center gap-2.5 text-base tracking-[0.3em] text-white/80">
+            <span className="h-px w-6 bg-accent" />
             ポータル
           </p>
         </div>
