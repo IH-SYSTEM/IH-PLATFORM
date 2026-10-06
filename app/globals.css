@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* 一鴻ホールディングス コーポレートサイト（ikkou-holdings.co.jp）の配色 */
+@theme {
+  --color-brand: #011b4a;
+  --color-brand-2: #00225b;
+  --color-brand-soft: #e8edf5;
+  --color-accent: #dc000c;
+  --color-accent-soft: #fdecec;
+  --color-line: #e6e9ed;
+  --color-canvas: #f4f6f9;
+  --font-sans: var(--font-roboto), var(--font-noto), "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+}
+
 @keyframes toast-life {
   0% { opacity: 0; transform: translateY(12px); }
   6%, 85% { opacity: 1; transform: translateY(0); }
@@ -8,10 +20,6 @@
 
 .toast {
   animation: toast-life 3.5s ease forwards;
-}
-
-body {
-  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
 }
 
 @media print {

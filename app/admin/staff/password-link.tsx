@@ -8,7 +8,7 @@ export function PasswordLinkPanel({ action }: { action: () => Promise<LinkState>
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-sm font-semibold text-slate-800">パスワード設定リンク</h2>
       <p className="mt-0.5 text-xs text-slate-500">
         新しく登録したスタッフや、パスワードを忘れたスタッフに渡すリンクです。1回だけ使えます。

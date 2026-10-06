@@ -113,7 +113,7 @@ export default async function AdminDashboard() {
           value={`${d.migrated} / ${d.activeCount}名`}
           note={
             <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-slate-100">
-              <span className="block h-full rounded-full bg-indigo-500" style={{ width: `${migratedPct}%` }} />
+              <span className="block h-full rounded-full bg-brand" style={{ width: `${migratedPct}%` }} />
             </span>
           }
           href="/admin/login-status"
@@ -129,7 +129,7 @@ export default async function AdminDashboard() {
                   {m.total ? `${Math.round(m.total / 10000).toLocaleString()}万` : "—"}
                 </span>
                 <div
-                  className={`w-full max-w-12 rounded-t-md ${key(m) === key(d.target) ? "bg-indigo-500" : "bg-slate-300"}`}
+                  className={`w-full max-w-12 rounded-t-md ${key(m) === key(d.target) ? "bg-brand" : "bg-slate-300"}`}
                   style={{ height: `${Math.max((m.total / maxMonth) * 100, 2)}%` }}
                 />
                 <span className="text-xs text-slate-500">{m.month}月</span>
@@ -162,14 +162,14 @@ export default async function AdminDashboard() {
               <Link
                 key={n.href}
                 href={n.href}
-                className="rounded-xl border border-slate-200 px-4 py-3.5 text-sm font-medium text-slate-800 transition hover:border-indigo-400 hover:bg-indigo-50"
+                className="rounded-md border border-slate-200 px-4 py-3.5 text-sm font-medium text-slate-800 transition hover:border-brand hover:bg-brand-soft"
               >
                 {n.label}
               </Link>
             ) : (
               <div
                 key={n.href}
-                className="flex items-center justify-between rounded-xl border border-dashed border-slate-200 px-4 py-3.5 text-sm text-slate-400"
+                className="flex items-center justify-between rounded-md border border-dashed border-slate-200 px-4 py-3.5 text-sm text-slate-400"
               >
                 {n.label}
                 <span className="text-xs">準備中</span>
@@ -190,9 +190,9 @@ function Kpi({ title, value, note, href }: { title: string; value: string; note:
       <div className="mt-1.5 text-xs text-slate-500">{note}</div>
     </>
   );
-  const cls = "block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm";
+  const cls = "block rounded-md border border-slate-200 bg-white p-5 shadow-sm";
   return href ? (
-    <Link href={href} className={`${cls} transition hover:border-indigo-300`}>
+    <Link href={href} className={`${cls} transition hover:border-brand`}>
       {body}
     </Link>
   ) : (
@@ -202,7 +202,7 @@ function Kpi({ title, value, note, href }: { title: string; value: string; note:
 
 function Panel({ title, className = "", children }: { title: string; className?: string; children: React.ReactNode }) {
   return (
-    <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
+    <section className={`rounded-md border border-slate-200 bg-white p-5 shadow-sm ${className}`}>
       <h2 className="mb-4 text-sm font-semibold text-slate-700">{title}</h2>
       {children}
     </section>

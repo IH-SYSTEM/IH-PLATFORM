@@ -33,7 +33,7 @@ export default async function RosterPrintPage({ searchParams }: PageProps<"/admi
       </div>
       <div className="space-y-6 print:space-y-0">
         {staff.map((s) => (
-          <div key={s.id} className="break-after-page rounded-xl bg-white p-[10mm] shadow-sm last:break-after-auto print:rounded-none print:p-0 print:shadow-none">
+          <div key={s.id} className="break-after-page rounded-md bg-white p-[10mm] shadow-sm last:break-after-auto print:rounded-none print:p-0 print:shadow-none">
             <RosterSheet s={s} createdOn={createdOn} />
           </div>
         ))}

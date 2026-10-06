@@ -31,7 +31,7 @@ export default async function RosterPage({ searchParams }: PageProps<"/admin/ros
         {rows.length > 0 && (
           <Link
             href={`/admin/roster/print?${qs(tab)}`}
-            className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+            className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-2"
           >
             表示中の{rows.length}名をまとめて出力
           </Link>
@@ -64,7 +64,7 @@ export default async function RosterPage({ searchParams }: PageProps<"/admin/ros
         </form>
       </div>
 
-      <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
         {rows.map((s) => (
           <li key={s.id} className="flex items-center justify-between gap-3 px-5 py-3">
             <div className="min-w-0">
@@ -79,7 +79,7 @@ export default async function RosterPage({ searchParams }: PageProps<"/admin/ros
             </div>
             <Link
               href={`/admin/roster/print?id=${s.id}`}
-              className="shrink-0 rounded-lg border border-slate-300 px-3.5 py-1.5 text-sm font-medium text-slate-700 hover:border-indigo-400 hover:text-indigo-700"
+              className="shrink-0 rounded-lg border border-slate-300 px-3.5 py-1.5 text-sm font-medium text-slate-700 hover:border-brand hover:text-brand"
             >
               出力
             </Link>

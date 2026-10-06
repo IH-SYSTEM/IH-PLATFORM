@@ -34,12 +34,12 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
       {!staff.retired && <PasswordLinkPanel action={issuePasswordLink.bind(null, staff.id)} />}
 
       {staff.attachments.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-800">添付書類</h2>
           <ul className="mt-3 space-y-2 text-sm">
             {staff.attachments.map((a) => (
               <li key={a.url}>
-                <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline">
+                <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline">
                   {a.name}
                 </a>
                 {a.uploadedAt && <span className="ml-2 text-xs text-slate-400">{a.uploadedAt}</span>}

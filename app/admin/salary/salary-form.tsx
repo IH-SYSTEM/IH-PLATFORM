@@ -59,7 +59,7 @@ function initialDraft(record: ExistingRecord | null, master: Master | null): Dra
 }
 
 const numInput =
-  "block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-right text-sm tabular-nums text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20";
+  "block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-right text-sm tabular-nums text-slate-900 outline-none focus:border-brand focus:ring-2 focus:ring-brand/15";
 
 function NumField({ label, unit, value, onChange }: { label: string; unit?: string; value: string; onChange: (v: string) => void }) {
   return (
@@ -76,7 +76,7 @@ function NumField({ label, unit, value, onChange }: { label: string; unit?: stri
 
 function Card({ title, children, footer }: { title: string; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
       <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
       {footer}
@@ -181,7 +181,7 @@ export function SalaryForm({
   return (
     <div className="grid gap-5 pb-28 lg:grid-cols-3 lg:pb-0">
       <div className="space-y-5 lg:col-span-2">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-end gap-4">
             <label className="block space-y-1">
               <span className="text-xs font-medium text-slate-600">給与形態</span>
@@ -202,7 +202,7 @@ export function SalaryForm({
               type="button"
               onClick={autoCalculate}
               disabled={!master?.employmentType || !type}
-              className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg border border-brand/30 bg-brand-soft px-4 py-2 text-sm font-semibold text-brand hover:bg-brand-soft disabled:cursor-not-allowed disabled:opacity-50"
             >
               マスタから自動計算
             </button>
@@ -229,7 +229,7 @@ export function SalaryForm({
               源泉徴収税額表が「乙欄」のスタッフです。自動計算は甲欄で計算するため、所得税は手入力で確認してください。
             </p>
           )}
-          {calcNote && <p className="mt-3 text-sm text-indigo-700">{calcNote}</p>}
+          {calcNote && <p className="mt-3 text-sm text-brand">{calcNote}</p>}
         </section>
 
         {type && (
@@ -271,20 +271,20 @@ export function SalaryForm({
               </Card>
             )}
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-sm font-semibold text-slate-800">備考</h2>
               <textarea
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
                 rows={3}
-                className="mt-3 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                className="mt-3 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand"
               />
             </section>
           </>
         )}
       </div>
 
-      <aside className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white p-4 shadow-lg lg:sticky lg:inset-auto lg:top-6 lg:self-start lg:rounded-2xl lg:border lg:p-5 lg:shadow-sm">
+      <aside className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white p-4 shadow-lg lg:sticky lg:inset-auto lg:top-6 lg:self-start lg:rounded-md lg:border lg:p-5 lg:shadow-sm">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-800">集計</h2>
           {savedStatus === "confirmed" ? (
@@ -323,7 +323,7 @@ export function SalaryForm({
             type="button"
             disabled={!values || pending}
             onClick={() => submit("confirmed")}
-            className="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-2 disabled:opacity-50"
           >
             {pending ? "保存中…" : "確定する"}
           </button>

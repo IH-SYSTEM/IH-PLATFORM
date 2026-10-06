@@ -34,7 +34,7 @@ export default async function SalaryHistoryPrintPage({ searchParams }: PageProps
       </div>
       {slips.length === 0 && <p className="text-center text-sm text-slate-400">確定済みの明細が見つかりません</p>}
       {slips.map((s) => (
-        <div key={s.id} className="break-after-page rounded-xl bg-white p-[10mm] shadow-sm last:break-after-auto print:rounded-none print:p-0 print:shadow-none">
+        <div key={s.id} className="break-after-page rounded-md bg-white p-[10mm] shadow-sm last:break-after-auto print:rounded-none print:p-0 print:shadow-none">
           <Payslip r={s} department={s.staff?.department_name} />
         </div>
       ))}
