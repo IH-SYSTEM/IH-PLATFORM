@@ -12,7 +12,7 @@ export default async function PasswordPage() {
   return (
     <main className="flex min-h-screen items-start justify-center px-4 pb-28 pt-10 sm:items-center sm:py-12">
       <div className="w-full max-w-sm">
-        <Image src="/brand/logo.png" alt="IKKOU HOLDINGS" width={140} height={35} priority />
+        <Image src="/brand/logo.png" alt="IKKOU HOLDINGS" unoptimized width={140} height={35} priority />
         <h1 className="mt-8 text-xl font-bold text-brand">パスワードの設定</h1>
         <p className="mt-1 text-sm text-slate-500">
           {staff.name} さん（{staff.email}）
