@@ -173,7 +173,7 @@ export type PunchStatus =
   | { kind: "done"; checkinTime: string; checkoutTime: string };
 
 /**
- * いまの打刻状態。退勤していない出勤が直近24時間にあれば勤務中（営業日をまたいで朝5時を過ぎても退勤できるように）。
+ * いまの打刻状態。退勤していない出勤が直近24時間にあれば勤務中（営業日をまたいで朝6時を過ぎても退勤できるように）。
  * なければ、今日の営業日に退勤まで済んでいれば済み、どちらでもなければ出勤前
  */
 export async function punchStatus(staffId: string, now = new Date()): Promise<PunchStatus> {

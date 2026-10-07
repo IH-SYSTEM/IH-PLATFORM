@@ -9,7 +9,7 @@ const BREAKS = [0, 15, 30, 45, 60, 90, 120] as const;
 
 const common = {
   subject: { key: "subject", label: "対象のスタッフ", kind: "staff", hint: "出勤・退勤した本人を選びます（自分は選べません）" },
-  date: { key: "date", label: "勤務日", kind: "date", hint: "深夜0〜5時の退勤は、前日の日付の勤務です" },
+  date: { key: "date", label: "勤務日", kind: "date", hint: "朝6時より前の退勤は、前日の日付の勤務です" },
   reason: { key: "reason", label: "理由", kind: "select", options: REASONS },
   note: { key: "note", label: "メモ", kind: "text", max: 100, optional: true },
 } as const;
