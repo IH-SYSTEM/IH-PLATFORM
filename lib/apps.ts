@@ -32,6 +32,7 @@ export const APPS: PortalApp[] = [
   { id: "shifts", title: "シフト確定", description: "希望を見ながらシフトを組み、週・月ごとに確定", href: "/shifts", icon: "clock", section: "payroll", audience: "manager", ready: true },
   { id: "attendance", title: "勤怠", description: "スタッフ別・日別の出退勤と勤務時間、CSV出力", href: "/attendance", icon: "clock", section: "payroll", audience: "manager", ready: true },
   { id: "staff", title: "スタッフ管理", description: "登録・編集・給与マスタ", href: "/admin/staff", icon: "users", section: "organization", audience: "admin", ready: true },
+  { id: "companies", title: "会社マスタ", description: "法人の情報と、店舗の所属", href: "/admin/companies", icon: "store", section: "organization", audience: "admin", ready: true },
   { id: "stores", title: "店舗・部署マスタ", description: "所属先の店舗・部署の管理", href: "/admin/stores", icon: "store", section: "organization", audience: "admin", ready: true },
   { id: "login-status", title: "ログイン状況", description: "新システムへの移行と最終ログイン", href: "/admin/login-status", icon: "login", section: "organization", audience: "admin", ready: true },
   { id: "dashboard", title: "経営ダッシュボード", description: "在籍・給与・人件費の推移", href: "/admin", icon: "chart", section: "insight", audience: "admin", ready: true },

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { StoreForm } from "../store-form";
 import { saveStore } from "../actions";
 
 export default async function StoreNewPage() {
   await requireAdmin();
+  const { data: companies } = await (await createClient()).from("companies").select("id, name").eq("is_active", true).order("sort_order");
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <div>
@@ -13,7 +15,7 @@ export default async function StoreNewPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-bold text-slate-900">店舗を登録</h1>
       </div>
-      <StoreForm store={null} staff={[]} action={saveStore.bind(null, null)} createdNotice={false} />
+      <StoreForm store={null} staff={[]} companies={companies ?? []} action={saveStore.bind(null, null)} createdNotice={false} />
     </div>
   );
 }

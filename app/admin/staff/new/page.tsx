@@ -7,12 +7,10 @@ import { saveStaff } from "../actions";
 export default async function StaffNewPage() {
   const me = await requireAdmin();
   const supabase = await createClient();
-  const { data: stores } = await supabase
-    .from("stores")
-    .select("id, name")
-    .eq("is_active", true)
-    .order("sort_order", { nullsFirst: false })
-    .order("name");
+  const [{ data: stores }, { data: companies }] = await Promise.all([
+    supabase.from("stores").select("id, name").eq("is_active", true).order("sort_order", { nullsFirst: false }).order("name"),
+    supabase.from("companies").select("id, name").eq("is_active", true).order("sort_order"),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -28,6 +26,7 @@ export default async function StaffNewPage() {
       <StaffForm
         staff={null}
         stores={stores ?? []}
+        companies={companies ?? []}
         action={saveStaff.bind(null, null)}
         isSelf={false}
         canGrantSuperadmin={me.permission === "superadmin"}

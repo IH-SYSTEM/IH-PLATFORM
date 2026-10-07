@@ -119,6 +119,7 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
       role,
       permission,
       store_id: storeId,
+      tax_company_id: text("tax_company_id"),
       department_name: storeName,
       hire_date: date("hire_date", "入社日"),
       birthdate,

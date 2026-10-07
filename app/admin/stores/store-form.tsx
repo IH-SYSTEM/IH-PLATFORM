@@ -9,6 +9,7 @@ export type StoreRecord = {
   id: string;
   name: string;
   code: string | null;
+  company_id: string | null;
   address: string | null;
   sort_order: number | null;
   lat: number | null;
@@ -34,12 +35,14 @@ const pct = (v: number | null) => (v === null ? "" : String(Math.round(v * 10000
 export function StoreForm({
   store,
   staff,
+  companies,
   action,
   createdNotice,
   children,
 }: {
   store: StoreRecord | null;
   staff: { id: string; name: string }[];
+  companies: { id: string; name: string }[];
   action: (prev: StoreSaveState, fd: FormData) => Promise<StoreSaveState>;
   createdNotice: boolean;
   children?: React.ReactNode;
@@ -68,6 +71,18 @@ export function StoreForm({
             autoCapitalize="characters"
             className={`${input} font-mono uppercase`}
           />
+        </Field>
+        <Field label="会社" required hint="年末調整・帳簿・経費をどの会社で扱うか">
+          <select name="company_id" defaultValue={store?.company_id ?? ""} required className={input}>
+            <option value="" disabled>
+              選んでください
+            </option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="表示順" hint="小さい順に並びます">
           <input name="sort_order" inputMode="numeric" defaultValue={store?.sort_order ?? ""} className={input} />

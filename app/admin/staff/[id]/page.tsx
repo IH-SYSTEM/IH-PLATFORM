@@ -13,9 +13,10 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
   const { created } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: staff }, { data: stores }] = await Promise.all([
+  const [{ data: staff }, { data: stores }, { data: companies }] = await Promise.all([
     supabase.from("staff").select(STAFF_COLUMNS).eq("id", id).maybeSingle<StaffRecord>(),
     supabase.from("stores").select("id, name").eq("is_active", true).order("sort_order", { nullsFirst: false }).order("name"),
+    supabase.from("companies").select("id, name").eq("is_active", true).order("sort_order"),
   ]);
   if (!staff) notFound();
 
@@ -52,6 +53,7 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
       <StaffForm
         staff={staff}
         stores={stores ?? []}
+        companies={companies ?? []}
         action={saveStaff.bind(null, staff.id)}
         isSelf={staff.id === me.id}
         canGrantSuperadmin={me.permission === "superadmin"}
