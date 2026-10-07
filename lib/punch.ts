@@ -10,6 +10,10 @@ const REISSUE_MARGIN_MS = 30 * 1000;
 export const STORE_CODE = /^[A-Z]{2,4}$/;
 
 export const newDisplayKey = () => randomBytes(24).toString("base64url");
+
+/** 店舗の iPad で開く掲示ページの URL */
+export const displayUrl = (origin: string, code: string, key: string) =>
+  `${origin}/punch/display/${code}?key=${encodeURIComponent(key)}`;
 const newToken = () => randomBytes(24).toString("base64url");
 
 function sameSecret(input: string, stored: string) {

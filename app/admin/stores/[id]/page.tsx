@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { roleLabel } from "@/lib/format";
+import { displayUrl } from "@/lib/punch";
 import { StoreForm, type StoreRecord } from "../store-form";
 import { issueDisplayKey, saveStore } from "../actions";
 import { DisplayKeyPanel } from "./display-key-panel";
@@ -22,8 +23,8 @@ export default async function StoreEditPage({ params, searchParams }: PageProps<
 
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
-  const displayUrl =
-    store.code && displayKey ? `${origin}/punch/display/${store.code}?key=${encodeURIComponent(displayKey.display_key)}` : null;
+  const panelUrl =
+    store.code && displayKey ? displayUrl(origin, store.code, displayKey.display_key) : null;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -39,7 +40,7 @@ export default async function StoreEditPage({ params, searchParams }: PageProps<
 
       <DisplayKeyPanel
         code={store.code}
-        url={displayUrl}
+        url={panelUrl}
         issuedAt={displayKey?.issued_at ?? null}
         action={issueDisplayKey.bind(null, store.id)}
       />

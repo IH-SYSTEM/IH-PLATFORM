@@ -1,18 +1,26 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { displayUrl } from "@/lib/punch";
+import { CopyButton } from "./copy-button";
 
 export default async function StoresPage() {
   await requireAdmin();
   const supabase = await createClient();
-  const [{ data: stores }, { data: staff }] = await Promise.all([
+  const [{ data: stores }, { data: staff }, { data: displayKeys }] = await Promise.all([
     supabase
       .from("stores")
-      .select("id, name, address, open_time, close_time, target_labor_cost_rate, manager_staff_ids, is_active, sort_order")
+      .select("id, name, code, address, open_time, close_time, target_labor_cost_rate, manager_staff_ids, is_active, sort_order, lat, lng")
       .order("sort_order", { nullsFirst: false })
       .order("name"),
     supabase.from("staff").select("id, name, store_id").eq("retired", false),
+    supabase.from("store_display_keys").select("store_id, display_key"),
   ]);
+
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
+  const keyByStore = new Map((displayKeys ?? []).map((k) => [k.store_id, k.display_key]));
 
   const headcount = new Map<string, number>();
   const nameById = new Map((staff ?? []).map((s) => [s.id, s.name]));
@@ -40,7 +48,10 @@ export default async function StoresPage() {
             className="group rounded-md border border-slate-200 bg-white p-5 shadow-sm transition hover:border-brand"
           >
             <div className="flex items-start justify-between gap-3">
-              <h2 className="font-semibold text-slate-900 group-hover:text-brand">{s.name}</h2>
+              <h2 className="font-semibold text-slate-900 group-hover:text-brand">
+                {s.code && <span className="mr-2 rounded bg-brand-soft px-1.5 py-0.5 font-mono text-xs text-brand">{s.code}</span>}
+                {s.name}
+              </h2>
               <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
                 {headcount.get(s.id) ?? 0}名
               </span>
@@ -67,6 +78,39 @@ export default async function StoresPage() {
           </Link>
         ))}
       </div>
+
+      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-800">打刻QRの掲示用URL</h2>
+        <p className="mt-0.5 text-xs text-slate-500">
+          各店舗の iPad でこのURLを開きっぱなしにします。iPad が店舗から打刻可能範囲内にあるときだけQRが表示されます。URLは外部に共有しないでください
+        </p>
+        <ul className="mt-4 divide-y divide-slate-100">
+          {active.map((s) => {
+            const key = keyByStore.get(s.id);
+            const url = s.code && key ? displayUrl(origin, s.code, key) : null;
+            const missing = !s.code ? "店舗コード未登録" : !key ? "URL未発行" : s.lat === null || s.lng === null ? "緯度・経度未登録" : null;
+            return (
+              <li key={s.id} className="flex flex-wrap items-center gap-3 py-3">
+                <span className="w-12 shrink-0 font-mono text-sm font-bold text-brand">{s.code ?? "—"}</span>
+                <span className="w-56 shrink-0 truncate text-sm font-medium text-slate-800">{s.name}</span>
+                {url ? (
+                  <>
+                    <code className="min-w-0 flex-1 truncate rounded bg-slate-50 px-2 py-1 text-xs text-slate-500">{url}</code>
+                    <CopyButton text={url} />
+                  </>
+                ) : (
+                  <span className="flex-1 text-xs text-slate-400">—</span>
+                )}
+                {missing && (
+                  <Link href={`/admin/stores/${s.id}`} className="shrink-0 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-semibold text-accent">
+                    {missing}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
       {inactive.length > 0 && (
         <div>
