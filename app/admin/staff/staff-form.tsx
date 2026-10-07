@@ -10,13 +10,14 @@ import { Field, Money, SaveBar, Section, inputClass as input } from "../form-ui"
 type Props = {
   staff: StaffRecord | null;
   stores: { id: string; name: string }[];
+  companies: { id: string; name: string }[];
   action: (prev: SaveState, fd: FormData) => Promise<SaveState>;
   isSelf: boolean;
   canGrantSuperadmin: boolean;
   createdNotice: boolean;
 };
 
-export function StaffForm({ staff, stores, action, isSelf, canGrantSuperadmin, createdNotice }: Props) {
+export function StaffForm({ staff, stores, companies, action, isSelf, canGrantSuperadmin, createdNotice }: Props) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const pm = staff?.payroll_master ?? {};
   const [employmentType, setEmploymentType] = useState(pm.employmentType ?? "");
@@ -68,6 +69,16 @@ export function StaffForm({ staff, stores, action, isSelf, canGrantSuperadmin, c
             {stores.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="年末調整を行う会社" hint="扶養控除等申告書を出している会社。空欄なら所属店舗の会社">
+          <select name="tax_company_id" defaultValue={staff?.tax_company_id ?? ""} className={input}>
+            <option value="">所属店舗の会社</option>
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
               </option>
             ))}
           </select>
