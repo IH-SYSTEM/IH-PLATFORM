@@ -33,3 +33,25 @@ test("JST の時刻表示", () => {
   assert.equal(toJSTTimeString(null), "—");
   assert.equal(toJSTTimeString("broken"), "—");
 });
+
+import { formatMinutes, monthRange, toJSTTimeLabel, workedMinutes } from "../lib/business-day.ts";
+
+test("時刻ラベル — 日をまたぐ退勤には「翌」を付ける", () => {
+  assert.equal(toJSTTimeLabel("2026-08-31T10:30:00Z", "2026-08-31"), "19:30");
+  assert.equal(toJSTTimeLabel("2026-08-31T15:30:00Z", "2026-08-31"), "翌00:30");
+  assert.equal(toJSTTimeLabel("2026-09-02T15:30:00Z", "2026-08-31"), "9/3 00:30");
+  assert.equal(toJSTTimeLabel(null, "2026-08-31"), "—");
+});
+
+test("実働 — 日をまたいでも休憩を引いて出す", () => {
+  assert.equal(workedMinutes("2026-08-31T10:30:00Z", "2026-08-31T15:30:00Z", 30), 270);
+  assert.equal(workedMinutes("2026-08-31T10:30:00Z", null), null);
+  assert.equal(workedMinutes("2026-08-31T15:30:00Z", "2026-08-31T10:30:00Z"), null);
+  assert.equal(formatMinutes(270), "4時間30分");
+  assert.equal(formatMinutes(null), "—");
+});
+
+test("月の範囲 — うるう年の2月と年末", () => {
+  assert.deepEqual(monthRange("2028-02"), { start: "2028-02-01", end: "2028-02-29" });
+  assert.deepEqual(monthRange("2026-12"), { start: "2026-12-01", end: "2026-12-31" });
+});

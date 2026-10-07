@@ -25,3 +25,40 @@ export function toJSTTimeString(iso: string | null | undefined): string {
   const jst = new Date(d.getTime() + JST_OFFSET_MS);
   return `${String(jst.getUTCHours()).padStart(2, "0")}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
 }
+
+/**
+ * 打刻時刻の表示。基準の営業日より後の日付なら「翌」を付ける。
+ * 00:30 と 翌0:30 を見分けられないと、8/31 の勤務が 9/1 に入っているように見えるため。
+ * 2日以上離れていれば日付そのものを出す（打刻ミスを誤魔化さない）
+ */
+export function toJSTTimeLabel(iso: string | null | undefined, baseDate: string): string {
+  const hhmm = toJSTTimeString(iso);
+  if (!iso || hhmm === "—") return hhmm;
+  const onDate = toJSTDateString(new Date(iso));
+  if (onDate === baseDate) return hhmm;
+  const diff = Math.round((Date.parse(`${onDate}T00:00:00Z`) - Date.parse(`${baseDate}T00:00:00Z`)) / 86400000);
+  if (diff === 1) return `翌${hhmm}`;
+  if (diff === -1) return `前${hhmm}`;
+  return `${Number(onDate.slice(5, 7))}/${Number(onDate.slice(8, 10))} ${hhmm}`;
+}
+
+/** 実働（分）＝退勤−出勤−休憩。未退勤や逆転は null */
+export function workedMinutes(checkin: string | null, checkout: string | null, breakMinutes = 0): number | null {
+  if (!checkin || !checkout) return null;
+  const diff = Math.round((Date.parse(checkout) - Date.parse(checkin)) / 60000);
+  if (!Number.isFinite(diff) || diff <= 0) return null;
+  return Math.max(diff - Math.max(breakMinutes, 0), 0);
+}
+
+/** 分を「7時間30分」に */
+export function formatMinutes(min: number | null): string {
+  if (min === null) return "—";
+  return `${Math.floor(min / 60)}時間${String(min % 60).padStart(2, "0")}分`;
+}
+
+/** 'YYYY-MM' → その月の初日と末日（'YYYY-MM-DD'）。日付だけの計算なので UTC で数える */
+export function monthRange(yearMonth: string): { start: string; end: string } {
+  const [y, m] = yearMonth.split("-").map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return { start: `${yearMonth}-01`, end: `${yearMonth}-${String(last).padStart(2, "0")}` };
+}

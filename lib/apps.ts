@@ -9,7 +9,7 @@ export type PortalApp = {
   href: string;
   icon: AppIcon;
   section: "mine" | "payroll" | "organization" | "insight";
-  audience: "all" | "admin";
+  audience: "all" | "manager" | "admin";  // manager … 管理者と店長
   ready: boolean;
 };
 
@@ -26,7 +26,7 @@ export const APPS: PortalApp[] = [
   { id: "salary", title: "給与入力", description: "勤怠・支給・控除の入力と確定", href: "/admin/salary", icon: "yen", section: "payroll", audience: "admin", ready: true },
   { id: "salary-history", title: "給与履歴出力", description: "確定済み明細の月別・年間出力", href: "/admin/salary-history", icon: "history", section: "payroll", audience: "admin", ready: true },
   { id: "roster", title: "労働者名簿", description: "法定名簿のA4出力", href: "/admin/roster", icon: "book", section: "payroll", audience: "admin", ready: true },
-  { id: "attendance", title: "勤怠・シフト", description: "出退勤とシフトの管理", href: "#", icon: "clock", section: "payroll", audience: "admin", ready: false },
+  { id: "attendance", title: "勤怠", description: "スタッフ別・日別の出退勤と勤務時間、CSV出力", href: "/attendance", icon: "clock", section: "payroll", audience: "manager", ready: true },
   { id: "staff", title: "スタッフ管理", description: "登録・編集・給与マスタ", href: "/admin/staff", icon: "users", section: "organization", audience: "admin", ready: true },
   { id: "stores", title: "店舗・部署マスタ", description: "所属先の店舗・部署の管理", href: "/admin/stores", icon: "store", section: "organization", audience: "admin", ready: true },
   { id: "login-status", title: "ログイン状況", description: "新システムへの移行と最終ログイン", href: "/admin/login-status", icon: "login", section: "organization", audience: "admin", ready: true },
@@ -34,6 +34,6 @@ export const APPS: PortalApp[] = [
   { id: "sales", title: "売上の一元管理", description: "各店舗の売上・生産性の可視化", href: "#", icon: "crm", section: "insight", audience: "admin", ready: false },
 ];
 
-export function appsFor(staff: CurrentStaff) {
-  return APPS.filter((a) => a.audience === "all" || staff.isAdmin);
+export function appsFor(staff: CurrentStaff, isManager = false) {
+  return APPS.filter((a) => a.audience === "all" || staff.isAdmin || (a.audience === "manager" && isManager));
 }
