@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { getCurrentStaff } from "@/lib/auth";
 import { formatMinutes, toJSTTimeLabel } from "@/lib/business-day";
+import { audit } from "@/lib/audit";
 import { resolveView } from "../view";
 
 // 勤怠の CSV。画面と同じ条件・同じ範囲（店長は担当店舗だけ）。Excel で文字化けしないよう BOM を付ける
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
   const view = await resolveView(me, { store: q.get("store"), month: q.get("month"), staff: q.get("staff") });
   if (!view) return new Response("勤怠を見る権限がありません", { status: 403 });
 
+  await audit({ actor: me.id, action: "export", targetType: "attendance", detail: { store: view.store, month: view.month, staff: view.staffId || null, rows: view.rows.length } });
   const cell = (v: string | number) => `"${String(v).replaceAll('"', '""')}"`;
   const lines = [
     ["日付", "スタッフ", "店舗", "出勤", "退勤", "休憩（分）", "実働（分）", "実働"].map(cell).join(","),
