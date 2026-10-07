@@ -4,8 +4,11 @@
 
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
-/** 営業日の切り替え時刻（JST）。深夜2時の退勤は前日の営業日に属する */
-export const BUSINESS_DAY_START_HOUR = 5;
+/**
+ * 営業日の切り替え時刻（JST）。1日は朝6時から翌朝6時まで（店ごとに営業時間が違うため全店共通でこの時刻にする）。
+ * 深夜2時の退勤は前日の営業日に属する
+ */
+export const BUSINESS_DAY_START_HOUR = 6;
 
 /** UTC の Date を JST の 'YYYY-MM-DD' に */
 export function toJSTDateString(d: Date): string {

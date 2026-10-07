@@ -53,7 +53,7 @@ export function EditForm({
                 ))}
               </select>
             </Labeled>
-            <Labeled label="勤務日" hint="深夜0〜5時の退勤は前日の勤務">
+            <Labeled label="勤務日" hint="朝6時より前の退勤は前日の勤務">
               <input type="date" name="date" defaultValue={initial.date} required className={input} />
             </Labeled>
           </div>

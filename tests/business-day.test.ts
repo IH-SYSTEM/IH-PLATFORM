@@ -17,9 +17,9 @@ test("営業日 — 深夜2時の退勤は前日の営業日", () => {
   assert.equal(businessDayJST(new Date("2026-10-07T17:00:00Z")), "2026-10-07"); // JST 10/8 2:00
 });
 
-test("営業日 — 朝5時ちょうどで切り替わる", () => {
-  assert.equal(businessDayJST(new Date("2026-10-07T19:59:00Z")), "2026-10-07"); // JST 10/8 4:59
-  assert.equal(businessDayJST(new Date("2026-10-07T20:00:00Z")), "2026-10-08"); // JST 10/8 5:00
+test("営業日 — 朝6時ちょうどで切り替わる", () => {
+  assert.equal(businessDayJST(new Date("2026-10-07T20:59:00Z")), "2026-10-07"); // JST 10/8 5:59
+  assert.equal(businessDayJST(new Date("2026-10-07T21:00:00Z")), "2026-10-08"); // JST 10/8 6:00
 });
 
 test("営業日 — 月末・年末をまたぐ", () => {
