@@ -10,6 +10,7 @@ export type StoreRecord = {
   name: string;
   code: string | null;
   company_id: string | null;
+  overtime_rule: string;
   address: string | null;
   sort_order: number | null;
   lat: number | null;
@@ -82,6 +83,12 @@ export function StoreForm({
                 {c.name}
               </option>
             ))}
+          </select>
+        </Field>
+        <Field label="残業の数え方" hint="1週間単位の変形は、常時30人未満の飲食店・小売店などだけが使えます">
+          <select name="overtime_rule" defaultValue={store?.overtime_rule ?? "statutory"} className={input}>
+            <option value="statutory">法定どおり（1日8時間・週40時間を超えた分）</option>
+            <option value="weekly_variable">1週間単位の変形（その日のシフトの時間・週40時間を超えた分）</option>
           </select>
         </Field>
         <Field label="表示順" hint="小さい順に並びます">

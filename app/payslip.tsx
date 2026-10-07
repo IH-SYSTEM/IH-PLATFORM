@@ -1,6 +1,6 @@
 import { yen } from "@/lib/format";
 import { EMPLOYMENT_TYPES } from "@/lib/staff";
-import { ALLOWANCE_FIELDS, ATTENDANCE_FIELDS, DEDUCTION_FIELDS, PAYMENT_BASE_FIELDS, type EmploymentType } from "@/lib/payroll/record";
+import { ALLOWANCE_FIELDS, ATTENDANCE_FIELDS, ATTENDANCE_TIME_FIELDS, DEDUCTION_FIELDS, PAYMENT_BASE_FIELDS, PREMIUM_FIELDS, type EmploymentType } from "@/lib/payroll/record";
 
 export type PayslipRecord = {
   id: string;
@@ -56,12 +56,15 @@ export function Payslip({ r, department }: { r: PayslipRecord; department?: stri
   if (r.employment_type === "hourly") {
     attendance.push(["時給", yen(a.hourlyWage)], ["勤務時間", `${a.workHours ?? 0}時間`]);
   }
+  for (const f of ATTENDANCE_TIME_FIELDS) if (a[f.key]) attendance.push([f.label, `${a[f.key]}${f.unit}`]);
   const base = PAYMENT_BASE_FIELDS[r.employment_type];
   const payment: [string, string][] = [];
   if (base) payment.push([base.label, yen(p[base.key])]);
   if (r.employment_type === "daily") payment.push(["日給 × 出勤日数", yen((p.dailyWage || 0) * (a.workDays || 0))]);
-  if (r.employment_type === "hourly") payment.push(["時給 × 勤務時間", yen(Number(r.total_payment) - ALLOWANCE_FIELDS.reduce((s, f) => s + (p[f.key] || 0), 0))]);
+  if (r.employment_type === "hourly")
+    payment.push(["時給 × 勤務時間", yen(Number(r.total_payment) - [...ALLOWANCE_FIELDS, ...PREMIUM_FIELDS].reduce((s, f) => s + (p[f.key] || 0), 0))]);
   for (const f of ALLOWANCE_FIELDS) if (p[f.key]) payment.push([f.label, yen(p[f.key])]);
+  for (const f of PREMIUM_FIELDS) if (p[f.key]) payment.push([f.label, yen(p[f.key])]);
   const deduction: [string, string][] = DEDUCTION_FIELDS.filter((f) => d[f.key]).map((f) => [f.label, yen(d[f.key])]);
 
   return (

@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { yen } from "@/lib/format";
 import { EMPLOYMENT_TYPES } from "@/lib/staff";
 import { parsePeriod, periodLabel, shiftPeriod, ym } from "@/lib/payroll/period";
+import { importAttendance } from "./import-actions";
+import { ImportButton } from "./import-button";
 
 const typeLabel = (t: string | null | undefined) => EMPLOYMENT_TYPES.find((e) => e.value === t)?.label ?? "未設定";
 
@@ -54,6 +56,8 @@ export default async function SalaryMonthPage({ searchParams }: PageProps<"/admi
           </Link>
         </div>
       </div>
+
+      <ImportButton label={`${periodLabel(period)}分`} action={importAttendance.bind(null, period.year, period.month)} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[

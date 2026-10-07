@@ -89,7 +89,8 @@ export function incomeTax(gross: number, insuranceTotal: number, dependents = 0)
   return Math.max(0, Math.floor(tax));
 }
 
-export function calculatePayroll(m: Master, a: CalcAttendance) {
+/** premiums … 残業・深夜・休日・有給の賃金の合計。社会保険料・所得税の計算に入れる（0 なら旧システムと同じ結果） */
+export function calculatePayroll(m: Master, a: CalcAttendance, premiums = 0) {
   const base = baseSalary(m, a);
   const al = m.allowances ?? {};
   const allowances = {
@@ -101,7 +102,7 @@ export function calculatePayroll(m: Master, a: CalcAttendance) {
     adjustment: al.adjustment || 0,
     other: al.other || 0,
   };
-  const gross = base + Object.values(allowances).reduce((s, v) => s + v, 0);
+  const gross = base + Object.values(allowances).reduce((s, v) => s + v, 0) + premiums;
   const ins = socialInsurance(gross, m);
   const tax = incomeTax(gross, ins.total, m.dependentCount || 0);
   return {

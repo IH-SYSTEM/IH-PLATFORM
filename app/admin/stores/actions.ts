@@ -68,6 +68,7 @@ export async function saveStore(storeId: string | null, _prev: StoreSaveState, f
     const row = {
       name,
       company_id: text("company_id"),
+      overtime_rule: text("overtime_rule") === "weekly_variable" ? "weekly_variable" : "statutory",
       address: text("address"),
       sort_order: num("sort_order", "表示順"),
       lat: num("lat", "緯度", { min: -90, max: 90, integer: false }),
