@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
     redirect_uri: new URL("/api/auth/line-callback", request.url).toString(),
     state: signState(config.channelSecret, mode, uid),
     scope: "profile",
-    // 連携のときは、公式LINE（IKKOU HOLDINGS NEWS）の友だち追加もその場で促す（ログインのチャネルに公式LINEがリンクされていれば表示される）
-    ...(mode === "link" ? { bot_prompt: "aggressive" } : {}),
+    // 公式LINE（IKKOU HOLDINGS NEWS）の友だち追加もその場で促す（ログインのチャネルに公式LINEがリンクされていて、まだ友だちでない人に表示される）
+    bot_prompt: "aggressive",
   });
   return NextResponse.redirect(`https://access.line.me/oauth2/v2.1/authorize?${params}`);
 }

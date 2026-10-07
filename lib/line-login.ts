@@ -41,6 +41,27 @@ export function lineAuthorizeUrl(origin: string, config: { channelId: string; ch
   return `https://access.line.me/oauth2/v2.1/authorize?${params}`;
 }
 
+/** 公式LINEの友だち追加のURL（ベーシックID は @ から始まる。未設定なら null） */
+export function lineFriendUrl() {
+  const id = process.env.LINE_OA_BASIC_ID;
+  return id ? `https://line.me/R/ti/p/${encodeURIComponent(id)}` : null;
+}
+
+/**
+ * 公式LINEを友だち追加しているか（LINEログインのアクセストークンで確かめる）。
+ * ログインのチャネルに公式LINEがリンクされていないと確かめられないので null を返す
+ */
+export async function friendshipStatus(accessToken: string): Promise<boolean | null> {
+  try {
+    const res = await fetch("https://api.line.me/friendship/v1/status", { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) return null;
+    const { friendFlag } = (await res.json()) as { friendFlag?: boolean };
+    return typeof friendFlag === "boolean" ? friendFlag : null;
+  } catch {
+    return null;
+  }
+}
+
 export const LINE_ERRORS: Record<string, string> = {
   line_cancelled: "LINEログインがキャンセルされました",
   invalid_request: "LINEログインのリクエストが不正です。もう一度お試しください",

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { lineConfig, verifyState } from "@/lib/line-login";
+import { friendshipStatus, lineConfig, verifyState } from "@/lib/line-login";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { claimToken, signTicket } from "@/lib/punch";
 
@@ -35,6 +35,11 @@ export async function GET(request: NextRequest) {
   if (!userId) return fail(back, "profile_failed");
 
   const admin = createAdminClient();
+  // 公式LINEの友だちかどうかを、ログイン・連携のたびに記録し直す（打刻のときは確かめない）
+  const recordFriendship = async () => {
+    const friend = await friendshipStatus(access_token!);
+    await admin.from("staff").update({ line_friend: friend, line_friend_checked_at: new Date().toISOString() }).eq("line_user_id", userId);
+  };
 
   // 打刻：LINE の本人とQRのトークンを結びつけ、確認画面（出勤・退勤ボタン）へ
   if (verified.mode === "punch") {
@@ -54,11 +59,13 @@ export async function GET(request: NextRequest) {
       .update({ line_user_id: userId, line_connected_at: new Date().toISOString() })
       .eq("auth_user_id", verified.uid);
     if (error) return fail("/link-line", "session_failed");
+    await recordFriendship();
     return NextResponse.redirect(new URL("/?line=linked", request.url));
   }
 
   const { data: staff } = await admin.from("staff").select("email, retired, auth_user_id").eq("line_user_id", userId).maybeSingle();
   if (!staff?.email || !staff.auth_user_id || staff.retired) return fail("/login", "not_linked");
+  await recordFriendship();
   const { data: link, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: staff.email });
   if (error || !link) return fail("/login", "session_failed");
 
