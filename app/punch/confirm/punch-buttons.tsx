@@ -8,7 +8,17 @@ type Action = (prev: PunchResult, fd: FormData) => Promise<PunchResult>;
 const BREAKS = [0, 15, 30, 45, 60, 90, 120];
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 
-export function PunchButtons({ mode, checkIn, checkOut }: { mode: "check_in" | "check_out"; checkIn: Action; checkOut: Action }) {
+export function PunchButtons({
+  statusLabel,
+  mode,
+  checkIn,
+  checkOut,
+}: {
+  statusLabel: string;
+  mode: "check_in" | "check_out";
+  checkIn: Action;
+  checkOut: Action;
+}) {
   const [state, formAction, pending] = useActionState(mode === "check_in" ? checkIn : checkOut, undefined);
 
   if (state?.ok) {
@@ -22,7 +32,8 @@ export function PunchButtons({ mode, checkIn, checkOut }: { mode: "check_in" | "
   }
 
   return (
-    <form action={formAction} className="mt-6 space-y-4">
+    <form action={formAction} className="mt-2 space-y-4">
+      <p className="pb-2 text-sm text-slate-500">{statusLabel}</p>
       {mode === "check_out" && (
         <label className="block text-left text-sm text-slate-600">
           実際に取った休憩

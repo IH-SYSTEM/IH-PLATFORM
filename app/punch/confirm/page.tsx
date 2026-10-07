@@ -39,10 +39,8 @@ export default async function PunchConfirmPage({ searchParams }: PageProps<"/pun
 
   return (
     <PunchCard store={store?.name} title={`${staff.name}さん`}>
-      <p className="mt-2 text-sm text-slate-500">
-        {status.kind === "working" ? `勤務中（出勤 ${toJSTTimeString(status.checkinTime)}）` : "まだ出勤していません"}
-      </p>
       <PunchButtons
+        statusLabel={status.kind === "working" ? `勤務中（出勤 ${toJSTTimeString(status.checkinTime)}）` : "まだ出勤していません"}
         mode={status.kind === "working" ? "check_out" : "check_in"}
         checkIn={punch.bind(null, raw, "check_in")}
         checkOut={punch.bind(null, raw, "check_out")}
