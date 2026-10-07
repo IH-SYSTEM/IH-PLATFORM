@@ -1,7 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth/", "/forgot-password", "/api/auth/line-", "/manifest.webmanifest"];
+// /punch/display と /api/punch/display は店舗の iPad 用。ログインの代わりに掲示キーで保護する
+const PUBLIC_PATHS = [
+  "/login",
+  "/auth/",
+  "/forgot-password",
+  "/api/auth/line-",
+  "/manifest.webmanifest",
+  "/punch/display/",
+  "/api/punch/display/",
+  "/punch/start",
+];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

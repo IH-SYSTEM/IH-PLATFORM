@@ -8,6 +8,7 @@ import type { StoreSaveState } from "./actions";
 export type StoreRecord = {
   id: string;
   name: string;
+  code: string | null;
   address: string | null;
   sort_order: number | null;
   lat: number | null;
@@ -57,6 +58,16 @@ export function StoreForm({
       <Section title="基本情報">
         <Field label="店舗名" required>
           <input name="name" defaultValue={store?.name ?? ""} required className={input} />
+        </Field>
+        <Field label="店舗コード" hint={store?.code ? "打刻QRのURLに使っているため変更できません" : "英大文字2〜4文字（例：IKK）。打刻QRのURLに使い、登録後は変更できません"}>
+          <input
+            name="code"
+            defaultValue={store?.code ?? ""}
+            disabled={Boolean(store?.code)}
+            maxLength={4}
+            autoCapitalize="characters"
+            className={`${input} font-mono uppercase`}
+          />
         </Field>
         <Field label="表示順" hint="小さい順に並びます">
           <input name="sort_order" inputMode="numeric" defaultValue={store?.sort_order ?? ""} className={input} />
@@ -112,7 +123,7 @@ export function StoreForm({
         </section>
       )}
 
-      <Section title="打刻設定" note="打刻機能は新システムにまだ移行していないため、現在は使われていません（設定値は保持されます）">
+      <Section title="打刻設定" note="位置情報・WiFi・退勤忘れ通知は、新しい打刻ではまだ使っていません（設定値は保持されます）">
         <Field label="定時退勤時刻">
           <input name="scheduled_clock_out" type="time" defaultValue={store?.scheduled_clock_out ?? ""} className={input} />
         </Field>
