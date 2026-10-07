@@ -75,6 +75,7 @@ export type PayrollMaster = {
 export type StaffRecord = {
   id: string;
   tax_company_id: string | null;
+  line_exempt: boolean;
   auth_user_id: string | null;
   email: string | null;
   name: string;
@@ -111,4 +112,4 @@ export type StaffRecord = {
 };
 
 export const STAFF_COLUMNS =
-  "id, auth_user_id, email, name, furigana, employee_no, role, permission, store_id, tax_company_id, department_name, hire_date, birthdate, gender, phone, zipcode, address, emergency, note, bank_name, bank_branch, bank_type, bank_number, bank_holder, mynumber, health_insurance_no, employment_insurance_no, basic_pension_no, welfare_pension_no, line_added, retired, retirement_date, retirement_reason, payroll_master, attachments";
+  "id, auth_user_id, email, name, furigana, employee_no, role, permission, store_id, tax_company_id, line_exempt, department_name, hire_date, birthdate, gender, phone, zipcode, address, emergency, note, bank_name, bank_branch, bank_type, bank_number, bank_holder, mynumber, health_insurance_no, employment_insurance_no, basic_pension_no, welfare_pension_no, line_added, retired, retirement_date, retirement_reason, payroll_master, attachments";
