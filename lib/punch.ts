@@ -1,9 +1,13 @@
 import "server-only";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { lineConfig } from "@/lib/line-login";
+import { businessDayJST } from "@/lib/business-day";
 
 // 掲示しているQRの有効期限。1人が読み取って LINE で本人確定した時点でも次のQRに切り替わる
 export const TOKEN_TTL_MS = 5 * 60 * 1000;
+// LINE で本人確定してから打刻ボタンを押すまでの猶予。掲示の5分とは別に数える
+export const GRACE_MS = 15 * 60 * 1000;
 // 期限ぎりぎりのQRを読ませないよう、残りがこれより短ければ新しいQRを出す
 const REISSUE_MARGIN_MS = 30 * 1000;
 
@@ -105,4 +109,95 @@ export async function openTokenStore(token: string): Promise<{ id: string; name:
   if (!data) return null;
   const { data: store } = await admin.from("stores").select("id, name").eq("id", data.store_id).single();
   return store;
+}
+
+/**
+ * LINE で本人が確定した時点でトークンを押さえる。未使用・期限内の行だけを条件付きで更新するので、
+ * 同じQRを2人が同時に読んでも、先に更新できた1人だけが true になる。この瞬間に掲示のQRが次へ切り替わる
+ */
+export async function claimToken(token: string, staffId: string): Promise<boolean> {
+  const now = new Date().toISOString();
+  const { data } = await createAdminClient()
+    .from("punch_tokens")
+    .update({ claimed_at: now, claimed_by: staffId })
+    .eq("token", token)
+    .is("claimed_at", null)
+    .gt("expires_at", now)
+    .select("id");
+  return (data?.length ?? 0) > 0;
+}
+
+export type PunchAction = "check_in" | "check_out";
+
+/** 打刻で使い切る。押さえた本人・未使用・猶予内をまとめて条件にする。使い切れたらトークンの行を返す */
+export async function consumeToken(token: string, staffId: string, action: PunchAction) {
+  const { data } = await createAdminClient()
+    .from("punch_tokens")
+    .update({ consumed_at: new Date().toISOString(), action })
+    .eq("token", token)
+    .eq("claimed_by", staffId)
+    .is("consumed_at", null)
+    .gt("claimed_at", new Date(Date.now() - GRACE_MS).toISOString())
+    .select("id, store_id");
+  return data?.[0] ?? null;
+}
+
+// ===== 打刻チケット =====
+// LINE で本人確認したあと、確認画面に渡す署名付きの札（トークン・スタッフ・期限）。
+// QRの写真だけを持っている人が、確認画面を直接開いて他人の打刻をするのを防ぐ
+function ticketSecret() {
+  const config = lineConfig();
+  if (!config) throw new Error("LINE login is not configured");
+  return `punch-ticket:${config.channelSecret}`;
+}
+
+export function signTicket(token: string, staffId: string) {
+  const payload = `${token}.${staffId}.${Date.now() + GRACE_MS}`;
+  return `${payload}.${createHmac("sha256", ticketSecret()).update(payload).digest("base64url")}`;
+}
+
+export function verifyTicket(ticket: string): { token: string; staffId: string } | null {
+  const parts = ticket.split(".");
+  if (parts.length !== 4) return null;
+  const [token, staffId, exp, mac] = parts;
+  const expected = createHmac("sha256", ticketSecret()).update(`${token}.${staffId}.${exp}`).digest("base64url");
+  if (!sameSecret(mac, expected)) return null;
+  if (Date.now() > Number(exp)) return null;
+  return { token, staffId };
+}
+
+// ===== 打刻の状態 =====
+export type PunchStatus =
+  | { kind: "before_checkin" }
+  | { kind: "working"; attendanceId: string; checkinTime: string }
+  | { kind: "done"; checkinTime: string; checkoutTime: string };
+
+/**
+ * いまの打刻状態。退勤していない出勤が直近24時間にあれば勤務中（営業日をまたいで朝5時を過ぎても退勤できるように）。
+ * なければ、今日の営業日に退勤まで済んでいれば済み、どちらでもなければ出勤前
+ */
+export async function punchStatus(staffId: string, now = new Date()): Promise<PunchStatus> {
+  const admin = createAdminClient();
+  const { data: open } = await admin
+    .from("attendance")
+    .select("id, checkin_time")
+    .eq("staff_id", staffId)
+    .is("checkout_time", null)
+    .not("checkin_time", "is", null)
+    .gt("checkin_time", new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
+    .order("checkin_time", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (open) return { kind: "working", attendanceId: open.id, checkinTime: open.checkin_time };
+
+  const { data: today } = await admin
+    .from("attendance")
+    .select("checkin_time, checkout_time")
+    .eq("staff_id", staffId)
+    .eq("date", businessDayJST(now))
+    .maybeSingle();
+  if (today?.checkin_time && today.checkout_time) {
+    return { kind: "done", checkinTime: today.checkin_time, checkoutTime: today.checkout_time };
+  }
+  return { kind: "before_checkin" };
 }

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { lineConfig, verifyState } from "@/lib/line-login";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { claimToken, signTicket } from "@/lib/punch";
 
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams;
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
   const config = lineConfig();
   if (!config) return fail("/login", "config_error");
   const verified = verifyState(config.channelSecret, q.get("state") ?? "");
-  const back = verified?.mode === "link" ? "/account" : "/login";
+  const back = verified?.mode === "link" ? "/account" : verified?.mode === "punch" ? "/punch/start" : "/login";
   if (q.get("error")) return fail(back, "line_cancelled");
   const code = q.get("code");
   if (!code) return fail(back, "invalid_request");
@@ -34,6 +35,16 @@ export async function GET(request: NextRequest) {
   if (!userId) return fail(back, "profile_failed");
 
   const admin = createAdminClient();
+
+  // 打刻：LINE の本人とQRのトークンを結びつけ、確認画面（出勤・退勤ボタン）へ
+  if (verified.mode === "punch") {
+    const { data: staff } = await admin.from("staff").select("id, retired").eq("line_user_id", userId).maybeSingle();
+    if (!staff || staff.retired) return fail("/punch/start", "not_linked");
+    if (!(await claimToken(verified.uid, staff.id))) return fail("/punch/start", "token_used");
+    const confirm = new URL("/punch/confirm", request.url);
+    confirm.searchParams.set("ticket", signTicket(verified.uid, staff.id));
+    return NextResponse.redirect(confirm);
+  }
 
   if (verified.mode === "link") {
     const { data: other } = await admin.from("staff").select("id").eq("line_user_id", userId).neq("auth_user_id", verified.uid).maybeSingle();

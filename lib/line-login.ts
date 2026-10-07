@@ -1,7 +1,8 @@
 import "server-only";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
-export type LineMode = "login" | "link";
+// punch … 打刻QRを読んだあとの本人確認。state の uid には打刻トークンを入れる
+export type LineMode = "login" | "link" | "punch";
 
 export function lineConfig() {
   const channelId = process.env.LINE_LOGIN_CHANNEL_ID;
@@ -24,8 +25,20 @@ export function verifyState(secret: string, state: string): { mode: LineMode; ui
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   if (Date.now() - Number(ts) > 5 * 60 * 1000) return null;
-  if (mode !== "login" && mode !== "link") return null;
+  if (mode !== "login" && mode !== "link" && mode !== "punch") return null;
   return { mode, uid };
+}
+
+/** LINE の認可画面の URL。コールバックは既存の /api/auth/line-callback を共用する（LINE に登録済みのため） */
+export function lineAuthorizeUrl(origin: string, config: { channelId: string; channelSecret: string }, mode: LineMode, uid: string) {
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: config.channelId,
+    redirect_uri: `${origin}/api/auth/line-callback`,
+    state: signState(config.channelSecret, mode, uid),
+    scope: "profile",
+  });
+  return `https://access.line.me/oauth2/v2.1/authorize?${params}`;
 }
 
 export const LINE_ERRORS: Record<string, string> = {
