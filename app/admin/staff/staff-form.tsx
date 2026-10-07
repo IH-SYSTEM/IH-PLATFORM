@@ -111,10 +111,6 @@ export function StaffForm({ staff, stores, companies, action, isSelf, canGrantSu
           <input type="checkbox" name="line_added" defaultChecked={staff?.line_added ?? false} className="size-4 rounded border-slate-300" />
           公式LINE 登録済み
         </label>
-        <label className="flex items-center gap-2 self-end pb-2 text-sm text-slate-700">
-          <input type="checkbox" name="line_exempt" defaultChecked={staff?.line_exempt ?? false} disabled={isSelf} className="size-4 rounded border-slate-300" />
-          LINE連携を免除（LINEを使っていない人）
-        </label>
       </Section>
 
       <Section title="連絡先">

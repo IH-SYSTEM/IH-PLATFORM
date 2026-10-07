@@ -11,7 +11,6 @@ export type CurrentStaff = {
   permission: string | null;
   isAdmin: boolean;
   lineLinked: boolean;
-  lineExempt: boolean;
 };
 
 export async function getCurrentStaff(): Promise<CurrentStaff | null> {
@@ -21,7 +20,7 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   if (!userId) return null;
   const { data } = await supabase
     .from("staff")
-    .select("id, name, email, role, permission, retired, line_user_id, line_exempt")
+    .select("id, name, email, role, permission, retired, line_user_id")
     .eq("auth_user_id", userId)
     .maybeSingle();
   if (!data || data.retired) return null;
@@ -33,21 +32,20 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
     permission: data.permission,
     isAdmin: data.permission === "admin" || data.permission === "superadmin" || data.role === "admin",
     lineLinked: Boolean(data.line_user_id),
-    lineExempt: Boolean(data.line_exempt),
   };
 }
 
-/** LINE連携が必要なのに済んでいない（API など、画面を移せないところで使う） */
-export const needsLineLink = (s: CurrentStaff) => !s.lineLinked && !s.lineExempt && Boolean(lineConfig());
+/** LINE連携が済んでいない（API など、画面を移せないところで使う）。例外なく全員に連携を求める（2026-10-08 黒田さん決定） */
+export const needsLineLink = (s: CurrentStaff) => !s.lineLinked && Boolean(lineConfig());
 
 /**
- * ログイン必須。LINE連携が済んでいない人（免除された人を除く）は、連携の画面へ移す。
+ * ログイン必須。LINE連携が済んでいない人は、例外なく連携の画面へ移す。
  * 連携の画面そのものと、アカウント画面は allowUnlinked で通す
  */
 export async function requireStaff({ allowUnlinked = false }: { allowUnlinked?: boolean } = {}) {
   const staff = await getCurrentStaff();
   if (!staff) redirect("/login");
-  if (!allowUnlinked && !staff.lineLinked && !staff.lineExempt && lineConfig()) redirect("/link-line");
+  if (!allowUnlinked && needsLineLink(staff)) redirect("/link-line");
   return staff;
 }
 
