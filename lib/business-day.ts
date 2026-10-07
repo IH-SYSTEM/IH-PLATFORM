@@ -62,3 +62,22 @@ export function monthRange(yearMonth: string): { start: string; end: string } {
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   return { start: `${yearMonth}-01`, end: `${yearMonth}-${String(last).padStart(2, "0")}` };
 }
+
+/** 'YYYY-MM-DD' と 'HH:MM'（JST）→ UTC の ISO 文字列 */
+export function jstDateTimeToISO(ymd: string, hhmm: string): string {
+  return new Date(`${ymd}T${hhmm}:00+09:00`).toISOString();
+}
+
+/**
+ * 退勤の 'HH:MM' → UTC の ISO。★日をまたぐ勤務の核心★
+ * 「00:30」を営業日の日付とそのまま組み合わせると出勤より前になり、勤務時間が出せずその日が給与から消える。
+ * 出勤より後になるまで1日進める。日をまたぐ入力を受けるところは、必ずここを通す
+ */
+export function jstCheckoutToISO(ymd: string, hhmm: string, checkin: string | null): string {
+  const iso = jstDateTimeToISO(ymd, hhmm);
+  if (!checkin) return iso;
+  const inMs = Date.parse(checkin);
+  if (!Number.isFinite(inMs)) return iso;
+  const out = Date.parse(iso);
+  return out > inMs ? iso : new Date(out + 24 * 60 * 60 * 1000).toISOString();
+}

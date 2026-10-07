@@ -55,3 +55,23 @@ test("月の範囲 — うるう年の2月と年末", () => {
   assert.deepEqual(monthRange("2028-02"), { start: "2028-02-01", end: "2028-02-29" });
   assert.deepEqual(monthRange("2026-12"), { start: "2026-12-01", end: "2026-12-31" });
 });
+
+import { jstCheckoutToISO, jstDateTimeToISO } from "../lib/business-day.ts";
+
+test("JST の日時 → UTC", () => {
+  assert.equal(jstDateTimeToISO("2026-08-31", "19:30"), "2026-08-31T10:30:00.000Z");
+});
+
+test("退勤 — 出勤より前の時刻は翌日として扱う", () => {
+  const checkin = jstDateTimeToISO("2026-08-31", "19:30");
+  assert.equal(jstCheckoutToISO("2026-08-31", "00:30", checkin), "2026-08-31T15:30:00.000Z"); // 9/1 00:30 JST
+  assert.equal(jstCheckoutToISO("2026-08-31", "23:00", checkin), "2026-08-31T14:00:00.000Z");
+  assert.equal(jstCheckoutToISO("2026-08-31", "00:30", null), "2026-08-30T15:30:00.000Z");
+});
+
+test("退勤 — 何度通しても同じ結果（保存し直しで1日ずれない）", () => {
+  const checkin = jstDateTimeToISO("2026-08-31", "19:30");
+  const once = jstCheckoutToISO("2026-08-31", "00:30", checkin);
+  const twice = jstCheckoutToISO("2026-08-31", toJSTTimeString(once), checkin);
+  assert.equal(twice, once);
+});

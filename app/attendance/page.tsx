@@ -6,6 +6,7 @@ import { formatMinutes, toJSTTimeLabel } from "@/lib/business-day";
 import { jpDate, roleLabel, yen } from "@/lib/format";
 import { EMPLOYMENT_TYPES } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { Toast } from "@/app/toast";
 import { FilterBar } from "./filter-bar";
 import { resolveView } from "./view";
 
@@ -15,7 +16,8 @@ const weekday = (ymd: string) => "日月火水木金土"[new Date(`${ymd}T00:00:
 
 export default async function AttendancePage({ searchParams }: PageProps<"/attendance">) {
   const me = await requireStaff();
-  const view = await resolveView(me, await searchParams);
+  const sp = await searchParams;
+  const view = await resolveView(me, sp);
   if (!view) redirect("/");
   const { stores, store, month, staff, staffId, rows } = view;
   const total = summarize(rows);
@@ -33,20 +35,31 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
           <span className="h-5 w-1 bg-accent" />
           勤怠
         </h1>
-        <a href={`/attendance/export?${exportQuery}`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-brand">
-          CSVで出力
-        </a>
+        <div className="flex gap-2">
+          {me.isAdmin && (
+            <Link
+              href={`/attendance/edit/new?${new URLSearchParams({ ...(store !== "all" ? { store } : {}), ...(staffId ? { staff: staffId } : {}) })}`}
+              className="rounded-lg bg-brand px-3 py-2 text-sm font-bold text-white hover:bg-brand-2"
+            >
+              ＋ 記録を追加
+            </Link>
+          )}
+          <a href={`/attendance/export?${exportQuery}`} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-brand">
+            CSVで出力
+          </a>
+        </div>
       </div>
 
       <FilterBar stores={storeOptions} staff={staff.map((s) => ({ value: s.id, label: s.name }))} store={store} month={month} staffId={staffId} />
 
       {staffId && <StaffInfo staffId={staffId} showWage={me.isAdmin} />}
 
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <Stat label="出勤日数" value={`${total.days}日`} />
         <Stat label="実働の合計" value={formatMinutes(total.worked)} />
         <Stat label="休憩の合計" value={formatMinutes(total.breaks)} />
         <Stat label="退勤の記録なし" value={`${total.open}件`} alert={total.open > 0} />
+        <Stat label="手入力（報告・本部）" value={`${total.manual}件`} />
       </dl>
 
       {rows.length === 0 ? (
@@ -63,6 +76,7 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
                 <th className="px-3 py-2 text-right font-medium">退勤</th>
                 <th className="px-3 py-2 text-right font-medium">休憩</th>
                 <th className="px-3 py-2 text-right font-medium">実働</th>
+                {me.isAdmin && <th className="px-3 py-2" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 tabular-nums">
@@ -70,6 +84,11 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
                 <tr key={r.id} className={r.checkin_time && !r.checkout_time ? "bg-accent-soft/50" : ""}>
                   <td className="whitespace-nowrap px-3 py-2.5 text-slate-700">
                     {Number(r.date.slice(5, 7))}/{Number(r.date.slice(8, 10))}（{weekday(r.date)}）
+                    {r.source !== "qr" && (
+                      <span className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
+                        {r.source === "report" ? "報告" : "本部入力"}
+                      </span>
+                    )}
                   </td>
                   {!staffId && (
                     <td className="whitespace-nowrap px-3 py-2.5">
@@ -85,12 +104,20 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
                   </td>
                   <td className="px-3 py-2.5 text-right text-slate-500">{r.checkout_time ? `${r.break_minutes}分` : "—"}</td>
                   <td className="px-3 py-2.5 text-right font-medium text-slate-900">{formatMinutes(r.worked)}</td>
+                  {me.isAdmin && (
+                    <td className="px-3 py-2.5 text-right">
+                      <Link href={`/attendance/edit/${r.id}`} className="text-xs font-bold text-brand hover:underline">
+                        修正
+                      </Link>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      {sp.saved === "1" && <Toast message="保存しました" />}
     </div>
   );
 }

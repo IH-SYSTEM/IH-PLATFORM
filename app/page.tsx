@@ -12,11 +12,12 @@ import { MobileTabBar } from "./mobile-tab-bar";
 async function loadAdminBadges(): Promise<Record<string, string>> {
   const supabase = await createClient();
   const p = defaultPeriod();
-  const [{ data: staff }, { data: records }, { data: login }, { count: storeCount }] = await Promise.all([
+  const [{ data: staff }, { data: records }, { data: login }, { count: storeCount }, { count: pendingReports }] = await Promise.all([
     supabase.from("staff").select("id, retired"),
     supabase.from("salary_records").select("staff_id, status").eq("year", p.year).eq("month", p.month),
     supabase.rpc("staff_login_status"),
     supabase.from("stores").select("*", { count: "exact", head: true }).eq("is_active", true),
+    supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", "pending"),
   ]);
   const active = (staff ?? []).filter((s) => !s.retired);
   const activeIds = new Set(active.map((s) => s.id));
@@ -30,6 +31,7 @@ async function loadAdminBadges(): Promise<Record<string, string>> {
     staff: `在籍 ${active.length}名`,
     stores: `${storeCount ?? 0}店舗`,
     "login-status": `移行済み ${migrated} / ${active.length}名`,
+    "report-inbox": pendingReports ? `未処理 ${pendingReports}件` : "未処理なし",
   };
 }
 

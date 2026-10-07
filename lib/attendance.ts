@@ -34,6 +34,7 @@ export type AttendanceRow = {
   checkin_time: string | null;
   checkout_time: string | null;
   break_minutes: number;
+  source: string;  // qr … QRで打刻 / report … 報告窓口から / admin … 本部が入力
   worked: number | null;
 };
 
@@ -43,7 +44,7 @@ export async function loadAttendance(opts: { month: string; storeIds: string[]; 
   const { start, end } = monthRange(opts.month);
   let q = admin
     .from("attendance")
-    .select("id, staff_id, store_id, date, checkin_time, checkout_time, break_minutes")
+    .select("id, staff_id, store_id, date, checkin_time, checkout_time, break_minutes, source")
     .gte("date", start)
     .lte("date", end)
     .order("date")
@@ -75,5 +76,6 @@ export function summarize(rows: AttendanceRow[]) {
     worked: rows.reduce((sum, r) => sum + (r.worked ?? 0), 0),
     breaks: rows.reduce((sum, r) => sum + (r.checkout_time ? r.break_minutes : 0), 0),
     open: rows.filter((r) => r.checkin_time && !r.checkout_time).length,
+    manual: rows.filter((r) => r.source !== "qr").length,
   };
 }
