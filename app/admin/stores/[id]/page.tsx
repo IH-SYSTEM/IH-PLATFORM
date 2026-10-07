@@ -1,21 +1,30 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { roleLabel } from "@/lib/format";
+import { displayUrl } from "@/lib/punch";
 import { StoreForm, type StoreRecord } from "../store-form";
-import { saveStore } from "../actions";
+import { issueDisplayKey, saveStore } from "../actions";
+import { DisplayKeyPanel } from "./display-key-panel";
 
 export default async function StoreEditPage({ params, searchParams }: PageProps<"/admin/stores/[id]">) {
   await requireAdmin();
   const { id } = await params;
   const { created } = await searchParams;
   const supabase = await createClient();
-  const [{ data: store }, { data: staff }] = await Promise.all([
+  const [{ data: store }, { data: staff }, { data: displayKey }] = await Promise.all([
     supabase.from("stores").select("*").eq("id", id).maybeSingle<StoreRecord>(),
     supabase.from("staff").select("id, name, role").eq("store_id", id).eq("retired", false).order("furigana"),
+    supabase.from("store_display_keys").select("display_key, issued_at").eq("store_id", id).maybeSingle(),
   ]);
   if (!store) notFound();
+
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
+  const panelUrl =
+    store.code && displayKey ? displayUrl(origin, store.code, displayKey.display_key) : null;
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -28,6 +37,13 @@ export default async function StoreEditPage({ params, searchParams }: PageProps<
           {!store.is_active && <span className="ml-3 rounded-full bg-slate-200 px-2.5 py-1 align-middle text-xs font-medium text-slate-600">未使用</span>}
         </h1>
       </div>
+
+      <DisplayKeyPanel
+        code={store.code}
+        url={panelUrl}
+        issuedAt={displayKey?.issued_at ?? null}
+        action={issueDisplayKey.bind(null, store.id)}
+      />
 
       <StoreForm store={store} staff={staff ?? []} action={saveStore.bind(null, store.id)} createdNotice={created === "1"}>
         <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">

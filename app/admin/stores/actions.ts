@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { STORE_CODE, newDisplayKey } from "@/lib/punch";
 
 export type StoreSaveState = { ok?: boolean; error?: string; at?: number } | undefined;
 
@@ -56,6 +57,14 @@ export async function saveStore(storeId: string | null, _prev: StoreSaveState, f
 
     const managerIds = fd.getAll("manager_staff_ids").map(String);
 
+    // 店舗コードは打刻QRのURLと打刻の記録に残るので、一度決めたら変えない（未設定のときだけ受け付ける）
+    const code = text("code")?.toUpperCase() ?? null;
+    if (code && !STORE_CODE.test(code)) throw new InputError("店舗コードは英大文字2〜4文字で入力してください");
+    if (code) {
+      const { data: owner } = await supabase.from("stores").select("id").eq("code", code).maybeSingle();
+      if (owner && owner.id !== storeId) throw new InputError(`店舗コード「${code}」はほかの店舗で使われています`);
+    }
+
     const row = {
       name,
       address: text("address"),
@@ -80,9 +89,12 @@ export async function saveStore(storeId: string | null, _prev: StoreSaveState, f
     };
 
     if (storeId) {
-      const { data: before } = await supabase.from("stores").select("name").eq("id", storeId).single();
+      const { data: before } = await supabase.from("stores").select("name, code").eq("id", storeId).single();
       if (!before) throw new InputError("店舗が見つかりません");
-      const { error } = await supabase.from("stores").update(row).eq("id", storeId);
+      const { error } = await supabase
+        .from("stores")
+        .update(!before.code && code ? { ...row, code } : row)
+        .eq("id", storeId);
       if (error) throw new Error(error.message);
       if (before.name !== name) {
         const { error: e2 } = await supabase.from("staff").update({ department_name: name }).eq("store_id", storeId);
@@ -91,7 +103,7 @@ export async function saveStore(storeId: string | null, _prev: StoreSaveState, f
     } else {
       const { data, error } = await supabase
         .from("stores")
-        .insert({ ...row, is_active: true, created_by: me.id })
+        .insert({ ...row, code, is_active: true, created_by: me.id })
         .select("id")
         .single();
       if (error) throw new Error(error.message);
@@ -107,6 +119,26 @@ export async function saveStore(storeId: string | null, _prev: StoreSaveState, f
   revalidatePath("/admin/staff");
   revalidatePath("/admin");
   if (createdId) redirect(`/admin/stores/${createdId}?created=1`);
+  revalidatePath(`/admin/stores/${storeId}`);
+  return { ok: true, at: Date.now() };
+}
+
+export type DisplayKeyState = { ok?: boolean; error?: string; at?: number } | undefined;
+
+/** 掲示キーを発行する。再発行すると、古いURLを開いている iPad ではQRが出なくなる */
+export async function issueDisplayKey(storeId: string, _prev: DisplayKeyState): Promise<DisplayKeyState> {
+  const me = await requireAdmin();
+  const supabase = await createClient();
+  const { data: store } = await supabase.from("stores").select("code").eq("id", storeId).maybeSingle();
+  if (!store?.code) return { error: "先に店舗コードを登録してください", at: Date.now() };
+
+  const { error } = await supabase
+    .from("store_display_keys")
+    .upsert({ store_id: storeId, display_key: newDisplayKey(), issued_by: me.id, issued_at: new Date().toISOString() });
+  if (error) {
+    console.error("issueDisplayKey failed", error);
+    return { error: "発行に失敗しました。時間をおいてもう一度お試しください", at: Date.now() };
+  }
   revalidatePath(`/admin/stores/${storeId}`);
   return { ok: true, at: Date.now() };
 }
