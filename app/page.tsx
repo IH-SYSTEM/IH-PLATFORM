@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { appsFor, SECTIONS, type PortalApp } from "@/lib/apps";
+import { attendanceScope } from "@/lib/attendance";
 import { yen } from "@/lib/format";
 import { defaultPeriod, periodLabel } from "@/lib/payroll/period";
 import { PortalHeader } from "./portal-header";
@@ -35,7 +36,7 @@ async function loadAdminBadges(): Promise<Record<string, string>> {
 export default async function PortalHome() {
   const me = await requireStaff();
   const supabase = await createClient();
-  const [{ data: profile }, { data: slip }, badges] = await Promise.all([
+  const [{ data: profile }, { data: slip }, badges, scope] = await Promise.all([
     supabase.from("staff").select("department_name").eq("id", me.id).single(),
     supabase
       .from("salary_records")
@@ -47,9 +48,10 @@ export default async function PortalHome() {
       .limit(1)
       .maybeSingle(),
     me.isAdmin ? loadAdminBadges() : Promise.resolve({} as Record<string, string>),
+    attendanceScope(me),
   ]);
 
-  const apps = appsFor(me);
+  const apps = appsFor(me, scope !== null);
   const sections = (Object.keys(SECTIONS) as PortalApp["section"][]).filter((s) => apps.some((a) => a.section === s));
 
   return (
