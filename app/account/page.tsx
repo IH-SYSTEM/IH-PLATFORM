@@ -12,7 +12,7 @@ import { LineMark } from "@/app/line-mark";
 export const metadata = { title: "アカウント" };
 
 export default async function AccountPage({ searchParams }: PageProps<"/account">) {
-  const me = await requireStaff();
+  const me = await requireStaff({ allowUnlinked: true });
   const { line, error } = await searchParams;
   const supabase = await createClient();
   const { data: profile } = await supabase.from("staff").select("email, line_user_id, line_connected_at").eq("id", me.id).single();

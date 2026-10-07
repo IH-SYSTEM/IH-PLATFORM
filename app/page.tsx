@@ -8,6 +8,7 @@ import { defaultPeriod, periodLabel } from "@/lib/payroll/period";
 import { PortalHeader } from "./portal-header";
 import { Icon } from "./icons";
 import { MobileTabBar } from "./mobile-tab-bar";
+import { Toast } from "./toast";
 
 async function loadAdminBadges(): Promise<Record<string, string>> {
   const supabase = await createClient();
@@ -35,7 +36,8 @@ async function loadAdminBadges(): Promise<Record<string, string>> {
   };
 }
 
-export default async function PortalHome() {
+export default async function PortalHome({ searchParams }: PageProps<"/">) {
+  const { line } = await searchParams;
   const me = await requireStaff();
   const supabase = await createClient();
   const [{ data: profile }, { data: slip }, badges, scope] = await Promise.all([
@@ -101,6 +103,7 @@ export default async function PortalHome() {
         ))}
       </main>
       <MobileTabBar />
+      {line === "linked" && <Toast message="LINEと連携しました" />}
     </div>
   );
 }

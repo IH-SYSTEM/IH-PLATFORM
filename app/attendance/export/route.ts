@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getCurrentStaff } from "@/lib/auth";
+import { getCurrentStaff, needsLineLink } from "@/lib/auth";
 import { formatMinutes, toJSTTimeLabel } from "@/lib/business-day";
 import { audit } from "@/lib/audit";
 import { resolveView } from "../view";
@@ -8,6 +8,7 @@ import { resolveView } from "../view";
 export async function GET(request: NextRequest) {
   const me = await getCurrentStaff();
   if (!me) return new Response("ログインが必要です", { status: 401 });
+  if (needsLineLink(me)) return Response.redirect(new URL("/link-line", request.url), 302);
   const q = request.nextUrl.searchParams;
   const view = await resolveView(me, { store: q.get("store"), month: q.get("month"), staff: q.get("staff") });
   if (!view) return new Response("勤怠を見る権限がありません", { status: 403 });

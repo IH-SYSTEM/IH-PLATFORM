@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const config = lineConfig();
   if (!config) return fail("/login", "config_error");
   const verified = verifyState(config.channelSecret, q.get("state") ?? "");
-  const back = verified?.mode === "link" ? "/account" : verified?.mode === "punch" ? "/punch/start" : "/login";
+  const back = verified?.mode === "link" ? "/link-line" : verified?.mode === "punch" ? "/punch/start" : "/login";
   if (q.get("error")) return fail(back, "line_cancelled");
   const code = q.get("code");
   if (!code) return fail(back, "invalid_request");
@@ -48,13 +48,13 @@ export async function GET(request: NextRequest) {
 
   if (verified.mode === "link") {
     const { data: other } = await admin.from("staff").select("id").eq("line_user_id", userId).neq("auth_user_id", verified.uid).maybeSingle();
-    if (other) return fail("/account", "already_used");
+    if (other) return fail("/link-line", "already_used");
     const { error } = await admin
       .from("staff")
       .update({ line_user_id: userId, line_connected_at: new Date().toISOString() })
       .eq("auth_user_id", verified.uid);
-    if (error) return fail("/account", "session_failed");
-    return NextResponse.redirect(new URL("/account?line=linked", request.url));
+    if (error) return fail("/link-line", "session_failed");
+    return NextResponse.redirect(new URL("/?line=linked", request.url));
   }
 
   const { data: staff } = await admin.from("staff").select("email, retired, auth_user_id").eq("line_user_id", userId).maybeSingle();
