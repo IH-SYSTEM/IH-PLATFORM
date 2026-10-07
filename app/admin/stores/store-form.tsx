@@ -123,14 +123,14 @@ export function StoreForm({
         </section>
       )}
 
-      <Section title="打刻設定" note="位置情報・WiFi・退勤忘れ通知は、新しい打刻ではまだ使っていません（設定値は保持されます）">
+      <Section title="打刻設定" note="緯度・経度と打刻可能範囲は、打刻QRを掲示する iPad の位置確認に使います。WiFi・退勤忘れ通知は、新しい打刻ではまだ使っていません">
         <Field label="定時退勤時刻">
           <input name="scheduled_clock_out" type="time" defaultValue={store?.scheduled_clock_out ?? ""} className={input} />
         </Field>
         <Field label="退勤忘れ通知（分後）">
           <input name="notification_delay_min" inputMode="numeric" defaultValue={store?.notification_delay_min ?? ""} className={input} />
         </Field>
-        <Field label="打刻可能範囲（m）">
+        <Field label="打刻可能範囲（m）" hint="打刻QRを掲示する iPad は、緯度・経度からこの距離以内でないとQRを表示しません（未入力なら50m）">
           <input name="geofence_radius" inputMode="numeric" defaultValue={store?.geofence_radius ?? ""} className={input} />
         </Field>
         <Field label="緯度">

@@ -18,17 +18,40 @@ function sameSecret(input: string, stored: string) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export type DisplayStore = { id: string; name: string; code: string };
+// 掲示用の iPad は店舗からこの距離（m）以内でないとQRを出さない。店舗ごとの「打刻可能範囲」が未設定のときの値
+export const DEFAULT_DISPLAY_RADIUS_M = 50;
+
+export type DisplayStore = { id: string; name: string; code: string; lat: number | null; lng: number | null; radius: number };
 
 /** 店舗コードと掲示キーが一致した店舗。どちらが違っても null（どちらが違うかは返さない） */
 export async function storeForDisplay(code: string, key: string): Promise<DisplayStore | null> {
   if (!STORE_CODE.test(code) || !key) return null;
   const admin = createAdminClient();
-  const { data: store } = await admin.from("stores").select("id, name, code, is_active").eq("code", code).maybeSingle();
+  const { data: store } = await admin
+    .from("stores")
+    .select("id, name, code, is_active, lat, lng, geofence_radius")
+    .eq("code", code)
+    .maybeSingle();
   if (!store?.is_active) return null;
   const { data: row } = await admin.from("store_display_keys").select("display_key").eq("store_id", store.id).maybeSingle();
   if (!row || !sameSecret(key, row.display_key)) return null;
-  return { id: store.id, name: store.name, code: store.code };
+  return {
+    id: store.id,
+    name: store.name,
+    code: store.code,
+    lat: store.lat,
+    lng: store.lng,
+    radius: store.geofence_radius ?? DEFAULT_DISPLAY_RADIUS_M,
+  };
+}
+
+/** 2点間の距離（m）。数十m の判定に使うので球面近似で足りる */
+export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLng = (lng2 - lng1) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(a));
 }
 
 /**
