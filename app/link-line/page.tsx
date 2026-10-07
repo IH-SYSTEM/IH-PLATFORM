@@ -9,7 +9,7 @@ export const metadata = { title: "LINE連携" };
 // 最初のログインで表示する。LINE連携が済むまで、ほかのページには進めない
 export default async function LinkLinePage({ searchParams }: PageProps<"/link-line">) {
   const me = await requireStaff({ allowUnlinked: true });
-  if (me.lineLinked || me.lineExempt || !lineConfig()) redirect("/");
+  if (me.lineLinked || !lineConfig()) redirect("/");
   const { error } = await searchParams;
   const message = typeof error === "string" ? LINE_ERRORS[error] ?? "LINE連携に失敗しました。もう一度お試しください" : null;
 
@@ -37,7 +37,7 @@ export default async function LinkLinePage({ searchParams }: PageProps<"/link-li
           <LineMark />
           LINEと連携する
         </a>
-        <p className="mt-4 text-xs text-slate-400">LINEを使っていない場合は、本部（総務）に連絡してください。</p>
+        <p className="mt-4 text-xs text-slate-400">うまく連携できない場合は、本部（総務）に連絡してください。</p>
         <form action={logout} className="mt-2 text-right">
           <button className="text-xs text-slate-400 underline hover:text-slate-600">ログアウト</button>
         </form>

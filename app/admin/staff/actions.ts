@@ -140,8 +140,6 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
       basic_pension_no: text("basic_pension_no"),
       welfare_pension_no: text("welfare_pension_no"),
       line_added: checked("line_added"),
-      // 自分自身を免除にはできない（連携の必須化をすり抜けないように）
-      ...(staffId && staffId === me.id ? {} : { line_exempt: checked("line_exempt") }),
       retired,
       retirement_date: retired ? date("retirement_date", "退職日") : null,
       retirement_reason: retired ? text("retirement_reason") : null,
