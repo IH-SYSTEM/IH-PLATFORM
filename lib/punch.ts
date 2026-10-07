@@ -31,9 +31,22 @@ export async function storeForDisplay(code: string, key: string): Promise<Displa
   return { id: store.id, name: store.name, code: store.code };
 }
 
-/** 掲示中のQRのトークン。まだ誰も使っておらず期限に余裕があれば同じものを返し、なければ新しく発行する */
-export async function currentToken(storeId: string): Promise<{ token: string; expiresAt: string }> {
+/**
+ * 掲示中のQRのトークン。まだ誰も使っておらず期限に余裕があれば同じものを返し、なければ新しく発行する。
+ * fresh のときは掲示中のQRを失効させてから発行し直す（掲示ページの更新ボタン）
+ */
+export async function currentToken(storeId: string, fresh = false): Promise<{ token: string; expiresAt: string }> {
   const admin = createAdminClient();
+  if (fresh) {
+    const now = new Date().toISOString();
+    const { error } = await admin
+      .from("punch_tokens")
+      .update({ expires_at: now })
+      .eq("store_id", storeId)
+      .is("claimed_at", null)
+      .gt("expires_at", now);
+    if (error) throw new Error(error.message);
+  }
   const { data: open } = await admin
     .from("punch_tokens")
     .select("token, expires_at")
