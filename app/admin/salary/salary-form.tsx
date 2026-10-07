@@ -10,7 +10,10 @@ import { TABLE_VERSION } from "@/lib/payroll/tables";
 import {
   ALLOWANCE_FIELDS,
   ATTENDANCE_FIELDS,
+  ATTENDANCE_TIME_FIELDS,
   DEDUCTION_FIELDS,
+  PREMIUM_FIELDS,
+  premiumTotal,
   PAYMENT_BASE_FIELDS,
   basePay,
   totals,
@@ -132,7 +135,7 @@ export function SalaryForm({
       absenceDays: a.absenceDays || 0,
       workHours: a.workHours || 0,
       hourlyWage: a.hourlyWage || 0,
-    });
+    }, premiumTotal(values));
     setDraft((d) => {
       const payment = { ...d.payment };
       const attendance = { ...d.attendance };
@@ -244,6 +247,10 @@ export function SalaryForm({
                   <NumField label="勤務時間" unit="時間" value={get("attendance", "workHours")} onChange={set("attendance", "workHours")} />
                 </>
               )}
+              {type !== "contract" &&
+                ATTENDANCE_TIME_FIELDS.map((f) => (
+                  <NumField key={f.key} label={f.label} unit={f.unit} value={get("attendance", f.key)} onChange={set("attendance", f.key)} />
+                ))}
             </Card>
 
             <Card
@@ -261,6 +268,8 @@ export function SalaryForm({
               {baseField && <NumField label={baseField.label} value={get("payment", baseField.key)} onChange={set("payment", baseField.key)} />}
               {type !== "contract" &&
                 ALLOWANCE_FIELDS.map((f) => <NumField key={f.key} label={f.label} value={get("payment", f.key)} onChange={set("payment", f.key)} />)}
+              {type !== "contract" &&
+                PREMIUM_FIELDS.map((f) => <NumField key={f.key} label={f.label} value={get("payment", f.key)} onChange={set("payment", f.key)} />)}
             </Card>
 
             {type !== "contract" && (
