@@ -1,5 +1,6 @@
 export const ADMIN_NAV = [
   { href: "/admin", label: "ダッシュボード", ready: true },
+  { href: "/admin/reports", label: "報告の受付", ready: true },
   { href: "/admin/salary", label: "給与入力", ready: true },
   { href: "/admin/staff", label: "スタッフ管理", ready: true },
   { href: "/admin/roster", label: "労働者名簿", ready: true },
