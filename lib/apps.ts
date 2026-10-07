@@ -23,6 +23,7 @@ export const SECTIONS: Record<PortalApp["section"], string> = {
 export const APPS: PortalApp[] = [
   { id: "payslip", title: "給与明細", description: "確定した給与明細の確認・印刷", href: "/me", icon: "payslip", section: "mine", audience: "all", ready: true },
   { id: "shift-request", title: "シフト", description: "シフト希望の提出と、確定したシフトの確認", href: "/shifts/request", icon: "clock", section: "mine", audience: "all", ready: true },
+  { id: "documents", title: "書類", description: "雇用契約書・源泉徴収票など", href: "/me/documents", icon: "book", section: "mine", audience: "all", ready: true },
   { id: "reports", title: "報告窓口", description: "携帯忘れの打刻など、本部への報告", href: "/reports", icon: "book", section: "mine", audience: "all", ready: true },
   { id: "account", title: "アカウント", description: "パスワード変更・LINEでログインの設定", href: "/account", icon: "key", section: "mine", audience: "all", ready: true },
   { id: "report-inbox", title: "報告の受付", description: "現場からの報告の確認・承認", href: "/admin/reports", icon: "history", section: "payroll", audience: "admin", ready: true },

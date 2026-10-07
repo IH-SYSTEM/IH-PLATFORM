@@ -6,6 +6,11 @@ import { STAFF_COLUMNS, type StaffRecord } from "@/lib/staff";
 import { StaffForm } from "../staff-form";
 import { PasswordLinkPanel } from "../password-link";
 import { issuePasswordLink, saveStaff } from "../actions";
+import { audit } from "@/lib/audit";
+import { FILE_CATEGORIES, type FileRow } from "@/lib/files";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { FileList } from "@/app/files/file-list";
+import { FileUploader } from "@/app/files/file-uploader";
 
 export default async function StaffEditPage({ params, searchParams }: PageProps<"/admin/staff/[id]">) {
   const me = await requireAdmin();
@@ -19,6 +24,15 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
     supabase.from("companies").select("id, name").eq("is_active", true).order("sort_order"),
   ]);
   if (!staff) notFound();
+  // マイナンバー・口座など個人情報を表示するページなので、開いたことを記録する
+  await audit({ actor: me.id, action: "view", targetType: "staff", targetId: staff.id, subject: staff.id });
+  const { data: files } = await createAdminClient()
+    .from("files")
+    .select("*")
+    .eq("owner_staff_id", staff.id)
+    .eq("status", "ready")
+    .order("created_at", { ascending: false })
+    .returns<FileRow[]>();
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -33,6 +47,22 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
       </div>
 
       {!staff.retired && <PasswordLinkPanel action={issuePasswordLink.bind(null, staff.id)} />}
+
+      <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-800">書類</h2>
+        <p className="mt-0.5 text-xs text-slate-500">雇用契約書・源泉徴収票など。「本人のマイページに表示」にしたものは、本人も見られます。開いた記録は操作ログに残ります</p>
+        <div className="mt-3">
+          <FileList files={files ?? []} canDelete showVisibility />
+        </div>
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <FileUploader
+            ownerStaffId={staff.id}
+            categories={Object.entries(FILE_CATEGORIES).map(([value, c]) => ({ value, label: c.label }))}
+            allowVisibilityToggle
+            label="書類をアップロード"
+          />
+        </div>
+      </section>
 
       {staff.attachments.length > 0 && (
         <div className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
