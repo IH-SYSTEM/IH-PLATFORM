@@ -1,4 +1,7 @@
 {
   "regions": ["syd1"],
-  "crons": [{ "path": "/api/cron/pos-sync", "schedule": "30 21 * * *" }]
+  "crons": [
+    { "path": "/api/cron/pos-sync", "schedule": "0 21 * * *" },
+    { "path": "/api/cron/labor-report", "schedule": "0 23 * * *" }
+  ]
 }
