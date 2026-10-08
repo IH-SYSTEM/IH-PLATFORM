@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
 import { attendanceScope } from "@/lib/attendance";
 import { businessDayJST } from "@/lib/business-day";
-import { isPast, mondayOf, monthDeadlines, periodTypeFor, weekDeadlines, weekDays } from "@/lib/shift-period";
+import { canCallUrgent, isPast, mondayOf, monthDeadlines, periodTypeFor, URGENT_REASONS, weekDeadlines, weekDays } from "@/lib/shift-period";
 import { hm } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ShiftGrid, type GridRow } from "./shift-grid";
@@ -51,12 +51,13 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
   const ids = people.map((p) => p.id);
 
   const [{ data: requests }, { data: shifts }, { data: subs }, { data: decisions }, { data: allStaff }] = await Promise.all([
-    ids.length ? admin.from("shift_requests").select("staff_id, work_date, availability, preferred_start, preferred_end").in("staff_id", ids).in("work_date", days) : Promise.resolve({ data: [] }),
+    ids.length ? admin.from("shift_requests").select("staff_id, work_date, availability, preferred_start, preferred_end, source").in("staff_id", ids).in("work_date", days) : Promise.resolve({ data: [] }),
     ids.length ? admin.from("shift_schedule").select("staff_id, store_id, work_date, shift_type, planned_start, planned_end").in("staff_id", ids).in("work_date", days) : Promise.resolve({ data: [] }),
     ids.length ? admin.from("shift_request_submissions").select("staff_id, period_type, period_start").in("staff_id", ids) : Promise.resolve({ data: [] }),
     admin.from("shift_decisions").select("period_type, period_start, decided_at").eq("store_id", store.id),
     admin.from("staff").select("id, name, department_name").eq("retired", false).neq("store_id", store.id).order("furigana"),
   ]);
+  const { data: urgentCalls } = await admin.from("urgent_calls").select("work_date, created_at").eq("store_id", store.id).in("work_date", days);
   const submitted = new Set((subs ?? []).map((s) => `${s.staff_id}:${s.period_type}:${s.period_start}`));
   const decided = new Map((decisions ?? []).map((d) => [`${d.period_type}:${d.period_start}`, d.decided_at]));
 
@@ -64,6 +65,8 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
     .sort((a, b) => (periodTypeFor(a.role) === "month" ? 0 : 1) - (periodTypeFor(b.role) === "month" ? 0 : 1) || (a.furigana || a.name).localeCompare(b.furigana || b.name, "ja"))
     .map((p) => {
       const type = periodTypeFor(p.role);
+      // アルバイトは、希望が出ていない日はシフトに入れられない（店長から入れないか、をなくす）
+      const partTime = type === "week";
       const notSubmitted =
         type === "week" ? !submitted.has(`${p.id}:week:${monday}`) : type === "month" ? months.some((m) => !submitted.has(`${p.id}:month:${m}-01`)) : false;
       return {
@@ -71,13 +74,14 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
         name: p.name,
         kind: type === "month" ? "社員" : type === "week" ? "アルバイト" : "ヘルプ",
         help: !(members ?? []).some((m) => m.id === p.id),
+        partTime,
         notSubmitted,
         cells: days.map((date) => {
           const r = (requests ?? []).find((x) => x.staff_id === p.id && x.work_date === date);
           const s = (shifts ?? []).find((x) => x.staff_id === p.id && x.work_date === date);
           return {
             date,
-            request: r ? { a: r.availability, s: hm(r.preferred_start), e: hm(r.preferred_end) } : null,
+            request: r ? { a: r.availability, s: hm(r.preferred_start), e: hm(r.preferred_end), urgent: r.source === "urgent" } : null,
             shift: s ? { type: s.shift_type, s: hm(s.planned_start), e: hm(s.planned_end), otherStore: s.store_id !== store.id } : null,
             locked: date < today,
           };
@@ -146,6 +150,9 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
       <ShiftGrid
         storeId={store.id}
         days={days}
+        urgentDays={days.filter((d) => canCallUrgent(d, today))}
+        urgentReasons={URGENT_REASONS}
+        urgentUsed={Object.fromEntries(days.map((d) => [d, (urgentCalls ?? []).filter((c) => c.work_date === d).length]))}
         rows={rows}
         defaults={{ start: store.open_time ?? "19:00", end: store.close_time ?? "00:00" }}
       />

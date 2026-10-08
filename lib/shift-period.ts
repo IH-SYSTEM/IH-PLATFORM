@@ -1,7 +1,8 @@
 // シフト希望の期間と締切。日付だけを扱うので、どの時差でもずれないよう UTC 正午で計算する
 // テストから Node で直接読むため、ここでは他のファイルを import しない
 //
-//   アルバイト … 週単位（月曜始まり）。提出＝対象週の8日前の日曜、確定＝5日前の水曜
+//   アルバイト … 週単位（月曜始まり）。4週先まで、その週が始まる前日まで出せる。確定＝前週の水曜24時まで
+//               （確定のあとに出した希望も消さず、店長の画面に「待機」として残す）
 //   社員       … 月単位。提出＝前月15日、確定＝前月20日
 
 const DAY_MS = 86_400_000;
@@ -63,6 +64,26 @@ export function weekPeriod(monday: string): Period {
 
 export function monthPeriod(yearMonth: string): Period {
   return { type: "month", start: `${yearMonth}-01`, days: monthDays(yearMonth), ...monthDeadlines(yearMonth), label: `${Number(yearMonth.slice(5, 7))}月` };
+}
+
+/** アルバイトが希望を出せる週：まだ始まっていない週から4週ぶん（2026-10-08 黒田さん決定） */
+export function partTimeWeeks(today: string, count = 4): Period[] {
+  let monday = mondayOf(today);
+  if (at(monday) <= at(today)) monday = addDays(monday, 7);
+  return Array.from({ length: count }, (_, i) => {
+    const p = weekPeriod(addDays(monday, i * 7));
+    return { ...p, submit: addDays(p.start, -1) }; // 提出はその週が始まる前日（日曜）まで
+  });
+}
+
+// 急募の理由。乱用を防ぐため必須
+export const URGENT_REASONS = ["予定していたスタッフがトラブルで来られなくなった", "急な大型予約が入った", "その他"] as const;
+
+/** 急募を使える日か：今日から3日後まで（3日前から使える特別なボタン） */
+export const URGENT_DAYS = 3;
+export function canCallUrgent(date: string, today: string) {
+  const diff = Math.round((at(date) - at(today)) / DAY_MS);
+  return diff >= 0 && diff <= URGENT_DAYS;
 }
 
 /** いま希望を出せる週（提出期限をまだ過ぎていない週から count 週ぶん） */
