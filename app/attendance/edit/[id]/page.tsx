@@ -17,7 +17,7 @@ const timeValue = (iso: string | null) => (iso ? toJSTTimeString(iso) : "");
 
 // 本部の打刻修正。id が "new" なら、打刻のない日の記録を追加する
 export default async function AttendanceEditPage({ params, searchParams }: PageProps<"/attendance/edit/[id]">) {
-  await requireAdmin();
+  const me = await requireAdmin();
   const { id } = await params;
   const sp = await searchParams;
   const admin = createAdminClient();
@@ -50,6 +50,10 @@ export default async function AttendanceEditPage({ params, searchParams }: PageP
         ← 勤怠
       </Link>
       <div>
+        <p className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1 text-xs font-bold text-brand">
+          修正者：{me.name}（ログイン中）
+          <span className="font-normal text-brand/70">— 保存すると、この名前で変更履歴に残ります</span>
+        </p>
         <h1 className="flex items-center gap-2 text-xl font-bold text-brand">
           <span className="h-5 w-1 bg-accent" />
           {isNew ? "打刻の記録を追加" : "打刻修正"}
@@ -85,10 +89,9 @@ export default async function AttendanceEditPage({ params, searchParams }: PageP
           <ul className="divide-y divide-line rounded-md border border-line bg-white text-sm">
             {edits.map((e, i) => (
               <li key={i} className="px-4 py-2.5">
+                <span className="mr-2 rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-bold text-brand">修正：{nameOf.get(e.edited_by) ?? "—"}</span>
                 <span className="font-medium text-slate-800">{e.reason}</span>
-                <span className="ml-2 text-xs text-slate-500">
-                  {when(e.edited_at)} {nameOf.get(e.edited_by) ?? "—"}
-                </span>
+                <span className="ml-2 text-xs text-slate-500">{when(e.edited_at)}</span>
                 {e.note && <p className="text-xs text-slate-500">メモ：{e.note}</p>}
               </li>
             ))}

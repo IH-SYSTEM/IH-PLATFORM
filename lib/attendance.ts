@@ -36,6 +36,7 @@ export type AttendanceRow = {
   break_minutes: number;
   source: string;  // qr … QRで打刻 / report … 報告窓口から / admin … 本部が入力
   worked: number | null;
+  lastEdit: { by: string; at: string; reason: string } | null; // 最後に記録を変えた人（打刻修正・報告の承認）
 };
 
 /** 期間の勤怠。storeIds が空なら全店舗（管理者のみ呼ぶこと）。テーブルの結合は JS 側で行う */
@@ -56,10 +57,18 @@ export async function loadAttendance(opts: { month: string; storeIds: string[]; 
   if (error) throw new Error(error.message);
   if (!rows?.length) return [];
 
-  const [{ data: staff }, { data: stores }] = await Promise.all([
+  const [{ data: staff }, { data: stores }, { data: edits }] = await Promise.all([
     admin.from("staff").select("id, name").in("id", [...new Set(rows.map((r) => r.staff_id))]),
     admin.from("stores").select("id, name").in("id", [...new Set(rows.map((r) => r.store_id))]),
+    admin.from("attendance_edits").select("attendance_id, edited_by, edited_at, reason").in("attendance_id", rows.map((r) => r.id)).order("edited_at", { ascending: false }),
   ]);
+  const editorIds = [...new Set((edits ?? []).map((e) => e.edited_by))];
+  const { data: editors } = editorIds.length ? await admin.from("staff").select("id, name").in("id", editorIds) : { data: [] };
+  const editorName = new Map((editors ?? []).map((s) => [s.id, s.name]));
+  const lastEdit = new Map<string, { by: string; at: string; reason: string }>();
+  for (const e of edits ?? []) {
+    if (e.attendance_id && !lastEdit.has(e.attendance_id)) lastEdit.set(e.attendance_id, { by: editorName.get(e.edited_by) ?? "（不明）", at: e.edited_at, reason: e.reason });
+  }
   const staffName = new Map((staff ?? []).map((s) => [s.id, s.name]));
   const storeName = new Map((stores ?? []).map((s) => [s.id, s.name]));
   return rows.map((r) => ({
@@ -67,6 +76,7 @@ export async function loadAttendance(opts: { month: string; storeIds: string[]; 
     staff_name: staffName.get(r.staff_id) ?? "（不明）",
     store_name: storeName.get(r.store_id) ?? "（不明）",
     worked: workedMinutes(r.checkin_time, r.checkout_time, r.break_minutes),
+    lastEdit: lastEdit.get(r.id) ?? null,
   }));
 }
 

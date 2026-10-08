@@ -89,6 +89,14 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
                         {r.source === "report" ? "報告" : "本部入力"}
                       </span>
                     )}
+                    {r.lastEdit && (
+                      <span
+                        title={`${r.lastEdit.reason}（${new Date(r.lastEdit.at).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}）`}
+                        className="ml-1.5 rounded bg-brand-soft px-1.5 py-0.5 text-[10px] font-bold text-brand"
+                      >
+                        修正：{r.lastEdit.by}
+                      </span>
+                    )}
                   </td>
                   {!staffId && (
                     <td className="whitespace-nowrap px-3 py-2.5">
