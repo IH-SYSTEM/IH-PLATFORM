@@ -6,7 +6,7 @@ import { PageHeader } from "@/app/shell/page-header";
 // 開発中だけ使う、画面の枠の見た目の確認用（本番では 404。本番ではログインも必要）
 export default async function ShellPreview() {
   if (process.env.NODE_ENV === "production") notFound();
-  const fake: CurrentStaff = { id: "preview", name: "黒田　学", email: null, role: "officer", permission: "superadmin", isAdmin: true, lineLinked: true, lineFriend: true };
+  const fake: CurrentStaff = { id: "preview", name: "黒田　学", email: null, role: "officer", permission: "superadmin", isAdmin: true, lineLinked: true, lineFriend: true, mustSetPassword: false };
   return (
     <AppShell staff={fake}>
       <PageHeader title="スタッフ管理" description="登録・編集・給与マスタの設定" actions={<button className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white">＋ スタッフを登録</button>} />

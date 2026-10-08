@@ -7,7 +7,7 @@ import { MobileTabBar } from "@/app/mobile-tab-bar";
 export const metadata = { title: "パスワード変更" };
 
 export default async function PasswordPage() {
-  const staff = await requireStaff();
+  const staff = await requireStaff({ allowUnlinked: true, allowFirstLogin: true });
 
   return (
     <main className="flex min-h-screen items-start justify-center px-4 pb-28 pt-10 sm:items-center sm:py-12">
@@ -17,14 +17,21 @@ export default async function PasswordPage() {
         <p className="mt-1 text-sm text-slate-500">
           {staff.name} さん（{staff.email}）
         </p>
+        {staff.mustSetPassword && (
+          <p className="mt-4 border-l-4 border-accent bg-accent-soft px-3.5 py-2.5 text-sm text-accent">
+            いまは本部が決めた仮パスワードです。自分だけのパスワードに変えてから使い始めてください。
+          </p>
+        )}
         <div className="mt-6 rounded-md border border-line bg-white p-6">
           <PasswordForm />
         </div>
-        <Link href="/account" className="mt-4 inline-block text-sm text-slate-500 hover:text-brand">
-          ← アカウントに戻る
-        </Link>
+        {!staff.mustSetPassword && (
+          <Link href="/account" className="mt-4 inline-block text-sm text-slate-500 hover:text-brand">
+            ← アカウントに戻る
+          </Link>
+        )}
       </div>
-      <MobileTabBar />
+      {!staff.mustSetPassword && <MobileTabBar />}
     </main>
   );
 }

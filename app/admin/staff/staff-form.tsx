@@ -47,6 +47,12 @@ export function StaffForm({ staff, stores, companies, action, isSelf, canGrantSu
         <Field label="メールアドレス（ログインID）" required>
           <input name="email" type="email" defaultValue={staff?.email ?? ""} required className={input} />
         </Field>
+        {!staff && (
+          <Field label="仮パスワード（8文字以上）" required>
+            <input name="temp_password" type="text" minLength={8} required autoComplete="off" className={input} />
+            <p className="mt-1 text-xs text-slate-500">本人に伝えてください。最初のログインで、本人が自分のパスワードに変えます</p>
+          </Field>
+        )}
         <Field label="社員番号">
           <input name="employee_no" defaultValue={staff?.employee_no ?? ""} className={input} />
         </Field>

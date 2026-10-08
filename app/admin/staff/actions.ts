@@ -1,9 +1,9 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { audit } from "@/lib/audit";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ROLE_LABELS } from "@/lib/format";
@@ -46,6 +46,9 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
     const email = text("email")?.toLowerCase() ?? null;
     if (!name) throw new InputError("氏名を入力してください");
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new InputError("メールアドレスを正しく入力してください");
+
+    const tempPassword = String(fd.get("temp_password") ?? "");
+    if (!staffId && tempPassword.length < 8) throw new InputError("仮パスワードを8文字以上で入力してください");
 
     const mynumber = text("mynumber")?.replace(/[-\s]/g, "") ?? null;
     if (mynumber && !/^\d{12}$/.test(mynumber)) throw new InputError("マイナンバーは12桁の数字で入力してください");
@@ -170,7 +173,7 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
       const { error } = await supabase.from("staff").update(row).eq("id", existing.id);
       if (error) throw new Error(error.message);
     } else {
-      const { data: user, error: authError } = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { name } });
+      const { data: user, error: authError } = await admin.auth.admin.createUser({ email, password: tempPassword, email_confirm: true, user_metadata: { name } });
       if (authError) throw new InputError(`ログインアカウントを作成できませんでした（${authError.message}）`);
       const { data: inserted, error } = await supabase
         .from("staff")
@@ -196,24 +199,20 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
   return { ok: true, at: Date.now() };
 }
 
-export type LinkState = { url?: string; error?: string } | undefined;
+export type TempPasswordState = { ok?: boolean; error?: string; at?: number } | undefined;
 
-// 本人に渡すパスワード設定用リンク（新規登録・パスワード忘れ用、1回限り有効）
-export async function issuePasswordLink(staffId: string): Promise<LinkState> {
-  await requireAdmin();
-  const supabase = await createClient();
-  const { data: staff } = await supabase.from("staff").select("email, retired, auth_user_id").eq("id", staffId).single();
-  if (!staff?.email || !staff.auth_user_id) return { error: "ログインアカウントがありません" };
-  if (staff.retired) return { error: "退職済みのスタッフには発行できません" };
-
-  const { data, error } = await createAdminClient().auth.admin.generateLink({ type: "recovery", email: staff.email });
-  if (error) return { error: "リンクを発行できませんでした" };
-
-  const h = await headers();
-  const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-  const url = new URL("/auth/confirm", origin);
-  url.searchParams.set("token_hash", data.properties.hashed_token);
-  url.searchParams.set("type", "recovery");
-  await supabase.from("staff").update({ invited_at: new Date().toISOString() }).eq("id", staffId);
-  return { url: url.toString() };
+// 仮パスワードを決め直す（新規登録・パスワードを忘れた人用）。次のログインで本人が自分のパスワードに変える
+export async function setTempPassword(staffId: string, _prev: TempPasswordState, fd: FormData): Promise<TempPasswordState> {
+  const me = await requireAdmin();
+  const password = String(fd.get("temp_password") ?? "");
+  if (password.length < 8) return { error: "8文字以上で入力してください", at: Date.now() };
+  const admin = createAdminClient();
+  const { data: staff } = await admin.from("staff").select("retired, auth_user_id").eq("id", staffId).single();
+  if (!staff?.auth_user_id) return { error: "ログインアカウントがありません", at: Date.now() };
+  if (staff.retired) return { error: "退職済みのスタッフには設定できません", at: Date.now() };
+  const { error } = await admin.auth.admin.updateUserById(staff.auth_user_id, { password });
+  if (error) return { error: `設定できませんでした（${error.message}）`, at: Date.now() };
+  await admin.from("staff").update({ first_login: true, invited_at: new Date().toISOString() }).eq("id", staffId);
+  await audit({ actor: me.id, action: "update", targetType: "staff", targetId: staffId, detail: { tempPassword: "set" } });
+  return { ok: true, at: Date.now() };
 }
