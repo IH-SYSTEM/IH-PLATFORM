@@ -1,15 +1,16 @@
-import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
-import { REPORT_TYPES, reportType } from "@/lib/reports/registry";
-import { CATEGORIES, type CategoryKey } from "@/lib/reports/types";
+import { reportType } from "@/lib/reports/registry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Toast } from "@/app/toast";
+import { PageHeader } from "@/app/shell/page-header";
 import { StatusBadge } from "./status-badge";
+import { ReportCatalog } from "./report-catalog";
 
 export const metadata = { title: "報告窓口" };
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
 
 export default async function ReportsPage({ searchParams }: PageProps<"/reports">) {
   const me = await requireStaff();
@@ -26,29 +27,13 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
   const nameOf = new Map((people ?? []).map((p) => [p.id, p.name]));
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">報告窓口</h1>
-        <p className="mt-1 text-sm text-slate-500">困ったことやトラブルは、ここから本部に報告します。本部が確認して処理し、結果をお知らせします</p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader title="報告窓口" description="困ったこと・届け・トラブルは、すべてここから本部に送ります。本部が確認し、結果をLINEでお知らせします" />
 
-      {(Object.keys(CATEGORIES) as CategoryKey[]).map((cat) => (
-        <section key={cat}>
-          <h2 className="text-sm font-bold text-slate-700">{CATEGORIES[cat].label}</h2>
-          <p className="text-xs text-slate-500">{CATEGORIES[cat].description}</p>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            {REPORT_TYPES.filter((t) => t.category === cat).map((t) => (
-              <Link key={t.key} href={`/reports/new/${t.key}`} className="rounded-md border border-line bg-white p-4 transition hover:border-brand">
-                <span className="block font-bold text-slate-900">{t.title}</span>
-                <span className="mt-1 block text-xs text-slate-500">{t.description}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ))}
+      <ReportCatalog />
 
       <section>
-        <h2 className="mb-2 text-sm font-bold text-slate-700">自分に関係する報告</h2>
+        <h2 className="mb-3 text-xs font-bold tracking-[0.2em] text-slate-400">自分に関係する報告</h2>
         {mine && mine.length > 0 ? (
           <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-white">
             {mine.map((r) => {

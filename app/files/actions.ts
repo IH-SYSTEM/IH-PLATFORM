@@ -7,7 +7,7 @@ import { ALLOWED_TYPES, BUCKET, isFileCategory, MAX_BYTES, newPath, signedUpload
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // スタッフが自分で出せる書類。雇用契約書・源泉徴収票は会社が出すもの（管理者だけがアップロードできる）
-const SELF_UPLOAD: FileCategory[] = ["tax_certificate", "receipt", "other"];
+const SELF_UPLOAD: FileCategory[] = ["tax_certificate", "receipt", "report", "other"];
 
 export type StartUpload = { fileId: string; path: string; token: string } | { error: string };
 

@@ -5,9 +5,11 @@ import { Toast } from "@/app/toast";
 import type { ReviewState } from "./actions";
 
 export function ReviewButtons({
+  approveLabel,
   approve,
   reject,
 }: {
+  approveLabel: string;
   approve: (prev: ReviewState) => Promise<ReviewState>;
   reject: (prev: ReviewState, fd: FormData) => Promise<ReviewState>;
 }) {
@@ -21,7 +23,7 @@ export function ReviewButtons({
       <div className="flex flex-wrap gap-2">
         <form action={approveAction}>
           <button disabled={approving || rejecting} className="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-2 disabled:opacity-60">
-            {approving ? "反映しています…" : "承認して反映"}
+            {approving ? "処理しています…" : approveLabel}
           </button>
         </form>
         <button

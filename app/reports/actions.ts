@@ -27,6 +27,12 @@ export async function submitReport(typeKey: string, _prev: SubmitState, fd: Form
   const payload = parsed.payload;
 
   const admin = createAdminClient();
+  // 写真は、報告した本人が上げた、使える状態のものだけ受け付ける
+  for (const f of type.fields) {
+    if (f.kind !== "photo" || !payload[f.key]) continue;
+    const { data: file } = await admin.from("files").select("uploaded_by, status").eq("id", String(payload[f.key])).maybeSingle();
+    if (!file || file.uploaded_by !== me.id || file.status !== "ready") return fail("写真をもう一度選んでください");
+  }
   const storeId = String(fd.get("store") ?? "");
   const { data: store } = await admin.from("stores").select("id, lat, lng, geofence_radius, is_active").eq("id", storeId).maybeSingle();
   if (!store?.is_active) return fail("店舗を選んでください");

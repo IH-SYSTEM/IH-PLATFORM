@@ -82,13 +82,15 @@ async function managerCards(me: CurrentStaff): Promise<Card[]> {
   ];
 }
 
-async function adminCards(): Promise<Card[]> {
+async function adminCards(me: CurrentStaff): Promise<Card[]> {
   const admin = createAdminClient();
   const p = defaultPeriod();
   const [{ data: staff }, { data: records }, { count: pending }] = await Promise.all([
     admin.from("staff").select("id, retired, line_user_id, line_friend"),
     admin.from("salary_records").select("staff_id, status").eq("year", p.year).eq("month", p.month),
-    admin.from("reports").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    me.permission === "superadmin"
+      ? admin.from("reports").select("id", { count: "exact", head: true }).eq("status", "pending")
+      : admin.from("reports").select("id", { count: "exact", head: true }).eq("status", "pending").neq("category", "harassment"),
   ]);
   const active = (staff ?? []).filter((s) => !s.retired);
   const entered = new Set((records ?? []).map((r) => r.staff_id));
@@ -128,7 +130,7 @@ function CardGrid({ title, cards }: { title: string; cards: Card[] }) {
 export default async function PortalHome({ searchParams }: PageProps<"/">) {
   const { line } = await searchParams;
   const me = await requireStaff();
-  const [mine, store, hq] = await Promise.all([myCards(me), managerCards(me), me.isAdmin ? adminCards() : Promise.resolve([])]);
+  const [mine, store, hq] = await Promise.all([myCards(me), managerCards(me), me.isAdmin ? adminCards(me) : Promise.resolve([])]);
   const today = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", month: "long", day: "numeric", weekday: "short" }).format(new Date());
 
   return (
