@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import type { FileRow } from "@/lib/files";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -20,13 +19,7 @@ export default async function MyDocumentsPage() {
 
   return (
     <div className="space-y-5">
-      <Link href="/" className="inline-block text-sm text-slate-500 hover:text-brand">
-        ← ポータル
-      </Link>
-      <h1 className="flex items-center gap-2 text-xl font-bold text-brand">
-        <span className="h-5 w-1 bg-accent" />
-        書類
-      </h1>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">書類</h1>
       <p className="text-sm text-slate-500">雇用契約書・労働条件通知書・源泉徴収票など、会社から受け取った書類です</p>
       <section className="rounded-md border border-line bg-white px-4 py-2">
         <FileList files={files ?? []} />

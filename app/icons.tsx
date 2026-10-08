@@ -1,6 +1,11 @@
 import type { AppIcon } from "@/lib/apps";
 
-const PATHS: Record<AppIcon | "home" | "user", React.ReactNode> = {
+const PATHS: Record<AppIcon | "home" | "user" | "menu", React.ReactNode> = {
+  menu: (
+    <>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </>
+  ),
   home: (
     <>
       <path d="M4 11l8-7 8 7M6 9.5V20h12V9.5" />
@@ -80,7 +85,7 @@ const PATHS: Record<AppIcon | "home" | "user", React.ReactNode> = {
   ),
 };
 
-export function Icon({ name, className = "size-5" }: { name: AppIcon | "home" | "user"; className?: string }) {
+export function Icon({ name, className = "size-5" }: { name: AppIcon | "home" | "user" | "menu"; className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
       {PATHS[name]}

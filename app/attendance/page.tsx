@@ -27,14 +27,8 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
 
   return (
     <div className="space-y-5">
-      <Link href="/" className="inline-block text-sm text-slate-500 hover:text-brand">
-        ← ポータル
-      </Link>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-xl font-bold text-brand">
-          <span className="h-5 w-1 bg-accent" />
-          勤怠
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">勤怠</h1>
         <div className="flex gap-2">
           {me.isAdmin && (
             <Link
