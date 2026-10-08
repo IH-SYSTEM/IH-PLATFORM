@@ -4,8 +4,8 @@ import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { STAFF_COLUMNS, type StaffRecord } from "@/lib/staff";
 import { StaffForm } from "../staff-form";
-import { PasswordLinkPanel } from "../password-link";
-import { issuePasswordLink, saveStaff } from "../actions";
+import { TempPasswordPanel } from "../temp-password";
+import { saveStaff, setTempPassword } from "../actions";
 import { audit } from "@/lib/audit";
 import { FILE_CATEGORIES, type FileRow } from "@/lib/files";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -46,7 +46,7 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
         </h1>
       </div>
 
-      {!staff.retired && <PasswordLinkPanel action={issuePasswordLink.bind(null, staff.id)} />}
+      {!staff.retired && <TempPasswordPanel action={setTempPassword.bind(null, staff.id)} />}
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-800">書類</h2>

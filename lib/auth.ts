@@ -12,6 +12,7 @@ export type CurrentStaff = {
   isAdmin: boolean;
   lineLinked: boolean;
   lineFriend: boolean | null;
+  mustSetPassword: boolean; // 本部が決めた仮パスワードのまま（最初のログインで本人のパスワードに変えてもらう）
 };
 
 export async function getCurrentStaff(): Promise<CurrentStaff | null> {
@@ -21,7 +22,7 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   if (!userId) return null;
   const { data } = await supabase
     .from("staff")
-    .select("id, name, email, role, permission, retired, line_user_id, line_friend")
+    .select("id, name, email, role, permission, retired, line_user_id, line_friend, first_login")
     .eq("auth_user_id", userId)
     .maybeSingle();
   if (!data || data.retired) return null;
@@ -35,6 +36,7 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
     isAdmin: data.permission === "admin" || data.permission === "superadmin",
     lineLinked: Boolean(data.line_user_id),
     lineFriend: data.line_friend,
+    mustSetPassword: data.first_login === true,
   };
 }
 
@@ -44,11 +46,13 @@ export const needsLineLink = (s: CurrentStaff) => (!s.lineLinked || s.lineFriend
 
 /**
  * ログイン必須。LINE連携が済んでいない人は、例外なく連携の画面へ移す。
- * 連携の画面そのものと、アカウント画面は allowUnlinked で通す
+ * 連携の画面そのものと、アカウント画面は allowUnlinked で通す。
+ * 仮パスワードのままの人は、LINE連携より先にパスワードの設定画面へ移す（allowFirstLogin はその画面だけ）
  */
-export async function requireStaff({ allowUnlinked = false }: { allowUnlinked?: boolean } = {}) {
+export async function requireStaff({ allowUnlinked = false, allowFirstLogin = false }: { allowUnlinked?: boolean; allowFirstLogin?: boolean } = {}) {
   const staff = await getCurrentStaff();
   if (!staff) redirect("/login");
+  if (!allowFirstLogin && staff.mustSetPassword) redirect("/account/password");
   if (!allowUnlinked && needsLineLink(staff)) redirect("/link-line");
   return staff;
 }
