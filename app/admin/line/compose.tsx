@@ -37,7 +37,8 @@ export function Compose({ companies, stores, roles, remaining }: { companies: Op
       onChange={refresh}
       onFocus={() => preview === null && refresh()}
       onSubmit={(e) => {
-        if (!preview || !confirm(`${preview.linked}人にLINEを送ります（${preview.linked}通）。よろしいですか？`)) e.preventDefault();
+        const test = (e.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "1";
+        if (!test && (!preview || !confirm(`${preview.linked}人にLINEを送ります（${preview.linked}通）。よろしいですか？`))) e.preventDefault();
       }}
       className="space-y-4 rounded-md border border-slate-200 bg-white p-5 shadow-sm"
     >
@@ -81,9 +82,14 @@ export function Compose({ companies, stores, roles, remaining }: { companies: Op
 
       {state?.error && <p className="text-sm font-bold text-accent">{state.error}</p>}
       {state?.ok && <p className="text-sm font-bold text-emerald-700">{state.ok}</p>}
-      <button disabled={pending || !preview?.linked} className="rounded-lg bg-[#06C755] px-6 py-2.5 text-sm font-bold text-white disabled:opacity-50">
-        {pending ? "送っています…" : "LINEで送る"}
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button disabled={pending || !preview?.linked} className="rounded-lg bg-[#06C755] px-6 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+          {pending ? "送っています…" : "LINEで送る"}
+        </button>
+        <button name="test" value="1" disabled={pending} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+          自分にだけテスト送信
+        </button>
+      </div>
     </form>
   );
 }
