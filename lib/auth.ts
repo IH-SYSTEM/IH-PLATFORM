@@ -31,7 +31,8 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
     email: data.email,
     role: data.role,
     permission: data.permission,
-    isAdmin: data.permission === "admin" || data.permission === "superadmin" || data.role === "admin",
+    // 管理者かどうかは「権限」だけで決める。雇用区分（role）の「管理部」は働き方の区分で、権限ではない
+    isAdmin: data.permission === "admin" || data.permission === "superadmin",
     lineLinked: Boolean(data.line_user_id),
     lineFriend: data.line_friend,
   };
