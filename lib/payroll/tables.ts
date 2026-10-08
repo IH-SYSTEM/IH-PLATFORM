@@ -72,6 +72,16 @@ export const INSURANCE_RATES = {
   } as Record<string, number>,
 };
 
+// 会社だけが負担する分（人件費の見込みに使う。給与明細の控除には使わない）。2026-10-09 時点・経理に確認してもらうこと
+//   雇用保険（事業主）：一般の事業 8.5/1000（令和8年度。本人負担 5/1000 と合わせて 13.5/1000）
+//   労災保険：飲食店・理美容（その他の各種事業）3/1000
+//   子ども・子育て拠出金：標準報酬月額の 0.36%（社会保険の加入者のみ）
+export const EMPLOYER_ONLY_RATES = {
+  employment: 0.0085,
+  workersComp: 0.003,
+  childContribution: 0.0036,
+};
+
 // 厚生年金の標準報酬月額は 88,000円〜650,000円（健康保険の4等級〜35等級に当たる）。その外は上限・下限で計算する
 export const PENSION_MONTHLY_MIN = 88000;
 export const PENSION_MONTHLY_MAX = 650000;

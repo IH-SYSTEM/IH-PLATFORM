@@ -219,7 +219,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/sale
       )}
 
       <p className="text-xs leading-relaxed text-slate-400">
-        人件費は見込みです：時給・日給の人は勤怠（打刻した店）とその日の時給から、月給の人は月給と固定の手当を暦日で割って所属店に入れています。会社負担の社会保険料は含みません。役員は除いています。
+        人件費：アルバイトは、その日の勤怠×その日の時給（残業・深夜の割増を含む）の実数。正社員は、月給＋固定の手当＋会社負担の法定福利費（社会保険・雇用保険・労災・子ども子育て拠出金）を、所属店のその月の営業日（売上がある日）の数で割って、営業日ごとに入れています（今月は営業日を見込み）。役員は除いています。
       </p>
 
       {without.length > 0 && <p className="text-xs text-slate-400">まだデータがない店舗：{without.map((s) => s.name).join("・")}</p>}
