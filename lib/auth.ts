@@ -11,6 +11,7 @@ export type CurrentStaff = {
   permission: string | null;
   isAdmin: boolean;
   lineLinked: boolean;
+  lineFriend: boolean | null;
 };
 
 export async function getCurrentStaff(): Promise<CurrentStaff | null> {
@@ -20,7 +21,7 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
   if (!userId) return null;
   const { data } = await supabase
     .from("staff")
-    .select("id, name, email, role, permission, retired, line_user_id")
+    .select("id, name, email, role, permission, retired, line_user_id, line_friend")
     .eq("auth_user_id", userId)
     .maybeSingle();
   if (!data || data.retired) return null;
@@ -32,11 +33,12 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
     permission: data.permission,
     isAdmin: data.permission === "admin" || data.permission === "superadmin" || data.role === "admin",
     lineLinked: Boolean(data.line_user_id),
+    lineFriend: data.line_friend,
   };
 }
 
 /** LINE連携が済んでいない（API など、画面を移せないところで使う）。例外なく全員に連携を求める（2026-10-08 黒田さん決定） */
-export const needsLineLink = (s: CurrentStaff) => !s.lineLinked && Boolean(lineConfig());
+export const needsLineLink = (s: CurrentStaff) => (!s.lineLinked || s.lineFriend === false) && Boolean(lineConfig());
 
 /**
  * ログイン必須。LINE連携が済んでいない人は、例外なく連携の画面へ移す。
