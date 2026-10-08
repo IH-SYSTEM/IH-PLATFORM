@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
+import { syncHistoryFromMaster } from "@/lib/wage-sync";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ROLE_LABELS } from "@/lib/format";
@@ -169,6 +170,7 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
       }
       const { error } = await supabase.from("staff").update(row).eq("id", existing.id);
       if (error) throw new Error(error.message);
+      await syncHistoryFromMaster(existing.id, payroll_master as Record<string, unknown>, row.hire_date ?? null, me.id);
     } else {
       const { data: user, error: authError } = await admin.auth.admin.createUser({ email, password: TEMP_PASSWORD, email_confirm: true, user_metadata: { name } });
       if (authError) throw new InputError(`ログインアカウントを作成できませんでした（${authError.message}）`);
@@ -182,6 +184,7 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
         throw new Error(error.message);
       }
       createdId = inserted.id;
+      await syncHistoryFromMaster(inserted.id, payroll_master as Record<string, unknown>, row.hire_date ?? null, me.id);
     }
   } catch (e) {
     if (e instanceof InputError) return { error: e.message, at: Date.now() };

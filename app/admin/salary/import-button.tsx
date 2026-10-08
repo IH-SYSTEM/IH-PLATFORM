@@ -45,6 +45,9 @@ export function ImportButton({ label, action }: { label: string; action: (prev: 
           )}
           {(state.skippedConfirmed?.length ?? 0) > 0 && <p className="text-slate-600">確定済みのため変えなかった人：{state.skippedConfirmed!.join("、")}</p>}
           {(state.noMaster?.length ?? 0) > 0 && <p className="text-amber-700">給与形態が未設定のため取り込めなかった人：{state.noMaster!.join("、")}（スタッフ管理の給与マスタで設定してください）</p>}
+          {(state.manual?.length ?? 0) > 0 && (
+            <p className="text-amber-700">手で入力してください：{state.manual!.map((m) => `${m.name}（${m.reason}）`).join("、")}</p>
+          )}
           {(state.imported?.length ?? 0) > 0 && (
             <table className="w-full text-xs">
               <thead className="text-slate-500">

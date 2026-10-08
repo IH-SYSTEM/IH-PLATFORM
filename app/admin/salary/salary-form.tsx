@@ -245,6 +245,12 @@ export function SalaryForm({
                 <>
                   <NumField label="時給" value={get("attendance", "hourlyWage")} onChange={set("attendance", "hourlyWage")} />
                   <NumField label="勤務時間" unit="時間" value={get("attendance", "workHours")} onChange={set("attendance", "workHours")} />
+                  {Number(get("attendance", "hourlyWage2")) > 0 && (
+                    <>
+                      <NumField label={`時給（${get("attendance", "wageChangeDay")}日から）`} value={get("attendance", "hourlyWage2")} onChange={set("attendance", "hourlyWage2")} />
+                      <NumField label="勤務時間（変更後）" unit="時間" value={get("attendance", "workHours2")} onChange={set("attendance", "workHours2")} />
+                    </>
+                  )}
                 </>
               )}
               {type !== "contract" &&

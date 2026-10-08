@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { STAFF_COLUMNS, type StaffRecord } from "@/lib/staff";
 import { StaffForm } from "../staff-form";
 import { TempPasswordPanel } from "../temp-password";
+import { WageHistory } from "../wage-history";
+import { addWage, deleteLatestWage } from "../wage-actions";
+import { businessDayJST } from "@/lib/business-day";
 import { saveStaff, setTempPassword } from "../actions";
 import { audit } from "@/lib/audit";
 import { FILE_CATEGORIES, type FileRow } from "@/lib/files";
@@ -26,6 +29,11 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
   if (!staff) notFound();
   // マイナンバー・口座など個人情報を表示するページなので、開いたことを記録する
   await audit({ actor: me.id, action: "view", targetType: "staff", targetId: staff.id, subject: staff.id });
+  const [{ data: wageRows }, { data: names }] = await Promise.all([
+    createAdminClient().from("staff_wage_history").select("id, valid_from, valid_to, employment_type, amount, note, created_by").eq("staff_id", staff.id).order("valid_from", { ascending: false }),
+    createAdminClient().from("staff").select("id, name"),
+  ]);
+  const nameOf = new Map((names ?? []).map((n) => [n.id, n.name]));
   const { data: files } = await createAdminClient()
     .from("files")
     .select("*")
@@ -79,6 +87,13 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
           </ul>
         </div>
       )}
+
+      <WageHistory
+        rows={(wageRows ?? []).map((r) => ({ ...r, by: r.created_by ? (nameOf.get(r.created_by) ?? null) : null }))}
+        today={businessDayJST()}
+        add={addWage.bind(null, staff.id)}
+        removeLatest={deleteLatestWage.bind(null, staff.id)}
+      />
 
       <StaffForm
         staff={staff}

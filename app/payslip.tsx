@@ -54,7 +54,16 @@ export function Payslip({ r, department }: { r: PayslipRecord; department?: stri
   const d = r.deduction ?? {};
   const attendance: [string, string][] = ATTENDANCE_FIELDS.map((f) => [f.label, `${a[f.key] ?? 0}${f.unit}`]);
   if (r.employment_type === "hourly") {
-    attendance.push(["時給", yen(a.hourlyWage)], ["勤務時間", `${a.workHours ?? 0}時間`]);
+    if (a.hourlyWage2) {
+      // 月の途中で時給が変わった月
+      const d = a.wageChangeDay;
+      attendance.push(
+        [`時給（${d ? `${d - 1}日まで` : "変更前"}）`, yen(a.hourlyWage)],
+        ["勤務時間（変更前）", `${a.workHours ?? 0}時間`],
+        [`時給（${d ? `${d}日から` : "変更後"}）`, yen(a.hourlyWage2)],
+        ["勤務時間（変更後）", `${a.workHours2 ?? 0}時間`],
+      );
+    } else attendance.push(["時給", yen(a.hourlyWage)], ["勤務時間", `${a.workHours ?? 0}時間`]);
   }
   for (const f of ATTENDANCE_TIME_FIELDS) if (a[f.key]) attendance.push([f.label, `${a[f.key]}${f.unit}`]);
   const base = PAYMENT_BASE_FIELDS[r.employment_type];
