@@ -11,6 +11,7 @@ export type StoreRecord = {
   code: string | null;
   company_id: string | null;
   overtime_rule: string;
+  work_roles: string[];
   address: string | null;
   sort_order: number | null;
   lat: number | null;
@@ -97,6 +98,12 @@ export function StoreForm({
         {store && <Check name="is_active" label="この店舗を使用する" defaultChecked={store.is_active} />}
         <Field label="住所" className="sm:col-span-2 lg:col-span-3">
           <input name="address" defaultValue={store?.address ?? ""} className={input} />
+        </Field>
+      </Section>
+
+      <Section title="シフトの役割" note="シフトを確定するときに選ぶ役割です（例：キャッシャー・ホール・キッチンアシスタント）。1行に1つ、20文字まで">
+        <Field label="役割の一覧" className="sm:col-span-2 lg:col-span-3">
+          <textarea name="work_roles" rows={4} defaultValue={store?.work_roles?.join("\n") ?? ""} className={input} />
         </Field>
       </Section>
 

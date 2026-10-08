@@ -69,6 +69,7 @@ export async function saveStore(storeId: string | null, _prev: StoreSaveState, f
       name,
       company_id: text("company_id"),
       overtime_rule: text("overtime_rule") === "weekly_variable" ? "weekly_variable" : "statutory",
+      work_roles: [...new Set(String(fd.get("work_roles") ?? "").split(/\r?\n/).map((r) => r.trim().slice(0, 20)).filter(Boolean))].slice(0, 20),
       address: text("address"),
       sort_order: num("sort_order", "表示順"),
       lat: num("lat", "緯度", { min: -90, max: 90, integer: false }),

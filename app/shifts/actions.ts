@@ -52,6 +52,11 @@ export async function saveShift(storeId: string, staffId: string, date: string, 
   const start = String(fd.get("start") ?? "");
   const end = String(fd.get("end") ?? "");
   if (type === "work" && (!TIME.test(start) || !TIME.test(end))) return fail("開始・終了の時刻を入れてください");
+  // 役割：店に役割の一覧があれば、出勤のときは必ずその中から選ぶ
+  const { data: storeRow } = await admin.from("stores").select("work_roles").eq("id", storeId).single();
+  const roles: string[] = storeRow?.work_roles ?? [];
+  const workRole = String(fd.get("role") ?? "").trim() || null;
+  if (type === "work" && roles.length && (!workRole || !roles.includes(workRole))) return fail("役割を選んでください");
   if (type === "work" && start === end) return fail("開始と終了が同じ時刻です");
 
   // 同じ日に他の店舗でシフトがある人は上書きしない（掛け持ちの取り違えを防ぐ）
@@ -66,6 +71,7 @@ export async function saveShift(storeId: string, staffId: string, date: string, 
       shift_type: type,
       planned_start: type === "work" ? start : null,
       planned_end: type === "work" ? end : null,
+      work_role: type === "work" ? workRole : null,
       updated_by: me.id,
       updated_at: new Date().toISOString(),
     },

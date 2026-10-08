@@ -62,6 +62,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
                 </span>
                 <span className="tabular-nums text-slate-700">
                   {s.shift_type === "work" ? `${hm(s.planned_start)}〜${hm(s.planned_end)}` : SHIFT_TYPES.find((t) => t.key === s.shift_type)?.label}
+                  {s.work_role && <span className="ml-2 rounded bg-brand px-1.5 py-0.5 text-[11px] font-bold text-white">{s.work_role}</span>}
                   <span className="ml-2 text-xs text-slate-400">{storeName.get(s.store_id)}</span>
                 </span>
               </li>
