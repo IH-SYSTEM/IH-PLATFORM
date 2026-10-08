@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   "/auth/",
   "/forgot-password",
   "/api/auth/line-",
+  "/api/auth/forgot-password",
   "/manifest.webmanifest",
   "/punch/display/",
   "/api/punch/display/",
