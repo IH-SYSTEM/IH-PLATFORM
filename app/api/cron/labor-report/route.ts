@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const dry = request.nextUrl.searchParams.get("dry") === "1";
-  const reports = await buildLaborReports();
+  const reports = await buildLaborReports({ preview: dry });
   const results = [];
   for (const r of reports) {
     const sent = dry ? { sent: 0, skipped: "dry" } : await pushLine(r.to, r.text);
