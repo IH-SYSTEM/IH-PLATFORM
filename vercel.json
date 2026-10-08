@@ -1,4 +1,4 @@
 {
   "regions": ["syd1"],
-  "crons": [{ "path": "/api/cron/pos-ikkou", "schedule": "30 21 * * *" }]
+  "crons": [{ "path": "/api/cron/pos-sync", "schedule": "30 21 * * *" }]
 }

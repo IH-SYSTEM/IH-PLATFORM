@@ -8,7 +8,7 @@ import type { PosReceipt } from "./airregi.ts";
 
 export async function savePosReceipts(
   admin: SupabaseClient,
-  opts: { storeId: string; source: "airregi" | "ikkou"; fileName: string; file: Buffer; receipts: PosReceipt[]; importedBy: string | null },
+  opts: { storeId: string; source: "airregi" | "ikkou" | "crm"; fileName: string; file: Buffer; receipts: PosReceipt[]; importedBy: string | null },
 ): Promise<{ error?: string; dateFrom?: string; dateTo?: string; total?: number }> {
   const { storeId, source, receipts } = opts;
   if (!receipts.length) return { error: "会計が1件も入っていません" };
@@ -24,7 +24,7 @@ export async function savePosReceipts(
   if (clash?.length) return { error: "このCSVは別の店舗で取り込み済みの会計を含んでいます。店舗の選び間違いがないか確かめてください" };
 
   const sha = createHash("sha256").update(opts.file).digest("hex");
-  const ext = source === "ikkou" ? "json" : "csv";
+  const ext = source === "airregi" ? "csv" : "json";
   const path = `pos/${storeId}/${sha}.${ext}`;
   await admin.storage.from("private-files").upload(path, opts.file, { contentType: ext === "json" ? "application/json" : "text/csv", upsert: true });
   const dates = receipts.map((r) => r.businessDate).sort();
