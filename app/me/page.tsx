@@ -23,13 +23,7 @@ export default async function MyPayslipsPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/" className="inline-block text-sm text-slate-500 hover:text-brand">
-        ← ポータル
-      </Link>
-      <h1 className="flex items-center gap-2 text-xl font-bold text-brand">
-        <span className="h-5 w-1 bg-accent" />
-        給与明細
-      </h1>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">給与明細</h1>
 
       <section className="rounded-md bg-brand p-6 text-white">
         {latest ? (

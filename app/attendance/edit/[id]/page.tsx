@@ -54,10 +54,7 @@ export default async function AttendanceEditPage({ params, searchParams }: PageP
           修正者：{me.name}（ログイン中）
           <span className="font-normal text-brand/70">— 保存すると、この名前で変更履歴に残ります</span>
         </p>
-        <h1 className="flex items-center gap-2 text-xl font-bold text-brand">
-          <span className="h-5 w-1 bg-accent" />
-          {isNew ? "打刻の記録を追加" : "打刻修正"}
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">{isNew ? "打刻の記録を追加" : "打刻修正"}</h1>
         {row && (
           <p className="mt-1 text-sm text-slate-600">
             {nameOf.get(row.staff_id)}さん ／ {storeName.get(row.store_id) ?? "—"} ／ {row.date}

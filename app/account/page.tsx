@@ -3,8 +3,8 @@ import { requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { jpDate } from "@/lib/format";
 import { LINE_ERRORS, lineConfig } from "@/lib/line-login";
-import { PortalHeader } from "@/app/portal-header";
-import { MobileTabBar } from "@/app/mobile-tab-bar";
+import { AppShell } from "@/app/shell/app-shell";
+import { PageHeader } from "@/app/shell/page-header";
 import { Toast } from "@/app/toast";
 import { unlinkLine } from "./actions";
 import { LineMark } from "@/app/line-mark";
@@ -21,16 +21,9 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
   const errorMessage = typeof error === "string" ? LINE_ERRORS[error] : undefined;
 
   return (
-    <div className="min-h-screen">
-      <PortalHeader staff={me} />
-      <main className="mx-auto max-w-2xl space-y-6 px-4 pb-28 pt-5 lg:pb-16">
-        <Link href="/" className="inline-block text-sm text-slate-500 hover:text-brand">
-          ← ポータル
-        </Link>
-        <h1 className="flex items-center gap-2 text-xl font-bold text-brand">
-          <span className="h-5 w-1 bg-accent" />
-          アカウント
-        </h1>
+    <AppShell staff={me}>
+      <div className="max-w-2xl space-y-6">
+        <PageHeader title="アカウント" description="パスワードとLINE連携の設定" />
 
         {errorMessage && <p className="border-l-4 border-accent bg-accent-soft px-4 py-3 text-sm text-accent">{errorMessage}</p>}
 
@@ -85,10 +78,9 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
             </>
           )}
         </section>
-      </main>
-      <MobileTabBar />
+      </div>
       {line === "linked" && <Toast message="LINEと連携しました" />}
       {line === "unlinked" && <Toast message="LINE連携を解除しました" />}
-    </div>
+    </AppShell>
   );
 }

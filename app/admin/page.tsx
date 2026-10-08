@@ -4,7 +4,6 @@ import { UrgentUsage } from "./urgent-usage";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { yen } from "@/lib/format";
-import { ADMIN_NAV } from "@/lib/admin-nav";
 
 type Period = { year: number; month: number };
 const key = (p: Period) => p.year * 100 + p.month;
@@ -159,29 +158,6 @@ export default async function AdminDashboard() {
         </Panel>
       </div>
 
-      <Panel title="メニュー">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {ADMIN_NAV.filter((n) => n.href !== "/admin").map((n) =>
-            n.ready ? (
-              <Link
-                key={n.href}
-                href={n.href}
-                className="rounded-md border border-slate-200 px-4 py-3.5 text-sm font-medium text-slate-800 transition hover:border-brand hover:bg-brand-soft"
-              >
-                {n.label}
-              </Link>
-            ) : (
-              <div
-                key={n.href}
-                className="flex items-center justify-between rounded-md border border-dashed border-slate-200 px-4 py-3.5 text-sm text-slate-400"
-              >
-                {n.label}
-                <span className="text-xs">準備中</span>
-              </div>
-            ),
-          )}
-        </div>
-      </Panel>
     </div>
   );
 }

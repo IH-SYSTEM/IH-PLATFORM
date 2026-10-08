@@ -37,7 +37,9 @@ export async function proxy(request: NextRequest) {
   );
 
   const { data } = await supabase.auth.getClaims();
-  const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
+  // 開発中だけ、画面の枠の確認用ページをログインなしで開ける（本番では対象外）
+  const isDevPreview = process.env.NODE_ENV === "development" && request.nextUrl.pathname.startsWith("/dev/");
+  const isPublic = isDevPreview || PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
   if (!data?.claims && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

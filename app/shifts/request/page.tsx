@@ -43,13 +43,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <Link href="/" className="inline-block text-sm text-slate-500 hover:text-brand">
-        ← ポータル
-      </Link>
-      <h1 className="flex items-center gap-2 text-xl font-bold text-brand">
-        <span className="h-5 w-1 bg-accent" />
-        シフト
-      </h1>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">シフト</h1>
 
       <section>
         <h2 className="mb-2 text-sm font-bold text-slate-700">確定したシフト</h2>

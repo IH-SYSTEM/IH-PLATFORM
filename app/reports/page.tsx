@@ -27,14 +27,8 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
 
   return (
     <div className="space-y-6">
-      <Link href="/" className="inline-block text-sm text-slate-500 hover:text-brand">
-        ← ポータル
-      </Link>
       <div>
-        <h1 className="flex items-center gap-2 text-xl font-bold text-brand">
-          <span className="h-5 w-1 bg-accent" />
-          報告窓口
-        </h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">報告窓口</h1>
         <p className="mt-1 text-sm text-slate-500">困ったことやトラブルは、ここから本部に報告します。本部が確認して処理し、結果をお知らせします</p>
       </div>
 
