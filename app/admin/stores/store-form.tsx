@@ -4,6 +4,7 @@ import { startTransition, useActionState } from "react";
 import { Toast } from "@/app/toast";
 import { Check, Field, SaveBar, Section, inputClass as input } from "../form-ui";
 import type { StoreSaveState } from "./actions";
+import { RoleEditor } from "./role-editor";
 
 export type StoreRecord = {
   id: string;
@@ -101,10 +102,8 @@ export function StoreForm({
         </Field>
       </Section>
 
-      <Section title="シフトの役割" note="シフトを確定するときに選ぶ役割です（例：キャッシャー・ホール・キッチンアシスタント）。1行に1つ、20文字まで">
-        <Field label="役割の一覧" className="sm:col-span-2 lg:col-span-3">
-          <textarea name="work_roles" rows={4} defaultValue={store?.work_roles?.join("\n") ?? ""} className={input} />
-        </Field>
+      <Section title="シフトの役割" note="店長がシフトを確定するときに選ぶ役割です。役割を増やせるのは管理者だけです">
+        <RoleEditor initial={store?.work_roles ?? []} />
       </Section>
 
       <Section title="営業・休日">

@@ -158,6 +158,14 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
         defaults={{ start: store.open_time ?? "19:00", end: store.close_time ?? "00:00" }}
       />
 
+      {me.isAdmin && (
+        <p className="text-right text-xs">
+          <Link href={`/admin/stores/${store.id}`} className="text-brand hover:underline">
+            ＋ この店の役割を追加・変更する（管理者）
+          </Link>
+        </p>
+      )}
+
       <form action="/shifts" className="flex flex-wrap items-center gap-2 text-sm">
         <input type="hidden" name="store" value={store.id} />
         <input type="hidden" name="week" value={monday} />
