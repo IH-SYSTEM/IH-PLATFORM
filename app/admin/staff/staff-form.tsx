@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useState } from "react";
 import { ROLE_LABELS } from "@/lib/format";
-import { AGE_GROUPS, ALLOWANCES, DEDUCTIONS, EMPLOYMENT_TYPES, PERMISSIONS, ageGroupFor, type StaffRecord } from "@/lib/staff";
+import { AGE_GROUPS, ALLOWANCES, DEDUCTIONS, EMPLOYMENT_TYPES, PERMISSIONS, TEMP_PASSWORD, ageGroupFor, type StaffRecord } from "@/lib/staff";
 import { Toast } from "@/app/toast";
 import { STANDARD_MONTHLY_REMUNERATION } from "@/lib/payroll/tables";
 import type { SaveState } from "./actions";
@@ -48,10 +48,9 @@ export function StaffForm({ staff, stores, companies, action, isSelf, canGrantSu
           <input name="email" type="email" defaultValue={staff?.email ?? ""} required className={input} />
         </Field>
         {!staff && (
-          <Field label="仮パスワード（8文字以上）" required>
-            <input name="temp_password" type="text" minLength={8} required autoComplete="off" className={input} />
-            <p className="mt-1 text-xs text-slate-500">本人に伝えてください。最初のログインで、本人が自分のパスワードに変えます</p>
-          </Field>
+          <p className="text-xs text-slate-500 sm:col-span-2">
+            ログインの仮パスワードは <span className="font-mono font-bold text-slate-700">{TEMP_PASSWORD}</span> です。最初のログインで、本人が自分のパスワードに変えます
+          </p>
         )}
         <Field label="社員番号">
           <input name="employee_no" defaultValue={staff?.employee_no ?? ""} className={input} />
