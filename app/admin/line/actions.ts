@@ -26,6 +26,15 @@ export async function previewSegment(fd: FormData): Promise<Preview> {
 export async function sendBroadcast(_prev: SendState, fd: FormData): Promise<SendState> {
   const me = await requireAdmin();
   const text = String(fd.get("text") ?? "").trim();
+  // 「自分にだけテスト送信」：見え方の確認用。送った記録にも残る
+  if (fd.get("test") === "1") {
+    if (!text) return { error: "本文を入れてください", at: Date.now() };
+    const people = await resolveSegment({ staffIds: [me.id] });
+    if (!people[0]?.lineUserId) return { error: "あなたのLINEが連携されていません", at: Date.now() };
+    const r = await sendLine({ kind: "manual", text: `［テスト］\n${text}`, recipients: [{ staffId: me.id, lineUserId: people[0].lineUserId }], segment: { test: true }, createdBy: me.id });
+    revalidatePath("/admin/line");
+    return r.sent ? { ok: "あなたのLINEにテストで送りました", at: Date.now() } : { error: `送れませんでした（${r.skipped ?? "LINEの返事を確認してください"}）`, at: Date.now() };
+  }
   if (!text) return { error: "本文を入れてください", at: Date.now() };
   if (text.length > 2000) return { error: "本文は2000文字までにしてください", at: Date.now() };
   const segment = segmentOf(fd);
