@@ -24,7 +24,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
   const admin = createAdminClient();
   const today = businessDayJST();
 
-  let storesQuery = admin.from("stores").select("id, name, open_time, close_time").eq("is_active", true).order("sort_order", { nullsFirst: false });
+  let storesQuery = admin.from("stores").select("id, name, open_time, close_time, work_roles").eq("is_active", true).order("sort_order", { nullsFirst: false });
   if (!scope.all) storesQuery = storesQuery.in("id", scope.storeIds);
   const { data: stores } = await storesQuery;
   const store = (stores ?? []).find((s) => s.id === sp.store) ?? (stores ?? [])[0];
@@ -52,7 +52,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
 
   const [{ data: requests }, { data: shifts }, { data: subs }, { data: decisions }, { data: allStaff }] = await Promise.all([
     ids.length ? admin.from("shift_requests").select("staff_id, work_date, availability, preferred_start, preferred_end, source").in("staff_id", ids).in("work_date", days) : Promise.resolve({ data: [] }),
-    ids.length ? admin.from("shift_schedule").select("staff_id, store_id, work_date, shift_type, planned_start, planned_end").in("staff_id", ids).in("work_date", days) : Promise.resolve({ data: [] }),
+    ids.length ? admin.from("shift_schedule").select("staff_id, store_id, work_date, shift_type, planned_start, planned_end, work_role").in("staff_id", ids).in("work_date", days) : Promise.resolve({ data: [] }),
     ids.length ? admin.from("shift_request_submissions").select("staff_id, period_type, period_start").in("staff_id", ids) : Promise.resolve({ data: [] }),
     admin.from("shift_decisions").select("period_type, period_start, decided_at").eq("store_id", store.id),
     admin.from("staff").select("id, name, department_name").eq("retired", false).neq("store_id", store.id).order("furigana"),
@@ -82,7 +82,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
           return {
             date,
             request: r ? { a: r.availability, s: hm(r.preferred_start), e: hm(r.preferred_end), urgent: r.source === "urgent" } : null,
-            shift: s ? { type: s.shift_type, s: hm(s.planned_start), e: hm(s.planned_end), otherStore: s.store_id !== store.id } : null,
+            shift: s ? { type: s.shift_type, s: hm(s.planned_start), e: hm(s.planned_end), role: s.work_role, otherStore: s.store_id !== store.id } : null,
             locked: date < today,
           };
         }),
@@ -154,8 +154,17 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
         urgentReasons={URGENT_REASONS}
         urgentUsed={Object.fromEntries(days.map((d) => [d, (urgentCalls ?? []).filter((c) => c.work_date === d).length]))}
         rows={rows}
+        roles={store.work_roles ?? []}
         defaults={{ start: store.open_time ?? "19:00", end: store.close_time ?? "00:00" }}
       />
+
+      {me.isAdmin && (
+        <p className="text-right text-xs">
+          <Link href={`/admin/stores/${store.id}`} className="text-brand hover:underline">
+            ＋ この店の役割を追加・変更する（管理者）
+          </Link>
+        </p>
+      )}
 
       <form action="/shifts" className="flex flex-wrap items-center gap-2 text-sm">
         <input type="hidden" name="store" value={store.id} />

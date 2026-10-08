@@ -7,7 +7,7 @@ import { sendUrgentCall, type UrgentState } from "./urgent-actions";
 type Cell = {
   date: string;
   request: { a: string; s: string; e: string; urgent?: boolean } | null;
-  shift: { type: string; s: string; e: string; otherStore: boolean } | null;
+  shift: { type: string; s: string; e: string; role: string | null; otherStore: boolean } | null;
   locked: boolean;
 };
 export type GridRow = { id: string; name: string; kind: string; help: boolean; partTime: boolean; notSubmitted: boolean; cells: Cell[] };
@@ -34,6 +34,7 @@ export function ShiftGrid({
   urgentReasons,
   urgentUsed,
   rows,
+  roles,
   defaults,
 }: {
   storeId: string;
@@ -42,6 +43,7 @@ export function ShiftGrid({
   urgentReasons: readonly string[];
   urgentUsed: Record<string, number>;
   rows: GridRow[];
+  roles: string[];
   defaults: { start: string; end: string };
 }) {
   const [editing, setEditing] = useState<{ row: GridRow; cell: Cell } | null>(null);
@@ -109,6 +111,9 @@ export function ShiftGrid({
                             {c.shift.otherStore ? "他店" : c.shift.type === "work" ? `${c.shift.s}〜${c.shift.e}` : TYPE_LABEL[c.shift.type]}
                           </span>
                         )}
+                        {c.shift?.role && !c.shift.otherStore && (
+                          <span className="max-w-full truncate rounded bg-brand px-1 text-[10px] font-bold text-white">{c.shift.role}</span>
+                        )}
                       </button>
                     </td>
                   );
@@ -116,6 +121,29 @@ export function ShiftGrid({
               </tr>
             ))}
           </tbody>
+          {roles.length > 0 && (
+            <tfoot className="border-t border-slate-200 bg-slate-50 text-[10px] text-slate-600">
+              <tr>
+                <td className="px-2 py-2 align-top font-medium">役割の人数</td>
+                {days.map((d) => {
+                  const count = new Map<string, number>();
+                  for (const r of rows) {
+                    const c = r.cells.find((x) => x.date === d);
+                    if (c?.shift?.type === "work" && !c.shift.otherStore && c.shift.role) count.set(c.shift.role, (count.get(c.shift.role) ?? 0) + 1);
+                  }
+                  return (
+                    <td key={d} className="px-1 py-2 align-top">
+                      {roles.map((role) => (
+                        <span key={role} className={`block truncate ${count.get(role) ? "font-bold text-slate-700" : "text-slate-300"}`}>
+                          {role} {count.get(role) ?? 0}
+                        </span>
+                      ))}
+                    </td>
+                  );
+                })}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
       <p className="text-xs text-slate-400">
@@ -123,12 +151,26 @@ export function ShiftGrid({
       </p>
 
       {urgent && <UrgentEditor storeId={storeId} date={urgent} reasons={urgentReasons} defaults={defaults} onClose={() => setUrgent(null)} />}
-      {editing && <CellEditor key={`${editing.row.id}:${editing.cell.date}`} storeId={storeId} {...editing} defaults={defaults} onClose={() => setEditing(null)} />}
+      {editing && <CellEditor key={`${editing.row.id}:${editing.cell.date}`} storeId={storeId} {...editing} roles={roles} defaults={defaults} onClose={() => setEditing(null)} />}
     </>
   );
 }
 
-function CellEditor({ storeId, row, cell, defaults, onClose }: { storeId: string; row: GridRow; cell: Cell; defaults: { start: string; end: string }; onClose: () => void }) {
+function CellEditor({
+  storeId,
+  row,
+  cell,
+  roles,
+  defaults,
+  onClose,
+}: {
+  storeId: string;
+  row: GridRow;
+  cell: Cell;
+  roles: string[];
+  defaults: { start: string; end: string };
+  onClose: () => void;
+}) {
   const [state, action, pending] = useActionState<ShiftState, FormData>(saveShift.bind(null, storeId, row.id, cell.date), undefined);
   const [type, setType] = useState(cell.shift?.type ?? (cell.request?.a === "off" ? "off" : "work"));
   const start = cell.shift?.s || (cell.request?.a === "partial" ? cell.request.s : defaults.start);
@@ -171,6 +213,21 @@ function CellEditor({ storeId, row, cell, defaults, onClose }: { storeId: string
           </div>
         )}
         {type === "work" && <p className="text-xs text-slate-400">終了が開始より前なら、翌日（日をまたぐ）として扱います</p>}
+        {type === "work" && roles.length > 0 && (
+          <div>
+            <p className="mb-1 text-xs font-medium text-slate-600">役割（必須）</p>
+            <div className="grid grid-cols-3 gap-1">
+              {roles.map((r) => (
+                <label key={r} className="cursor-pointer">
+                  <input type="radio" name="role" value={r} defaultChecked={cell.shift?.role === r} required className="peer sr-only" />
+                  <span className="block truncate rounded-md bg-slate-100 px-1 py-2 text-center text-xs font-bold text-slate-600 peer-checked:bg-brand peer-checked:text-white">
+                    {r}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
         {state?.error && <p className="text-sm font-bold text-accent">{state.error}</p>}
         <div className="flex gap-2">
           <button disabled={pending} className="flex-1 rounded-lg bg-brand py-3 text-sm font-bold text-white disabled:opacity-60">

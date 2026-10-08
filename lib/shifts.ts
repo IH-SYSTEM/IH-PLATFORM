@@ -29,7 +29,7 @@ export async function visibleShifts(staffId: string, role: string | null, from: 
   const admin = createAdminClient();
   const { data: rows } = await admin
     .from("shift_schedule")
-    .select("store_id, work_date, shift_type, planned_start, planned_end, note")
+    .select("store_id, work_date, shift_type, planned_start, planned_end, note, work_role")
     .eq("staff_id", staffId)
     .gte("work_date", from)
     .lte("work_date", to)
