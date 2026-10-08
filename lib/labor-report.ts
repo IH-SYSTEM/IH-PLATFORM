@@ -13,7 +13,7 @@ export type StoreReport = { storeId: string; storeName: string; to: string[]; na
  * 店長に送る「昨日の売上・人件費・人件費率」と「今月の累計」。
  * 店長＝店舗マスタで店長に選ばれた人＋権限が「店長」でその店に所属する人。LINE連携済みの人だけに送る
  */
-export async function buildLaborReports(): Promise<StoreReport[]> {
+export async function buildLaborReports({ preview = false }: { preview?: boolean } = {}): Promise<StoreReport[]> {
   const admin = createAdminClient();
   const day = new Date(Date.parse(`${businessDayJST()}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10); // 昨日（営業日）
   const monthFrom = `${day.slice(0, 7)}-01`;
@@ -27,9 +27,9 @@ export async function buildLaborReports(): Promise<StoreReport[]> {
   const out: StoreReport[] = [];
   for (const s of stores ?? []) {
     const managerIds = new Set([...((s.manager_staff_ids as string[]) ?? []), ...(staff ?? []).filter((p) => p.permission === "store" && p.store_id === s.id).map((p) => p.id)]);
-    const managers = (staff ?? []).filter((p) => managerIds.has(p.id) && !p.retired && p.line_user_id && !p.line_user_id.startsWith("TEST-"));
+    const managers = (staff ?? []).filter((p) => managerIds.has(p.id) && !p.retired && ((p.line_user_id && !p.line_user_id.startsWith("TEST-")) || preview));
     const mine = (sales ?? []).filter((r) => r.store_id === s.id);
-    if (!managers.length || !mine.length) continue; // 店長がLINE未連携、または売上のデータがない店は送らない
+    if (!managers.length || !mine.length) continue; // 店長がLINE未連携、または売上のデータがない店は送らない（preview は未連携でも中身を作る）
 
     const y = mine.find((r) => r.business_date === day);
     const yLabor = labor.get(`${s.id}:${day}`);
@@ -52,7 +52,7 @@ export async function buildLaborReports(): Promise<StoreReport[]> {
     if (days.length) lines.push(`売上 ${yen(mSales)}／人件費 ${yen(mCost)}`, `人件費率 ${pct(mCost, mSales)}${target}（${days.length}日分）`);
     else lines.push("勤怠の記録がある日がまだありません");
     lines.push("", "くわしくは IH ポータル → 売上");
-    out.push({ storeId: s.id, storeName: s.name, to: managers.map((m) => m.line_user_id!), names: managers.map((m) => m.name), text: lines.join("\n") });
+    out.push({ storeId: s.id, storeName: s.name, to: managers.map((m) => m.line_user_id).filter((v): v is string => !!v && !v.startsWith("TEST-")), names: managers.map((m) => m.name), text: lines.join("\n") });
   }
   return out;
 }
