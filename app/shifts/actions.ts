@@ -5,6 +5,7 @@ import { requireStaff } from "@/lib/auth";
 import { attendanceScope, inScope } from "@/lib/attendance";
 import { businessDayJST } from "@/lib/business-day";
 import { isShiftType } from "@/lib/shifts";
+import { periodTypeFor } from "@/lib/shift-period";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type ShiftState = { ok?: boolean; error?: string; at?: number } | undefined;
@@ -40,6 +41,14 @@ export async function saveShift(storeId: string, staffId: string, date: string, 
     return { ok: true, at: Date.now() };
   }
   if (!isShiftType(type)) return fail("種類を選んでください");
+  // アルバイトは、希望（または急募への応募）が出ている日だけシフトに入れられる
+  const [{ data: person }, { data: request }] = await Promise.all([
+    admin.from("staff").select("role").eq("id", staffId).single(),
+    admin.from("shift_requests").select("availability").eq("staff_id", staffId).eq("work_date", date).maybeSingle(),
+  ]);
+  if (periodTypeFor(person?.role) === "week" && type === "work" && (!request || request.availability === "off")) {
+    return fail("この日は希望が出ていないため、シフトに入れられません。人が足りないときは急募で募ってください");
+  }
   const start = String(fd.get("start") ?? "");
   const end = String(fd.get("end") ?? "");
   if (type === "work" && (!TIME.test(start) || !TIME.test(end))) return fail("開始・終了の時刻を入れてください");

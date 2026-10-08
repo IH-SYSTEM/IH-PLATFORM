@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { businessDayJST } from "@/lib/business-day";
-import { openMonths, openWeeks, periodTypeFor } from "@/lib/shift-period";
+import { openMonths, partTimeWeeks, periodTypeFor } from "@/lib/shift-period";
 import { hm, SHIFT_TYPES, visibleShifts } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { submitRequests } from "./actions";
+import { saveDefaultTime, submitPartTimeRequests, submitRequests } from "./actions";
 import { RequestForm } from "./request-form";
+import { PartTimeForm } from "./parttime-form";
+import { DefaultTime } from "./default-time";
 
 export const metadata = { title: "シフト希望" };
 
@@ -16,7 +18,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
   const me = await requireStaff();
   const { p } = await searchParams;
   const admin = createAdminClient();
-  const { data: self } = await admin.from("staff").select("role").eq("id", me.id).single();
+  const { data: self } = await admin.from("staff").select("role, store_id, shift_default_start, shift_default_end").eq("id", me.id).single();
   const type = periodTypeFor(self?.role);
   const today = businessDayJST();
 
@@ -24,11 +26,17 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
   const { data: stores } = upcoming.length ? await admin.from("stores").select("id, name").in("id", [...new Set(upcoming.map((s) => s.store_id))]) : { data: [] };
   const storeName = new Map((stores ?? []).map((s) => [s.id, s.name]));
 
-  const periods = type === "month" ? openMonths(today) : type === "week" ? openWeeks(today) : [];
+  const periods = type === "month" ? openMonths(today) : type === "week" ? partTimeWeeks(today) : [];
+  // 「いつもの時間」：本人の設定 → 所属店舗の営業時間 → 19:00〜24:00 の順
+  const { data: myStore } = self?.store_id ? await admin.from("stores").select("open_time, close_time").eq("id", self.store_id).maybeSingle() : { data: null };
+  const defaults = {
+    start: hm(self?.shift_default_start) || myStore?.open_time || "19:00",
+    end: hm(self?.shift_default_end) || myStore?.close_time || "00:00",
+  };
   const period = periods.find((x) => x.start === p) ?? periods[0];
   const [{ data: existing }, { data: submitted }] = period
     ? await Promise.all([
-        admin.from("shift_requests").select("work_date, availability, preferred_start, preferred_end").eq("staff_id", me.id).in("work_date", period.days),
+        admin.from("shift_requests").select("work_date, availability, preferred_start, preferred_end, source").eq("staff_id", me.id).in("work_date", period.days),
         admin.from("shift_request_submissions").select("submitted_at").eq("staff_id", me.id).eq("period_type", period.type).eq("period_start", period.start).maybeSingle(),
       ])
     : [{ data: [] }, { data: null }];
@@ -71,7 +79,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
             {type === "month"
               ? "社員は1か月ごとに、前月15日までに提出します"
               : type === "week"
-                ? "アルバイトは1週間（月〜日）ごとに、前の週の日曜日までに提出します。4週先まで出せます"
+                ? "入れる日を選んで、時間を入れてください。4週先まで、その週が始まる前日まで出し直せます。シフトは前の週の水曜までに店長が確定します"
                 : "あなたの雇用区分はシフト希望の対象外です"}
           </p>
         </div>
@@ -89,15 +97,36 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
               ))}
             </div>
             <p className="text-sm text-slate-600">
-              提出期限：<span className="font-bold text-accent">{md(period.submit)}（{dow(period.submit)}）</span>
+              {type === "week" ? "希望を出せるのは" : "提出期限："}
+              <span className="font-bold text-accent">
+                {md(period.submit)}（{dow(period.submit)}）{type === "week" && "まで"}
+              </span>
+              {type === "week" && <span className="ml-2 text-xs text-slate-500">シフトの確定：{md(period.decide)}（{dow(period.decide)}）24時まで</span>}
               {submitted ? <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">提出済み（期限まで変更できます）</span> : <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-bold text-accent">未提出</span>}
             </p>
-            <RequestForm
-              key={period.start}
-              days={period.days.map((d) => ({ date: d, label: `${md(d)}（${dow(d)}）`, weekend: ["土", "日"].includes(dow(d)) }))}
-              initial={Object.fromEntries((existing ?? []).map((r) => [r.work_date, { a: r.availability, s: hm(r.preferred_start), e: hm(r.preferred_end) }]))}
-              action={submitRequests.bind(null, period.start)}
-            />
+            {type === "week" ? (
+              <>
+                <DefaultTime start={defaults.start} end={defaults.end} action={saveDefaultTime} />
+                <PartTimeForm
+                  key={`${period.start}:${defaults.start}:${defaults.end}`}
+                  days={period.days.map((d) => ({ date: d, label: `${md(d)}（${dow(d)}）`, weekend: ["土", "日"].includes(dow(d)) }))}
+                  initial={Object.fromEntries(
+                    (existing ?? [])
+                      .filter((r) => r.availability !== "off")
+                      .map((r) => [r.work_date, { s: hm(r.preferred_start) || defaults.start, e: hm(r.preferred_end) || defaults.end, urgent: r.source === "urgent" }]),
+                  )}
+                  defaults={defaults}
+                  action={submitPartTimeRequests.bind(null, period.start)}
+                />
+              </>
+            ) : (
+              <RequestForm
+                key={period.start}
+                days={period.days.map((d) => ({ date: d, label: `${md(d)}（${dow(d)}）`, weekend: ["土", "日"].includes(dow(d)) }))}
+                initial={Object.fromEntries((existing ?? []).map((r) => [r.work_date, { a: r.availability, s: hm(r.preferred_start), e: hm(r.preferred_end) }]))}
+                action={submitRequests.bind(null, period.start)}
+              />
+            )}
           </>
         )}
       </section>

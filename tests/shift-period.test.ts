@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { crossesMidnight, isPast, mondayOf, monthDeadlines, openMonths, openWeeks, periodTypeFor, weekDeadlines } from "../lib/shift-period.ts";
+import { canCallUrgent, crossesMidnight, isPast, mondayOf, monthDeadlines, openMonths, openWeeks, partTimeWeeks, periodTypeFor, weekDeadlines } from "../lib/shift-period.ts";
 
 test("週の月曜 — 日曜は前の月曜に戻る", () => {
   assert.equal(mondayOf("2026-11-02"), "2026-11-02"); // 月
@@ -45,4 +45,20 @@ test("雇用区分 — 社員は月、アルバイトは週、役員・業務委
 test("日をまたぐシフト", () => {
   assert.equal(crossesMidnight("19:30", "00:30"), true);
   assert.equal(crossesMidnight("10:00", "19:00"), false);
+});
+
+test("アルバイトの希望 — まだ始まっていない週から4週。日曜は翌週から", () => {
+  const w = partTimeWeeks("2026-10-08"); // 木
+  assert.deepEqual(w.map((x) => x.start), ["2026-10-12", "2026-10-19", "2026-10-26", "2026-11-02"]);
+  assert.equal(w[0].submit, "2026-10-11"); // 前日の日曜まで
+  assert.equal(w[0].decide, "2026-10-07"); // 確定は前週の水曜
+  assert.equal(partTimeWeeks("2026-10-11")[0].start, "2026-10-12"); // 日曜 → 翌日の月曜からの週
+  assert.equal(partTimeWeeks("2026-10-12")[0].start, "2026-10-19"); // 月曜 → その週はもう始まっている
+});
+
+test("急募 — 今日から3日後まで", () => {
+  assert.equal(canCallUrgent("2026-10-08", "2026-10-08"), true);
+  assert.equal(canCallUrgent("2026-10-11", "2026-10-08"), true);
+  assert.equal(canCallUrgent("2026-10-12", "2026-10-08"), false);
+  assert.equal(canCallUrgent("2026-10-07", "2026-10-08"), false);
 });
