@@ -75,7 +75,8 @@ export function basePay(v: SalaryValues) {
     case "daily":
       return (p.dailyWage || 0) * (a.workDays || 0);
     case "hourly":
-      return yenRound((a.hourlyWage || 0) * (a.workHours || 0));
+      // 月の途中で時給が変わったときは、変わった後の分（hourlyWage2 × workHours2）を足す
+      return yenRound((a.hourlyWage || 0) * (a.workHours || 0) + (a.hourlyWage2 || 0) * (a.workHours2 || 0));
     case "contract":
       return p.contractAmount || 0;
   }
@@ -101,6 +102,11 @@ export function normalize(v: SalaryValues): SalaryValues {
   if (v.employmentType === "hourly") {
     attendance.hourlyWage = v.attendance.hourlyWage || 0;
     attendance.workHours = v.attendance.workHours || 0;
+    if (v.attendance.hourlyWage2) {
+      attendance.hourlyWage2 = v.attendance.hourlyWage2;
+      attendance.workHours2 = v.attendance.workHours2 || 0;
+      attendance.wageChangeDay = v.attendance.wageChangeDay || 0;
+    }
   }
   const payment: Record<string, number> = {};
   const baseField = PAYMENT_BASE_FIELDS[v.employmentType];
