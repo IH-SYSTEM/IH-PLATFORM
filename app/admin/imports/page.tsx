@@ -45,7 +45,7 @@ export default async function ImportsPage() {
                     {md(h.date_from)}〜{md(h.date_to)}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{h.receipts}件</td>
-                  <td className="px-4 py-2.5 text-slate-500">{(h.imported_by && staffName.get(h.imported_by)) ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-slate-500">{h.imported_by ? (staffName.get(h.imported_by) ?? "—") : "自動"}</td>
                 </tr>
               ))}
               {!history?.length && (
