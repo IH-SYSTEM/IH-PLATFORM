@@ -1,8 +1,9 @@
 /**
  * 1日の人件費（売上画面の人件費率に使う。給与明細の計算とは別の「見込み」）。
  *   時給・日給 … その日の勤務（実働・残業・深夜・休日）から、その日の金額で計算
- *   月給・業務委託 … 月額（固定の手当を含む）を暦日で割り、毎日その人の所属店に配る
- * 会社負担の社会保険料（法定福利費）は含めない
+ *   アルバイト（時給・日給）… その日の勤怠×その日の金額（＋残業・深夜の割増）。実際に働いた分だけ
+ *   正社員（月給）… 月給＋固定の手当＋会社負担の法定福利費を、その店のその月の営業日数で割り、営業日ごとに所属店へ
+ *   （2026-10-09 黒田さん決定）
  */
 import { premiumPay, type DayResult, type PayType } from "./worktime.ts";
 
@@ -16,8 +17,9 @@ export function dayWorkCost(type: PayType, amount: number, d: Pick<DayResult, "w
   return premiums; // 月給の残業・深夜・休日
 }
 
-/** 毎日配る分（月給・業務委託の月額と、固定の手当） */
-export function dailyFixedCost(type: PayType, amount: number, allowances: number, daysInMonth: number) {
-  const monthly = type === "monthly" || type === "contract" ? amount : 0;
-  return (monthly + (type === "contract" ? 0 : allowances)) / daysInMonth;
+/** 営業日を推定する（今月のように途中の月は、ここまでの営業日の割合から月全体を見込む） */
+export function businessDaysInMonth(salesDays: number, elapsedDays: number, daysInMonth: number) {
+  if (!salesDays) return daysInMonth; // 売上のない店（本部など）は暦日
+  if (elapsedDays >= daysInMonth) return salesDays;
+  return Math.max(salesDays, Math.round((salesDays / elapsedDays) * daysInMonth));
 }

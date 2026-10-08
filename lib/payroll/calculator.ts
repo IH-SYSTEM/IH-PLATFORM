@@ -2,6 +2,7 @@
 // （旧：切り捨て → 新：50銭未満切り捨て・50銭以上切り上げ。手入力時の合計と一致させるため）
 import {
   BASIC_DEDUCTION_MONTHLY,
+  EMPLOYER_ONLY_RATES,
   DEPENDENT_DEDUCTION_PER_PERSON,
   INCOME_TAX_BRACKETS,
   INSURANCE_RATES,
@@ -78,6 +79,17 @@ export function socialInsurance(gross: number, m: Master) {
   const childSupport = Math.floor((row.monthly * INSURANCE_RATES.childSupport) / 2);
   const employment = Math.floor(gross * rate);
   return { health, care, pension, employment, childSupport, total: health + care + pension + employment + childSupport, standardMonthly: row.monthly, grade: row.grade };
+}
+
+/**
+ * 会社負担の法定福利費（月額の見込み）。健康・介護・厚生年金・子ども子育て支援金は本人と同額（折半）、
+ * それに雇用保険の事業主分・労災保険・子ども子育て拠出金を足す
+ */
+export function employerWelfare(gross: number, m: Master) {
+  const si = socialInsurance(gross, m);
+  const halves = si.health + si.care + si.pension + si.childSupport;
+  const child = m.socialInsurance?.enrolled ? Math.floor(si.standardMonthly * EMPLOYER_ONLY_RATES.childContribution) : 0;
+  return halves + Math.floor(gross * EMPLOYER_ONLY_RATES.employment) + Math.floor(gross * EMPLOYER_ONLY_RATES.workersComp) + child;
 }
 
 // 月額表 甲欄（電子計算機等の特例）。乙欄は未対応
