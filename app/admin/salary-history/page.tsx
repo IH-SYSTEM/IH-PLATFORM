@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { yen } from "@/lib/format";
 import { EMPLOYMENT_TYPES } from "@/lib/staff";
+import { StaffPicker } from "./staff-picker";
 
 export default async function SalaryHistoryPage({ searchParams }: PageProps<"/admin/salary-history">) {
   await requireAdmin();
@@ -10,8 +11,10 @@ export default async function SalaryHistoryPage({ searchParams }: PageProps<"/ad
   const staffId = typeof staffParam === "string" ? staffParam : "";
   const supabase = await createClient();
 
-  const [{ data: staff }, { data: records }] = await Promise.all([
-    supabase.from("staff").select("id, name, retired").order("retired").order("furigana", { nullsFirst: false }),
+  const [{ data: staff }, { data: companies }, { data: stores }, { data: records }] = await Promise.all([
+    supabase.from("staff").select("id, name, retired, store_id").order("retired").order("furigana", { nullsFirst: false }),
+    supabase.from("companies").select("id, name").eq("is_active", true).order("sort_order"),
+    supabase.from("stores").select("id, name, company_id").order("sort_order", { nullsFirst: false }),
     staffId
       ? supabase
           .from("salary_records")
@@ -33,18 +36,7 @@ export default async function SalaryHistoryPage({ searchParams }: PageProps<"/ad
         <p className="mt-1 text-sm text-slate-500">確定済みの給与明細を、1か月ずつまたは1年分まとめて印刷・PDF保存できます</p>
       </div>
 
-      <form className="flex flex-wrap gap-2">
-        <select name="staff" defaultValue={staffId} className="min-w-64 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
-          <option value="">スタッフを選択</option>
-          {(staff ?? []).map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-              {s.retired ? "（退職）" : ""}
-            </option>
-          ))}
-        </select>
-        <button className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-brand-2">表示する</button>
-      </form>
+      <StaffPicker companies={companies ?? []} stores={stores ?? []} staff={staff ?? []} selected={staffId} />
 
       {selected && years.length === 0 && (
         <p className="rounded-md border border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-400">
