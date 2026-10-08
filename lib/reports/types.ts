@@ -1,10 +1,13 @@
 import type { Field, Payload } from "./fields";
 
-export type CategoryKey = "attendance";
+export type CategoryKey = "attendance" | "request" | "site" | "harassment";
 
 // 報告窓口のカテゴリ。新しい種類の報告は、まずどのカテゴリに入るかを決める
 export const CATEGORIES: Record<CategoryKey, { label: string; description: string }> = {
-  attendance: { label: "勤怠", description: "携帯を忘れた・打刻を押し忘れたときの出勤・退勤の報告" },
+  attendance: { label: "勤怠", description: "携帯を忘れた・打刻を押し忘れたときの出勤・退勤" },
+  request: { label: "申請・届け", description: "欠勤・遅刻・早退の届け、証明書の発行依頼" },
+  site: { label: "現場からの報告", description: "事故・ヒヤリハット、設備の故障、レジの差異、クレーム、改善の提案" },
+  harassment: { label: "相談窓口", description: "ハラスメントなどの相談。本部のごく限られた人だけが読みます" },
 };
 
 export type ApplyContext = {
@@ -33,6 +36,12 @@ export type ReportType = {
   subjectField?: string;
   /** 店舗の打刻範囲内でだけ受け付ける（報告者がその場にいたことの担保） */
   onSiteOnly: boolean;
+  /** 本部の画面で報告者の名前を出さない（目安箱で「匿名」を選んだときなど。記録には残る） */
+  anonymous?: (p: Payload) => boolean;
+  /** 本部の受付で読める人を、特別管理者だけにする（ハラスメント相談） */
+  superadminOnly?: boolean;
+  /** 本部の［承認］ボタンの文言（記録するだけの報告は「確認済みにする」など） */
+  approveLabel?: string;
   /** 一覧に出す1行の要約 */
   summary: (p: Payload, names: { subject?: string }) => string;
   /** 報告の内容の時刻。報告した時刻と離れていれば「事後報告」の印を付ける */

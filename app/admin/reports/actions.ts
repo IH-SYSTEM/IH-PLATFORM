@@ -9,6 +9,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export type ReviewState = { ok?: string; error?: string; at?: number } | undefined;
 
+/** ハラスメントの相談は、特別管理者だけが処理できる */
+async function canReview(permission: string | null, reportId: string) {
+  const { data } = await createAdminClient().from("reports").select("category").eq("id", reportId).maybeSingle();
+  return !!data && (data.category !== "harassment" || permission === "superadmin");
+}
+
 async function notify(reportId: string, text: (summary: string) => string) {
   const admin = createAdminClient();
   const { data: r } = await admin.from("reports").select("type, payload, reporter_id, subject_staff_id").eq("id", reportId).single();
@@ -28,6 +34,7 @@ export async function approveReport(reportId: string, _prev: ReviewState): Promi
   const me = await requireAdmin();
   const admin = createAdminClient();
   const now = new Date().toISOString();
+  if (!(await canReview(me.permission, reportId))) return { error: "この報告を処理する権限がありません", at: Date.now() };
   const { data: claimed } = await admin
     .from("reports")
     .update({ status: "approved", reviewed_by: me.id, reviewed_at: now })
@@ -55,7 +62,7 @@ export async function approveReport(reportId: string, _prev: ReviewState): Promi
     return { error: "反映に失敗しました。時間をおいてもう一度お試しください", at: Date.now() };
   }
 
-  await notify(reportId, (s) => `【IKKOU HOLDINGS 本部】報告が承認され、記録に反映されました。\n${s}`);
+  await notify(reportId, (s) => `【IKKOU HOLDINGS 本部】報告を受け付けました（${type?.approveLabel ?? "承認・反映済み"}）。\n${s}`);
   revalidatePath("/admin/reports");
   revalidatePath("/attendance");
   return { ok: "承認して反映しました", at: Date.now() };
@@ -63,6 +70,7 @@ export async function approveReport(reportId: string, _prev: ReviewState): Promi
 
 export async function rejectReport(reportId: string, _prev: ReviewState, fd: FormData): Promise<ReviewState> {
   const me = await requireAdmin();
+  if (!(await canReview(me.permission, reportId))) return { error: "この報告を処理する権限がありません", at: Date.now() };
   const note = String(fd.get("note") ?? "").trim().slice(0, 200);
   if (!note) return { error: "却下の理由を入力してください", at: Date.now() };
   const { data } = await createAdminClient()

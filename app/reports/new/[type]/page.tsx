@@ -28,16 +28,22 @@ export default async function NewReportPage({ params }: PageProps<"/reports/new/
     .map((s) => ({ value: s.id, label: s.store_id === myStore ? s.name : `${s.name}（${s.department_name ?? "所属なし"}）` }));
 
   return (
-    <div className="space-y-5">
+    <div className="max-w-2xl space-y-5">
       <Link href="/reports" className="inline-block text-sm text-slate-500 hover:text-brand">
-        ← 報告窓口
+        ‹ 報告窓口
       </Link>
       <div>
-        <p className="text-xs font-bold text-accent">{CATEGORIES[type.category].label}</p>
-        <h1 className="text-xl font-bold text-brand">{type.title}</h1>
+        <p className="text-xs font-bold tracking-[0.2em] text-slate-400">{CATEGORIES[type.category].label}</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{type.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{type.description}</p>
+        {type.superadminOnly && (
+          <p className="mt-3 rounded-md bg-slate-100 px-3 py-2 text-xs text-slate-600">
+            この相談は、本部のごく限られた人（特別管理者）だけが読みます。店長や同僚には見えません
+          </p>
+        )}
       </div>
       <ReportForm
+        meId={me.id}
         fields={type.fields}
         stores={(stores ?? []).map((s) => ({ value: s.id, label: s.name }))}
         defaultStore={myStore ?? ""}

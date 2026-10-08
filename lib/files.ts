@@ -20,6 +20,7 @@ export const FILE_CATEGORIES = {
   withholding_slip: { label: "源泉徴収票" },
   tax_certificate: { label: "控除証明書（年末調整）" },
   receipt: { label: "領収書" },
+  report: { label: "報告の写真" },
   other: { label: "その他の書類" },
 } as const;
 export type FileCategory = keyof typeof FILE_CATEGORIES;
