@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { businessDayJST } from "@/lib/business-day";
+import { laborByStoreDay } from "@/lib/labor-cost";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/app/shell/page-header";
 
@@ -43,6 +44,10 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/sale
   const checkedDays = mismatches.length;
   const diffs = mismatches.filter((m) => m.base !== m.other);
   const rows = (days ?? []) as Day[];
+  // 人件費（見込み）：勤怠×その日の時給、月給は暦日で割って所属店へ。今日までの分だけ
+  const lastDay = new Date(Date.parse(`${to}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const labor = from <= today ? await laborByStoreDay(from, lastDay < today ? lastDay : today) : new Map();
+  const rate = (cost: number, sales: number) => (sales > 0 ? `${Math.round((cost / sales) * 1000) / 10}%` : "—");
   const lastDate = new Map<string, string>();
   for (const r of latest ?? []) if (!lastDate.has(r.store_id)) lastDate.set(r.store_id, r.business_date);
 
@@ -74,6 +79,10 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/sale
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {withData.map((s) => {
           const t = sum(rows.filter((r) => r.store_id === s.id));
+          // 人件費率は、その店に勤怠の記録がある日だけで出す（勤怠のない日の売上は分母に入れない）
+          const laborDays = rows.filter((r) => r.store_id === s.id && labor.get(`${s.id}:${r.business_date}`)?.hasAttendance);
+          const laborCost = laborDays.reduce((a, r) => a + (labor.get(`${s.id}:${r.business_date}`)?.cost ?? 0), 0);
+          const laborSales = laborDays.reduce((a, r) => a + Number(r.sales), 0);
           return (
             <div key={s.id} className={`rounded-md border bg-white p-5 ${stale(s.id) ? "border-accent/40 border-l-4 border-l-accent" : "border-line"}`}>
               <p className="text-xs font-bold text-slate-500">{s.name}</p>
@@ -92,6 +101,19 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/sale
                   <dd className="font-bold tabular-nums text-slate-800">{yen(t.sales / t.days)}</dd>
                 </div>
               </dl>
+              <div className="mt-3 flex items-baseline justify-between rounded bg-slate-50 px-3 py-2 text-xs">
+                <span className="text-slate-500">
+                  人件費率{laborDays.length ? `（勤怠のある${laborDays.length}日）` : ""}
+                </span>
+                {laborDays.length ? (
+                  <span className="tabular-nums">
+                    <b className="text-base text-slate-900">{rate(laborCost, laborSales)}</b>
+                    <span className="ml-2 text-slate-500">{yen(laborCost)}</span>
+                  </span>
+                ) : (
+                  <span className="text-slate-400">勤怠の記録なし</span>
+                )}
+              </div>
               <p className={`mt-3 text-[11px] ${stale(s.id) ? "font-bold text-accent" : "text-slate-400"}`}>
                 {lastDate.get(s.id) ? `データは ${Number(lastDate.get(s.id)!.slice(5, 7))}/${Number(lastDate.get(s.id)!.slice(8, 10))} まで` : ""}
                 {stale(s.id) ? "（1週間以上取り込まれていません）" : ""}
@@ -136,6 +158,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/sale
                                 <span className="font-bold text-slate-900">{yen(Number(c.sales))}</span>
                                 <span className="ml-2 text-xs text-slate-400">
                                   {c.people}人・{c.people ? yen(Number(c.sales) / Number(c.people)) : "—"}
+                                  {labor.get(`${s.id}:${d}`)?.hasAttendance && <>・人件費率 {rate(labor.get(`${s.id}:${d}`)!.cost, Number(c.sales))}</>}
                                 </span>
                               </>
                             ) : (
@@ -194,6 +217,10 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/sale
           )}
         </section>
       )}
+
+      <p className="text-xs leading-relaxed text-slate-400">
+        人件費は見込みです：時給・日給の人は勤怠（打刻した店）とその日の時給から、月給の人は月給と固定の手当を暦日で割って所属店に入れています。会社負担の社会保険料は含みません。役員は除いています。
+      </p>
 
       {without.length > 0 && <p className="text-xs text-slate-400">まだデータがない店舗：{without.map((s) => s.name).join("・")}</p>}
     </div>
