@@ -3,6 +3,7 @@ import { announcementsFor } from "@/lib/announcements";
 import { attendanceScope } from "@/lib/attendance";
 import { businessDayJST, toJSTTimeLabel } from "@/lib/business-day";
 import { punchStatus } from "@/lib/punch";
+import { routineTodos } from "@/lib/routines";
 import {
   isPast,
   monthPeriod,
@@ -95,6 +96,18 @@ async function todayWork(me: CurrentStaff) {
         label: `未処理の報告が${count}件あります`,
         href: "/admin/reports",
       });
+  }
+
+  // 定型業務（担当の人には自分の分、ほかの管理者には期限切れのものだけ）
+  for (const r of await routineTodos(me)) {
+    todos.push({
+      label: r.label,
+      href: r.href,
+      tone: r.overdue ? "alert" : "task",
+      done: r.manual
+        ? { routineId: r.id, periodStart: r.periodStart }
+        : undefined,
+    });
   }
 
   const punchLabel =

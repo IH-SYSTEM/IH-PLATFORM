@@ -34,7 +34,7 @@ export type AttendanceRow = {
   checkin_time: string | null;
   checkout_time: string | null;
   break_minutes: number;
-  source: string;  // qr … QRで打刻 / report … 報告窓口から / admin … 本部が入力
+  source: string;  // qr … QRで打刻 / report … 報告窓口から / admin … 本部が入力 / demo … 見た目確認用の偽データ
   worked: number | null;
   lastEdit: { by: string; at: string; reason: string } | null; // 最後に記録を変えた人（打刻修正・報告の承認）
 };
