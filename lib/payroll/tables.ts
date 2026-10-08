@@ -1,7 +1,11 @@
-// 旧システム（Firebase版 payroll-tax-tables.js）から値を変えずに移植した料率表。
-// 出典は旧システムの記載どおり：協会けんぽ 東京都 令和7年3月分〜、雇用保険 令和7年4月〜、国税庁 令和7年分 月額表。
-// 熊本支部の料率・令和8年分の改定は未反映。改定時はこのファイルだけを差し替える。
-export const TABLE_VERSION = "2025（令和7年）東京都";
+// 料率表。改定時はこのファイルだけを差し替える。
+// 社会保険・雇用保険（2026-10-08 更新）：
+//   健康保険 協会けんぽ熊本支部 令和8年3月分〜 10.08%／介護保険（全国一律）令和8年3月分〜 1.62%
+//   子ども・子育て支援金（全国一律）令和8年4月分〜 0.23%（いずれも労使折半）
+//   厚生年金 18.3%（労使折半）
+//   雇用保険 令和8年4月〜 労働者負担：一般の事業 5/1000、農林水産・清酒製造・建設 6/1000
+// 所得税（INCOME_TAX_BRACKETS など）は旧システムの令和7年分 月額表（電子計算機の特例）のまま。令和8年分以後の改正は未反映
+export const TABLE_VERSION = "2026（令和8年度）熊本／所得税は令和7年分";
 
 export const STANDARD_MONTHLY_REMUNERATION = [
   { grade: 1, monthly: 58000, from: 0, to: 63000 },
@@ -57,15 +61,20 @@ export const STANDARD_MONTHLY_REMUNERATION = [
 ];
 
 export const INSURANCE_RATES = {
-  health: 0.0991,
-  healthCare: 0.0159,
+  health: 0.1008,
+  healthCare: 0.0162,
+  childSupport: 0.0023,
   pension: 0.183,
   employment: {
-    general: 0.0055,
-    construction: 0.0065,
-    agriculture: 0.0065,
+    general: 0.005,
+    construction: 0.006,
+    agriculture: 0.006,
   } as Record<string, number>,
 };
+
+// 厚生年金の標準報酬月額は 88,000円〜650,000円（健康保険の4等級〜35等級に当たる）。その外は上限・下限で計算する
+export const PENSION_MONTHLY_MIN = 88000;
+export const PENSION_MONTHLY_MAX = 650000;
 
 export const INCOME_TAX_BRACKETS = [
   { from: 0, to: 162500, rate: 0.05105, deduction: 0 },

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GradeReminder } from "./grade-reminder";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { yen } from "@/lib/format";
@@ -77,6 +78,7 @@ export default async function AdminDashboard() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      <GradeReminder />
       <div>
         <h1 className="text-2xl font-bold text-slate-900">ダッシュボード</h1>
         <p className="mt-1 text-sm text-slate-500">給与計算の対象月：{label(d.target)}分</p>

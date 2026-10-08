@@ -6,6 +6,7 @@ import { EMPLOYMENT_TYPES } from "@/lib/staff";
 import { parsePeriod, periodLabel, shiftPeriod, ym } from "@/lib/payroll/period";
 import { importAttendance } from "./import-actions";
 import { ImportButton } from "./import-button";
+import { GradeReminder } from "../grade-reminder";
 
 const typeLabel = (t: string | null | undefined) => EMPLOYMENT_TYPES.find((e) => e.value === t)?.label ?? "未設定";
 
@@ -56,6 +57,8 @@ export default async function SalaryMonthPage({ searchParams }: PageProps<"/admi
           </Link>
         </div>
       </div>
+
+      <GradeReminder />
 
       <ImportButton label={`${periodLabel(period)}分`} action={importAttendance.bind(null, period.year, period.month)} />
 
