@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./icons";
 
-// スマホの下のバー。毎日使う4つと、ほかのすべてを入れた「メニュー」
+// スマホの下のバー。ホームを真ん中に、左にメニュー・報告、右にシフト・明細
 const TABS = [
+  { href: "/menu", label: "メニュー", icon: "menu" as const, match: (p: string) => p.startsWith("/menu") },
+  { href: "/reports", label: "報告", icon: "history" as const, match: (p: string) => p.startsWith("/reports") },
   { href: "/", label: "ホーム", icon: "home" as const, match: (p: string) => p === "/" },
   { href: "/shifts/request", label: "シフト", icon: "clock" as const, match: (p: string) => p.startsWith("/shifts/request") || p.startsWith("/shifts/urgent") },
   { href: "/me", label: "明細", icon: "payslip" as const, match: (p: string) => p === "/me" || p.startsWith("/me/salary") },
-  { href: "/reports", label: "報告", icon: "history" as const, match: (p: string) => p.startsWith("/reports") },
-  { href: "/menu", label: "メニュー", icon: "menu" as const, match: (p: string) => p.startsWith("/menu") },
 ];
 
 export function MobileTabBar() {
