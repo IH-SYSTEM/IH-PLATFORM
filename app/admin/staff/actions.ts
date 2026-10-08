@@ -55,10 +55,12 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
 
     const storeId = text("store_id");
     let storeName: string | null = null;
+    let storeCompanyId: string | null = null;
     if (storeId) {
-      const { data: store } = await supabase.from("stores").select("name").eq("id", storeId).single();
+      const { data: store } = await supabase.from("stores").select("name, company_id").eq("id", storeId).single();
       if (!store) throw new InputError("所属店舗が見つかりません");
       storeName = store.name;
+      storeCompanyId = store.company_id;
     }
 
     const birthdate = date("birthdate", "生年月日");
@@ -119,7 +121,8 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
       role,
       permission,
       store_id: storeId,
-      tax_company_id: text("tax_company_id"),
+      // 年末調整を行う会社。空なら所属店舗の会社を入れておく（空のまま残さない）
+      tax_company_id: text("tax_company_id") ?? storeCompanyId,
       department_name: storeName,
       hire_date: date("hire_date", "入社日"),
       birthdate,

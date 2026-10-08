@@ -73,9 +73,9 @@ export function StaffForm({ staff, stores, companies, action, isSelf, canGrantSu
             ))}
           </select>
         </Field>
-        <Field label="年末調整を行う会社" hint="扶養控除等申告書を出している会社。空欄なら所属店舗の会社">
+        <Field label="年末調整を行う会社" hint="扶養控除等申告書を出している会社。選ばずに保存すると、所属店舗の会社が自動で入ります">
           <select name="tax_company_id" defaultValue={staff?.tax_company_id ?? ""} className={input}>
-            <option value="">所属店舗の会社</option>
+            <option value="">所属店舗の会社（自動）</option>
             {companies.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
