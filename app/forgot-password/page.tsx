@@ -3,7 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useActionState } from "react";
-import { requestReset } from "./actions";
+
+type ForgotState = { sent?: boolean; error?: string; email?: string } | undefined;
+
+async function requestReset(_prev: ForgotState, fd: FormData): Promise<ForgotState> {
+  const email = String(fd.get("email") ?? "").trim();
+  const res = await fetch("/api/auth/forgot-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) }).catch(() => null);
+  if (!res) return { error: "送れませんでした。電波のよいところでもう一度お試しください", email };
+  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  return body.error ? { error: body.error, email } : { sent: true, email };
+}
 
 // パスワードを忘れた方：メールで再設定リンクを送る。届かないときは LINE でログインするか、本部にリセットしてもらう
 export default function ForgotPasswordPage() {
