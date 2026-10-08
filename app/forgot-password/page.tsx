@@ -20,7 +20,7 @@ export default function ForgotPasswordPage() {
           </li>
           <li className="rounded-md border border-line p-4">
             <p className="font-bold text-slate-900">LINEと連携していない方</p>
-            <p className="mt-1">店長か本部に「仮パスワードに戻してください」と伝えてください。仮パスワードでログインしたら、自分のパスワードに変えます。</p>
+            <p className="mt-1">店長か本部に「パスワードをリセットしてください」と伝えてください。仮パスワードでログインしたら、自分のパスワードに変えます。</p>
           </li>
         </ol>
         <Link href="/login" className="mt-6 inline-block text-sm text-slate-500 hover:text-brand">
