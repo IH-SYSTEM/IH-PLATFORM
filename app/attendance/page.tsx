@@ -80,7 +80,7 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
                     {Number(r.date.slice(5, 7))}/{Number(r.date.slice(8, 10))}（{weekday(r.date)}）
                     {r.source !== "qr" && (
                       <span className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">
-                        {r.source === "report" ? "報告" : "本部入力"}
+                        {r.source === "report" ? "報告" : r.source === "demo" ? "デモ" : "本部入力"}
                       </span>
                     )}
                     {r.lastEdit && (

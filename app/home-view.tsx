@@ -1,9 +1,16 @@
 import Link from "next/link";
 import type { Announcement } from "@/lib/announcements";
 import { hm } from "@/lib/shifts";
+import { markRoutineDone } from "./routine-actions";
 
 // ホームの見た目（データの取得は page.tsx）
-export type Todo = { label: string; href: string };
+// tone: alert＝要対応（赤）／task＝定型業務（紺）。done があれば「済」ボタンを出す
+export type Todo = {
+  label: string;
+  href: string;
+  tone?: "alert" | "task";
+  done?: { routineId: string; periodStart: string };
+};
 export type HomeWork = {
   shift: {
     planned_start: string | null;
@@ -172,17 +179,38 @@ export function HomeView({
           {work.todos.length > 0 && (
             <ul className="divide-y divide-slate-100">
               {work.todos.map((t) => (
-                <li key={t.label}>
+                <li
+                  key={t.label}
+                  className={`flex items-center ${t.tone === "alert" ? "bg-accent-soft/40" : ""}`}
+                >
                   <Link
                     href={t.href}
-                    className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-slate-50"
+                    className="flex min-w-0 flex-1 items-center gap-3 px-5 py-3 text-sm hover:bg-slate-50"
                   >
-                    <span className="size-2 shrink-0 rounded-full bg-accent" />
-                    <span className="flex-1 font-bold text-slate-900">
+                    <span
+                      className={`size-2 shrink-0 rounded-full ${t.tone === "task" ? "bg-brand" : "bg-accent"}`}
+                    />
+                    <span
+                      className={`flex-1 font-bold ${t.tone === "alert" ? "text-accent" : "text-slate-900"}`}
+                    >
                       {t.label}
                     </span>
                     <span className="text-slate-300">›</span>
                   </Link>
+                  {t.done && (
+                    <form
+                      action={markRoutineDone.bind(
+                        null,
+                        t.done.routineId,
+                        t.done.periodStart,
+                      )}
+                      className="pr-4"
+                    >
+                      <button className="rounded-full px-3 py-1 text-xs font-bold text-brand ring-1 ring-slate-200 hover:bg-brand hover:text-white">
+                        済
+                      </button>
+                    </form>
+                  )}
                 </li>
               ))}
             </ul>

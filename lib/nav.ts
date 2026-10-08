@@ -28,6 +28,8 @@ export const NAV: NavSection[] = [
     title: "本部",
     items: [
       { href: "/admin", label: "ダッシュボード", icon: "chart", audience: "admin" },
+      { href: "/admin/sales", label: "売上", icon: "yen", audience: "admin" },
+      { href: "/admin/imports", label: "データ取り込み", icon: "history", audience: "admin" },
       { href: "/admin/reports", label: "報告の受付", icon: "history", audience: "admin" },
       { href: "/admin/announcements", label: "お知らせ", icon: "book", audience: "admin" },
       { href: "/admin/salary", label: "給与入力", icon: "yen", audience: "admin" },
