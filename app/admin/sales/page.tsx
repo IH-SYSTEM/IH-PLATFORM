@@ -22,11 +22,26 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/sale
   const to = `${shift(month, 1)}-01`;
 
   const admin = createAdminClient();
-  const [{ data: stores }, { data: days }, { data: latest }] = await Promise.all([
-    admin.from("stores").select("id, name").eq("is_active", true).order("sort_order", { nullsFirst: false }),
+  const [{ data: stores }, { data: days }, { data: latest }, { data: bySource }] = await Promise.all([
+    admin.from("stores").select("id, name, sales_source").eq("is_active", true).order("sort_order", { nullsFirst: false }),
     admin.from("pos_daily").select("store_id, business_date, sales, people, receipts").gte("business_date", from).lt("business_date", to).limit(5000),
     admin.from("pos_daily").select("store_id, business_date").order("business_date", { ascending: false }).limit(3000),
+    admin.from("pos_daily_by_source").select("store_id, business_date, source, sales").gte("business_date", from).lt("business_date", to).limit(5000),
   ]);
+  // 突き合わせ：基準（CRM）と、レジ（エアレジなど）の両方がある日に、金額がずれている日
+  const SOURCE_LABEL: Record<string, string> = { airregi: "エアレジ", ikkou: "一鴻レジ", crm: "CRM" };
+  const mismatches = (stores ?? []).flatMap((s) => {
+    if (!s.sales_source) return [];
+    const mine = (bySource ?? []).filter((r) => r.store_id === s.id);
+    return [...new Set(mine.map((r) => r.business_date))].sort().flatMap((d) => {
+      const base = mine.find((r) => r.business_date === d && r.source === s.sales_source);
+      return mine
+        .filter((r) => r.business_date === d && r.source !== s.sales_source)
+        .map((other) => ({ store: s.name, date: d, baseLabel: SOURCE_LABEL[s.sales_source!] ?? s.sales_source!, base: Number(base?.sales ?? 0), otherLabel: SOURCE_LABEL[other.source] ?? other.source, other: Number(other.sales) }));
+    });
+  });
+  const checkedDays = mismatches.length;
+  const diffs = mismatches.filter((m) => m.base !== m.other);
   const rows = (days ?? []) as Day[];
   const lastDate = new Map<string, string>();
   for (const r of latest ?? []) if (!lastDate.has(r.store_id)) lastDate.set(r.store_id, r.business_date);
@@ -136,6 +151,47 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/sale
               </tbody>
             </table>
           </div>
+        </section>
+      )}
+
+      {checkedDays > 0 && (
+        <section>
+          <h2 className="mb-3 text-xs font-bold tracking-[0.2em] text-slate-400">レジとの突き合わせ</h2>
+          {diffs.length ? (
+            <div className="overflow-hidden rounded-md border border-accent/30 bg-white">
+              <table className="w-full text-sm">
+                <thead className="bg-accent-soft/50 text-left text-xs text-slate-600">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">日付</th>
+                    <th className="px-4 py-2 font-medium">店舗</th>
+                    <th className="px-4 py-2 text-right font-medium">基準</th>
+                    <th className="px-4 py-2 text-right font-medium">レジ</th>
+                    <th className="px-4 py-2 text-right font-medium">差</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {diffs.map((m) => (
+                    <tr key={`${m.store}:${m.date}:${m.otherLabel}`}>
+                      <td className="px-4 py-2 tabular-nums">
+                        {Number(m.date.slice(5, 7))}/{Number(m.date.slice(8, 10))}
+                      </td>
+                      <td className="px-4 py-2">{m.store}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {m.baseLabel} {yen(m.base)}
+                      </td>
+                      <td className="px-4 py-2 text-right tabular-nums">
+                        {m.otherLabel} {yen(m.other)}
+                      </td>
+                      <td className="px-4 py-2 text-right font-bold tabular-nums text-accent">{yen(m.other - m.base)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">売上は基準（CRM）で数えています。ずれた日は、施術の記録とレジの会計のどちらかに入力漏れ・修正漏れがないか確かめてください</p>
+            </div>
+          ) : (
+            <p className="rounded-md border border-line bg-white px-4 py-3 text-sm text-emerald-700">レジと突き合わせた {checkedDays} 日分は、すべて金額が合っています</p>
+          )}
         </section>
       )}
 
