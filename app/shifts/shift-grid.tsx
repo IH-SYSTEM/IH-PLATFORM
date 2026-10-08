@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { saveShift, type ShiftState } from "./actions";
 import { sendUrgentCall, type UrgentState } from "./urgent-actions";
 
-type Cell = {
+export type Cell = {
   date: string;
   request: { a: string; s: string; e: string; urgent?: boolean } | null;
   shift: { type: string; s: string; e: string; role: string | null; otherStore: boolean } | null;
@@ -12,10 +12,10 @@ type Cell = {
 };
 export type GridRow = { id: string; name: string; kind: string; help: boolean; partTime: boolean; notSubmitted: boolean; cells: Cell[] };
 
-const TYPE_LABEL: Record<string, string> = { work: "出勤", off: "公休", paid_leave: "有給", special: "特別" };
+export const TYPE_LABEL: Record<string, string> = { work: "出勤", off: "公休", paid_leave: "有給", special: "特別" };
 const dow = (ymd: string) => "日月火水木金土"[new Date(`${ymd}T00:00:00Z`).getUTCDay()];
 
-function RequestMark({ r, partTime }: { r: Cell["request"]; partTime?: boolean }) {
+export function RequestMark({ r, partTime }: { r: Cell["request"]; partTime?: boolean }) {
   if (!r) return <span className="text-slate-300">{partTime ? "希望なし" : "未提出"}</span>;
   if (r.urgent) return <span className="font-bold text-accent">急募 {r.s}〜{r.e}</span>;
   if (r.a === "all") return <span className="text-emerald-700">○</span>;
@@ -156,7 +156,7 @@ export function ShiftGrid({
   );
 }
 
-function CellEditor({
+export function CellEditor({
   storeId,
   row,
   cell,

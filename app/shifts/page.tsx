@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ShiftGrid, type GridRow } from "./shift-grid";
 import { DecideButton } from "./decide-button";
 import { StorePicker } from "./store-picker";
+import { PersonView } from "./person-view";
 
 export const metadata = { title: "シフト確定" };
 
@@ -29,6 +30,40 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
   const { data: stores } = await storesQuery;
   const store = (stores ?? []).find((s) => s.id === sp.store) ?? (stores ?? [])[0];
   if (!store) redirect("/");
+
+  // 見方：人ごと（月のカレンダー、既定）／週の一覧（店の全員を1週間ずつ）
+  const view = sp.view === "week" ? "week" : "person";
+  const tabs = (
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">シフト確定</h1>
+        <div className="mt-3 flex gap-1 rounded-lg bg-slate-100 p-1 text-sm font-bold">
+          {[
+            ["person", "人ごと（月）"],
+            ["week", "週の一覧"],
+          ].map(([v, l]) => (
+            <Link key={v} href={`/shifts?${new URLSearchParams({ store: store.id, view: v })}`} className={`rounded-md px-4 py-1.5 ${view === v ? "bg-white text-brand shadow-sm" : "text-slate-500"}`}>
+              {l}
+            </Link>
+          ))}
+        </div>
+      </div>
+      <Link href="/shifts/request" className="text-sm text-slate-500 hover:text-brand">
+        自分のシフト希望 ›
+      </Link>
+    </div>
+  );
+  if (view === "person") {
+    return (
+      <div className="space-y-5">
+        {tabs}
+        <div className="flex flex-wrap items-center gap-3">
+          <StorePicker stores={(stores ?? []).map((s) => ({ value: s.id, label: s.name }))} value={store.id} params={{ view: "person" }} />
+        </div>
+        <PersonView store={store} sp={sp} today={today} />
+      </div>
+    );
+  }
 
   // 既定の週：まだ確定期限を過ぎていない、いちばん近い週
   let monday = typeof sp.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.week) ? mondayOf(sp.week) : mondayOf(today);
@@ -90,19 +125,14 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
     });
 
   const unsubmitted = rows.filter((r) => r.notSubmitted);
-  const q = (next: Record<string, string>) => `/shifts?${new URLSearchParams({ store: store.id, week: monday, ...next })}`;
+  const q = (next: Record<string, string>) => `/shifts?${new URLSearchParams({ store: store.id, view: "week", week: monday, ...next })}`;
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">シフト確定</h1>
-        <Link href="/shifts/request" className="text-sm text-slate-500 hover:text-brand">
-          自分のシフト希望 ›
-        </Link>
-      </div>
+      {tabs}
 
       <div className="flex flex-wrap items-center gap-3 rounded-md border border-line bg-white p-3">
-        <StorePicker stores={(stores ?? []).map((s) => ({ value: s.id, label: s.name }))} value={store.id} week={monday} />
+        <StorePicker stores={(stores ?? []).map((s) => ({ value: s.id, label: s.name }))} value={store.id} params={{ view: "week", week: monday }} />
         <div className="flex items-center gap-1">
           <Link href={q({ week: shiftWeek(monday, -1) })} className="rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100">
             ‹ 前の週
@@ -163,6 +193,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
       <form action="/shifts" className="flex flex-wrap items-center gap-2 text-sm">
         <input type="hidden" name="store" value={store.id} />
         <input type="hidden" name="week" value={monday} />
+        <input type="hidden" name="view" value="week" />
         <span className="text-slate-500">ほかの店舗のスタッフをヘルプで追加：</span>
         <select name="add" defaultValue="" className="rounded-lg border border-slate-300 bg-white px-3 py-2">
           <option value="" disabled>
