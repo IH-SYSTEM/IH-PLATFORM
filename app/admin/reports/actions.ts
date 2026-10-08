@@ -23,7 +23,7 @@ async function notify(reportId: string, text: (summary: string) => string) {
   const { data: people } = await admin.from("staff").select("id, name, line_user_id, retired").in("id", ids);
   const subject = people?.find((p) => p.id === r.subject_staff_id)?.name;
   const summary = reportType(r.type)?.summary(r.payload, { subject }) ?? "";
-  await pushLine((people ?? []).filter((p) => !p.retired).map((p) => p.line_user_id), text(summary));
+  await pushLine((people ?? []).filter((p) => !p.retired).map((p) => p.line_user_id), text(summary), "report");
 }
 
 /**

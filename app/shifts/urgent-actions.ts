@@ -60,7 +60,7 @@ export async function sendUrgentCall(storeId: string, date: string, _prev: Urgen
   const h = await headers();
   const url = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}/shifts/urgent/${call.id}`;
   const text = [`【急募】${store?.name ?? ""}`, `${md(date)} ${start}〜${end}`, `理由：${reason}${note ? `（${note}）` : ""}`, "", "入れる方は、こちらから応募してください", url].join("\n");
-  const { sent } = await pushLine(targets.map((t) => t.line_user_id), text);
+  const { sent } = await pushLine(targets.map((t) => t.line_user_id), text, "urgent");
   await admin.from("urgent_calls").update({ sent_count: sent }).eq("id", call.id);
   await audit({ actor: me.id, action: "create", targetType: "urgent_call", targetId: call.id, detail: { store: storeId, date, reason, sent } });
   revalidatePath("/shifts");
@@ -106,6 +106,7 @@ export async function respondUrgent(callId: string, _prev: UrgentState, fd: Form
   await pushLine(
     managers.map((m) => m.line_user_id),
     `【急募に応募】${me.name}さん\n${store?.name ?? ""} ${md(call.work_date)} ${start}〜${end}\nシフト確定の画面で確定してください`,
+    "urgent",
   );
   revalidatePath("/shifts");
   return { ok: "応募しました。店長が確定すると、シフトに表示されます", at: Date.now() };

@@ -80,11 +80,17 @@ export function PostForm({ companies, stores, action }: { companies: Option[]; s
         <input type="checkbox" name="pinned" className="size-4" />
         一番上に固定する
       </label>
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" name="line" className="size-4" />
+        <span>
+          <b className="text-[#06C755]">LINEでも送る</b>（出す相手と同じ人に、IKKOU HOLDINGS NEWS から送ります）
+        </span>
+      </label>
       {state?.error && <p className="text-sm font-bold text-accent">{state.error}</p>}
       <button disabled={pending} className="rounded-lg bg-brand px-6 py-2.5 text-sm font-bold text-white hover:bg-brand-2 disabled:opacity-60">
         {pending ? "載せています…" : "ホームに載せる"}
       </button>
-      {state?.ok && <Toast key={state.at} message="ホームに載せました" />}
+      {state?.ok && <Toast key={state.at} message={state.line ? `ホームに載せました。${state.line}` : "ホームに載せました"} />}
     </form>
   );
 }
