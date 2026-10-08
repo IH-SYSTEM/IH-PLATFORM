@@ -112,3 +112,6 @@ export type StaffRecord = {
 
 export const STAFF_COLUMNS =
   "id, auth_user_id, email, name, furigana, employee_no, role, permission, store_id, tax_company_id, department_name, hire_date, birthdate, gender, phone, zipcode, address, emergency, note, bank_name, bank_branch, bank_type, bank_number, bank_holder, mynumber, health_insurance_no, employment_insurance_no, basic_pension_no, welfare_pension_no, line_added, retired, retirement_date, retirement_reason, payroll_master, attachments";
+
+/** 仮パスワード（全員共通。2026-10-09 黒田さん決定）。最初のログインで本人のパスワードに変えてもらう */
+export const TEMP_PASSWORD = "12345678";

@@ -7,7 +7,7 @@ import { audit } from "@/lib/audit";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ROLE_LABELS } from "@/lib/format";
-import { ALLOWANCES, DEDUCTIONS, PERMISSIONS, ageGroupFor, type PayrollMaster } from "@/lib/staff";
+import { ALLOWANCES, DEDUCTIONS, PERMISSIONS, TEMP_PASSWORD, ageGroupFor, type PayrollMaster } from "@/lib/staff";
 
 export type SaveState = { ok?: boolean; error?: string; at?: number } | undefined;
 
@@ -46,9 +46,6 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
     const email = text("email")?.toLowerCase() ?? null;
     if (!name) throw new InputError("氏名を入力してください");
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new InputError("メールアドレスを正しく入力してください");
-
-    const tempPassword = String(fd.get("temp_password") ?? "");
-    if (!staffId && tempPassword.length < 8) throw new InputError("仮パスワードを8文字以上で入力してください");
 
     const mynumber = text("mynumber")?.replace(/[-\s]/g, "") ?? null;
     if (mynumber && !/^\d{12}$/.test(mynumber)) throw new InputError("マイナンバーは12桁の数字で入力してください");
@@ -173,7 +170,7 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
       const { error } = await supabase.from("staff").update(row).eq("id", existing.id);
       if (error) throw new Error(error.message);
     } else {
-      const { data: user, error: authError } = await admin.auth.admin.createUser({ email, password: tempPassword, email_confirm: true, user_metadata: { name } });
+      const { data: user, error: authError } = await admin.auth.admin.createUser({ email, password: TEMP_PASSWORD, email_confirm: true, user_metadata: { name } });
       if (authError) throw new InputError(`ログインアカウントを作成できませんでした（${authError.message}）`);
       const { data: inserted, error } = await supabase
         .from("staff")
@@ -201,11 +198,10 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
 
 export type TempPasswordState = { ok?: boolean; error?: string; at?: number } | undefined;
 
-// 仮パスワードを決め直す（新規登録・パスワードを忘れた人用）。次のログインで本人が自分のパスワードに変える
-export async function setTempPassword(staffId: string, _prev: TempPasswordState, fd: FormData): Promise<TempPasswordState> {
+// 仮パスワードに戻す（パスワードを忘れた人用）。次のログインで本人が自分のパスワードに変える
+export async function setTempPassword(staffId: string): Promise<TempPasswordState> {
   const me = await requireAdmin();
-  const password = String(fd.get("temp_password") ?? "");
-  if (password.length < 8) return { error: "8文字以上で入力してください", at: Date.now() };
+  const password = TEMP_PASSWORD;
   const admin = createAdminClient();
   const { data: staff } = await admin.from("staff").select("retired, auth_user_id").eq("id", staffId).single();
   if (!staff?.auth_user_id) return { error: "ログインアカウントがありません", at: Date.now() };
