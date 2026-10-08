@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const reports = await buildLaborReports({ preview: dry });
   const results = [];
   for (const r of reports) {
-    const sent = dry ? { sent: 0, skipped: "dry" } : await pushLine(r.to, r.text);
+    const sent = dry ? { sent: 0, skipped: "dry" } : await pushLine(r.to, r.text, "labor_report");
     results.push({ store: r.storeName, to: r.names, ...sent, ...(dry ? { text: r.text } : {}) });
   }
   return NextResponse.json({ results });

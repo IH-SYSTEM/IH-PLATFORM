@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendLine } from "@/lib/line-push";
+import { resolveSegment } from "@/lib/line-segment";
 
-export type PostState = { ok?: boolean; error?: string; at?: number } | undefined;
+export type PostState = { ok?: boolean; error?: string; line?: string; at?: number } | undefined;
 
 const KINDS = ["notice", "system", "news"] as const;
 
@@ -40,6 +42,17 @@ export async function postAnnouncement(_prev: PostState, fd: FormData): Promise<
   await audit({ actor: me.id, action: "create", targetType: "announcement", targetId: data.id, detail: { kind, title } });
   revalidatePath("/");
   revalidatePath("/admin/announcements");
+
+  // 「LINEでも送る」：ホームに出す相手と同じ人に送る
+  if (fd.get("line") === "on") {
+    const segment = audience === "company" ? { companies: ids } : audience === "store" ? { stores: ids } : {};
+    const people = await resolveSegment(segment);
+    const label = { notice: "お知らせ", system: "システムの更新", news: "ニュース" }[kind];
+    const text = [`【${label}】${title}`, body ?? "", url ?? "", "", "IH ポータル：https://portal.ikkou-holdings.co.jp"].filter((l, i, a) => l || (i > 0 && a[i - 1])).join("\n");
+    const r = await sendLine({ kind: "announcement", text, recipients: people.map((p) => ({ staffId: p.id, lineUserId: p.lineUserId })), segment, createdBy: me.id });
+    revalidatePath("/admin/line");
+    return { ok: true, at: Date.now(), line: r.skipped ? `ホームには載せましたが、LINEは送れませんでした（${r.skipped}）` : `LINEで${r.sent}人に送りました` };
+  }
   return { ok: true, at: Date.now() };
 }
 
