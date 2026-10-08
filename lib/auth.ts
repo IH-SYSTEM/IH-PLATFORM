@@ -38,7 +38,8 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
 }
 
 /** LINE連携が済んでいない（API など、画面を移せないところで使う）。例外なく全員に連携を求める（2026-10-08 黒田さん決定） */
-export const needsLineLink = (s: CurrentStaff) => (!s.lineLinked || s.lineFriend === false) && Boolean(lineConfig());
+// 公式LINEの友だちだと確認できた人（true）だけを通す。確かめられていない人（null）も止め、連携の画面で確かめ直してもらう
+export const needsLineLink = (s: CurrentStaff) => (!s.lineLinked || s.lineFriend !== true) && Boolean(lineConfig());
 
 /**
  * ログイン必須。LINE連携が済んでいない人は、例外なく連携の画面へ移す。

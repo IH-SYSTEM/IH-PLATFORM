@@ -11,7 +11,7 @@ export const metadata = { title: "LINE連携" };
 //   2. 公式LINE「IKKOU HOLDINGS NEWS」を友だち追加する（連携・ログインのたびに友だちかを確かめている）
 export default async function LinkLinePage({ searchParams }: PageProps<"/link-line">) {
   const me = await requireStaff({ allowUnlinked: true });
-  if (!lineConfig() || (me.lineLinked && me.lineFriend !== false)) redirect("/");
+  if (!lineConfig() || (me.lineLinked && me.lineFriend === true)) redirect("/");
   const { error } = await searchParams;
   const message = typeof error === "string" ? LINE_ERRORS[error] ?? "LINE連携に失敗しました。もう一度お試しください" : null;
   const step = me.lineLinked ? 2 : 1;
