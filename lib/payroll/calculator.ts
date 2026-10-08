@@ -5,6 +5,8 @@ import {
   DEPENDENT_DEDUCTION_PER_PERSON,
   INCOME_TAX_BRACKETS,
   INSURANCE_RATES,
+  PENSION_MONTHLY_MAX,
+  PENSION_MONTHLY_MIN,
   STANDARD_MONTHLY_REMUNERATION,
   salaryIncomeDeductionMonthly,
 } from "./tables";
@@ -63,7 +65,7 @@ export function standardRemuneration(amount: number) {
 
 export function socialInsurance(gross: number, m: Master) {
   const si = m.socialInsurance ?? {};
-  if (!si.enrolled) return { health: 0, care: 0, pension: 0, employment: 0, total: 0, standardMonthly: 0, grade: null as number | null };
+  if (!si.enrolled) return { health: 0, care: 0, pension: 0, employment: 0, childSupport: 0, total: 0, standardMonthly: 0, grade: null as number | null };
 
   const row = (si.grade && STANDARD_MONTHLY_REMUNERATION.find((r) => r.grade === si.grade)) || standardRemuneration(gross);
   const ageGroup = si.ageGroup || "under40";
@@ -71,9 +73,11 @@ export function socialInsurance(gross: number, m: Master) {
 
   const health = Math.floor((row.monthly * INSURANCE_RATES.health) / 2);
   const care = ageGroup === "40-64" ? Math.floor((row.monthly * INSURANCE_RATES.healthCare) / 2) : 0;
-  const pension = ageGroup === "over70" ? 0 : Math.floor((row.monthly * INSURANCE_RATES.pension) / 2);
+  const pensionMonthly = Math.min(Math.max(row.monthly, PENSION_MONTHLY_MIN), PENSION_MONTHLY_MAX);
+  const pension = ageGroup === "over70" ? 0 : Math.floor((pensionMonthly * INSURANCE_RATES.pension) / 2);
+  const childSupport = Math.floor((row.monthly * INSURANCE_RATES.childSupport) / 2);
   const employment = Math.floor(gross * rate);
-  return { health, care, pension, employment, total: health + care + pension + employment, standardMonthly: row.monthly, grade: row.grade };
+  return { health, care, pension, employment, childSupport, total: health + care + pension + employment + childSupport, standardMonthly: row.monthly, grade: row.grade };
 }
 
 // 月額表 甲欄（電子計算機等の特例）。乙欄は未対応
@@ -119,7 +123,8 @@ export function calculatePayroll(m: Master, a: CalcAttendance, premiums = 0) {
     residentTax: m.residentTaxMonthly || 0,
     savings: m.savingsDeduction || 0,
     repayment: m.repaymentDeduction || 0,
-    childSupport: m.childSupportDeduction || 0,
+    // 子ども・子育て支援金は社会保険の加入者なら標準報酬月額から計算する（未加入なら給与マスタの手入力の値）
+    childSupport: m.socialInsurance?.enrolled ? ins.childSupport : m.childSupportDeduction || 0,
     otherDeduction: m.otherDeduction || 0,
   };
 }

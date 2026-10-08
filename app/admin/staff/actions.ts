@@ -82,6 +82,12 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
     }
 
     const prevPm: PayrollMaster = existing?.payroll_master ?? {};
+    // 標準報酬月額の等級（健康保険の1〜50等級）。正社員は必須（2026-10-08 黒田さん決定）
+    const gradeRaw = text("pm.socialInsurance.grade");
+    const grade = gradeRaw ? Number(gradeRaw) : null;
+    if (grade !== null && (!Number.isInteger(grade) || grade < 1 || grade > 50)) throw new InputError("社会保険の等級は1〜50で選んでください");
+    if (role === "fulltime" && grade === null) throw new InputError("正社員は、社会保険の等級（標準報酬月額）を入力してください");
+    const prevGrade = (prevPm.socialInsurance?.grade as number | undefined) ?? null;
     const payroll_master: PayrollMaster = {
       ...prevPm,
       employmentType: text("pm.employmentType") ?? "",
@@ -99,6 +105,9 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
         ...(prevPm.socialInsurance ?? {}),
         enrolled: checked("pm.socialInsurance.enrolled"),
         ageGroup: ageGroupFor(birthdate),
+        grade: grade ?? undefined,
+        // 等級を変えた日。毎年6月〜9月のリマインドで、今年の定時決定を入れたかの判定に使う
+        gradeUpdatedAt: grade !== prevGrade ? new Date().toISOString().slice(0, 10) : prevPm.socialInsurance?.gradeUpdatedAt,
       },
       incomeTaxColumn: text("pm.incomeTaxColumn") === "乙" ? "乙" : "甲",
       dependentCount: amount("pm.dependentCount", "扶養人数"),

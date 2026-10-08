@@ -4,6 +4,7 @@ import { startTransition, useActionState, useState } from "react";
 import { ROLE_LABELS } from "@/lib/format";
 import { AGE_GROUPS, ALLOWANCES, DEDUCTIONS, EMPLOYMENT_TYPES, PERMISSIONS, ageGroupFor, type StaffRecord } from "@/lib/staff";
 import { Toast } from "@/app/toast";
+import { STANDARD_MONTHLY_REMUNERATION } from "@/lib/payroll/tables";
 import type { SaveState } from "./actions";
 import { Field, Money, SaveBar, Section, inputClass as input } from "../form-ui";
 
@@ -171,6 +172,16 @@ export function StaffForm({ staff, stores, companies, action, isSelf, canGrantSu
               />
               社会保険に加入
             </label>
+            <Field label="等級（標準報酬月額）" hint="日本年金機構の決定通知のとおり。正社員は必須。毎年6月に見直しのお知らせが出ます">
+              <select name="pm.socialInsurance.grade" defaultValue={String(pm.socialInsurance?.grade ?? "")} className={input}>
+                <option value="">未入力</option>
+                {STANDARD_MONTHLY_REMUNERATION.map((r) => (
+                  <option key={r.grade} value={r.grade}>
+                    {r.grade}等級（{r.monthly.toLocaleString()}円）
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="年齢区分（生年月日から自動）">
               <input value={AGE_GROUPS.find((g) => g.value === ageGroupFor(birthdate || null))?.label} disabled className={input} />
             </Field>
