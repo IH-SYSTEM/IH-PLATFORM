@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 
 /**
  * 会社のメール（noreply@ikkou-holdings.co.jp・コアサーバー）から送る。
- * コアサーバーは海外からの送信の接続に応じないため、送る処理は東京リージョン（hnd1）で動かすこと。
+ * SMTP_HOST は証明書の名前に合わせて v2001.coreserver.jp にする（mail.ikkou-holdings.co.jp だと暗号化の確認で弾かれる）。
  * 環境変数: SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM（表示名つき差出人・任意）
  */
 export async function sendMail(opts: { to: string; subject: string; text: string; html?: string }) {
