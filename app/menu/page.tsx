@@ -4,6 +4,8 @@ import { Icon } from "@/app/icons";
 import { AppShell, sectionsFor } from "@/app/shell/app-shell";
 import { PageHeader } from "@/app/shell/page-header";
 
+import { logout } from "@/app/login/actions";
+
 export const metadata = { title: "メニュー" };
 
 // スマホの「メニュー」。PCのサイドバーと同じ中身を、区分ごとに並べる
@@ -30,6 +32,9 @@ export default async function MenuPage() {
             </ul>
           </section>
         ))}
+        <form action={logout}>
+          <button className="w-full rounded-md border border-line bg-white px-4 py-3.5 text-left text-sm font-medium text-accent hover:bg-accent-soft">ログアウト</button>
+        </form>
       </div>
     </AppShell>
   );

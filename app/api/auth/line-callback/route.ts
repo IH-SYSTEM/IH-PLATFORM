@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { friendshipStatus, lineConfig, verifyState } from "@/lib/line-login";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { claimToken, signTicket } from "@/lib/punch";
 
 export async function GET(request: NextRequest) {
@@ -69,9 +70,8 @@ export async function GET(request: NextRequest) {
   const { data: link, error } = await admin.auth.admin.generateLink({ type: "magiclink", email: staff.email });
   if (error || !link) return fail("/login", "session_failed");
 
-  const confirm = new URL("/auth/confirm", request.url);
-  confirm.searchParams.set("token_hash", link.properties.hashed_token);
-  confirm.searchParams.set("type", "magiclink");
-  confirm.searchParams.set("next", "/");
-  return NextResponse.redirect(confirm);
+  // サーバーの中でそのままログインさせる（メールで送るリンクではないので、確認ボタンの画面は通さない）
+  const { error: verifyError } = await (await createClient()).auth.verifyOtp({ type: "magiclink", token_hash: link.properties.hashed_token });
+  if (verifyError) return fail("/login", "session_failed");
+  return NextResponse.redirect(new URL("/", request.url));
 }
