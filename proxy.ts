@@ -17,7 +17,15 @@ const PUBLIC_PATHS = [
   "/punch/confirm",
 ];
 
+// 引っ越しなどで止めるときの「メンテナンス中」画面（環境変数 MAINTENANCE=1 のときだけ）
+const MAINTENANCE_HTML = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>メンテナンス中 | IKKOU HOLDINGS ポータル</title></head>
+<body style="margin:0;font-family:-apple-system,'Hiragino Sans',sans-serif;background:#f6f7f9;color:#011b4a;display:flex;min-height:100vh;align-items:center;justify-content:center">
+<div style="max-width:420px;padding:32px;text-align:center"><p style="font-size:13px;letter-spacing:.2em;color:#64748b">IKKOU HOLDINGS ポータル</p>
+<h1 style="font-size:22px;margin:12px 0">ただいまメンテナンス中です</h1>
+<p style="font-size:14px;line-height:1.8;color:#334155">システムを速くするための作業をしています。終わるまでしばらくお待ちください。<br>打刻ができないときは、作業のあとに報告窓口から「出勤の報告」「退勤の報告」で記録してください。</p></div></body></html>`;
+
 export async function proxy(request: NextRequest) {
+  if (process.env.MAINTENANCE === "1") return new NextResponse(MAINTENANCE_HTML, { status: 503, headers: { "Content-Type": "text/html; charset=utf-8", "Retry-After": "1800" } });
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
