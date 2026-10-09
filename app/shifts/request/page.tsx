@@ -2,12 +2,13 @@ import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { businessDayJST } from "@/lib/business-day";
 import { openMonths, partTimeWeeks, periodTypeFor } from "@/lib/shift-period";
-import { hm, SHIFT_TYPES, visibleShifts } from "@/lib/shifts";
+import { hm } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { saveDefaultTime, submitPartTimeRequests, submitRequests } from "./actions";
 import { RequestForm } from "./request-form";
 import { PartTimeForm } from "./parttime-form";
 import { DefaultTime } from "./default-time";
+import { MyShiftTabs } from "../my-tabs";
 
 export const metadata = { title: "シフト希望" };
 
@@ -21,10 +22,6 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
   const { data: self } = await admin.from("staff").select("role, store_id, shift_default_start, shift_default_end").eq("id", me.id).single();
   const type = periodTypeFor(self?.role);
   const today = businessDayJST();
-
-  const upcoming = await visibleShifts(me.id, self?.role ?? null, today, `${Number(today.slice(0, 4)) + 1}${today.slice(4)}`);
-  const { data: stores } = upcoming.length ? await admin.from("stores").select("id, name").in("id", [...new Set(upcoming.map((s) => s.store_id))]) : { data: [] };
-  const storeName = new Map((stores ?? []).map((s) => [s.id, s.name]));
 
   const periods = type === "month" ? openMonths(today) : type === "week" ? partTimeWeeks(today) : [];
   // 「いつもの時間」：本人の設定 → 所属店舗の営業時間 → 19:00〜24:00 の順
@@ -44,32 +41,10 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="text-2xl font-bold tracking-tight text-slate-900">シフト</h1>
-
-      <section>
-        <h2 className="mb-2 text-sm font-bold text-slate-700">確定したシフト</h2>
-        {upcoming.length ? (
-          <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-white text-sm">
-            {upcoming.slice(0, 14).map((s) => (
-              <li key={s.work_date} className="flex items-center justify-between px-4 py-2.5">
-                <span className="font-medium text-slate-800">
-                  {md(s.work_date)}（{dow(s.work_date)}）
-                </span>
-                <span className="tabular-nums text-slate-700">
-                  {s.shift_type === "work" ? `${hm(s.planned_start)}〜${hm(s.planned_end)}` : SHIFT_TYPES.find((t) => t.key === s.shift_type)?.label}
-                  {s.work_role && <span className="ml-2 rounded bg-brand px-1.5 py-0.5 text-[11px] font-bold text-white">{s.work_role}</span>}
-                  <span className="ml-2 text-xs text-slate-400">{storeName.get(s.store_id)}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="rounded-md border border-line bg-white p-5 text-center text-sm text-slate-400">確定したシフトはまだありません</p>
-        )}
-      </section>
+      <MyShiftTabs active="request" />
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-sm font-bold text-slate-700">シフト希望の提出</h2>
           <p className="text-xs text-slate-500">
             {type === "month"
               ? "社員は1か月ごとに、前月15日までに提出します"
