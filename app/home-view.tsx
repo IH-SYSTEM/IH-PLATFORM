@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Announcement } from "@/lib/announcements";
 import { hm } from "@/lib/shifts";
 import { markRoutineDone } from "./routine-actions";
+import { AskBox } from "./ask-box";
 
 // ホームの見た目（データの取得は page.tsx）
 // tone: alert＝要対応（赤）／task＝定型業務（紺）。done があれば「済」ボタンを出す
@@ -216,6 +217,9 @@ export function HomeView({
             </ul>
           )}
         </div>
+      </Section>
+      <Section title="AI取説（使い方を聞く）">
+        <AskBox />
       </Section>
       <Section title="会社からのお知らせ" empty={!notices.length}>
         <NoticeList items={notices} />

@@ -14,6 +14,7 @@ export const NAV: NavSection[] = [
       { href: "/me", label: "給与明細", icon: "payslip", audience: "all" },
       { href: "/me/documents", label: "書類", icon: "book", audience: "all" },
       { href: "/reports", label: "報告窓口", icon: "history", audience: "all" },
+      { href: "/ai", label: "AI取説", icon: "book", audience: "all" },
       { href: "/account", label: "アカウント", icon: "user", audience: "all" },
     ],
   },
