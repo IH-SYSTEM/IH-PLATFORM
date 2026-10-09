@@ -9,7 +9,7 @@ const TABS = [
   { href: "/menu", label: "メニュー", icon: "menu" as const, match: (p: string) => p.startsWith("/menu") },
   { href: "/reports", label: "報告", icon: "history" as const, match: (p: string) => p.startsWith("/reports") },
   { href: "/", label: "ホーム", icon: "home" as const, match: (p: string) => p === "/" },
-  { href: "/shifts/request", label: "シフト", icon: "clock" as const, match: (p: string) => p.startsWith("/shifts/request") || p.startsWith("/shifts/urgent") },
+  { href: "/shifts/mine", label: "シフト", icon: "clock" as const, match: (p: string) => p.startsWith("/shifts/mine") || p.startsWith("/shifts/request") || p.startsWith("/shifts/urgent") },
   { href: "/me", label: "明細", icon: "payslip" as const, match: (p: string) => p === "/me" || p.startsWith("/me/salary") },
 ];
 

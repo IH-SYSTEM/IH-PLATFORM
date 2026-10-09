@@ -72,7 +72,7 @@ export async function PersonView({ store, sp, today }: { store: Store; sp: Recor
 
   const type = periodTypeFor(person.role);
   const [{ data: requests }, { data: shifts }, { data: subs }, { data: decisions }] = await Promise.all([
-    admin.from("shift_requests").select("work_date, availability, preferred_start, preferred_end, source").eq("staff_id", person.id).gte("work_date", calStart).lte("work_date", calEnd),
+    admin.from("shift_requests").select("work_date, availability, preferred_start, preferred_end, source, decision").eq("staff_id", person.id).gte("work_date", calStart).lte("work_date", calEnd),
     admin.from("shift_schedule").select("store_id, work_date, shift_type, planned_start, planned_end, work_role").eq("staff_id", person.id).gte("work_date", calStart).lte("work_date", calEnd),
     admin.from("shift_request_submissions").select("period_type, period_start").eq("staff_id", person.id),
     admin.from("shift_decisions").select("period_type, period_start, decided_at").eq("store_id", store.id),
@@ -85,7 +85,7 @@ export async function PersonView({ store, sp, today }: { store: Store; sp: Recor
     const s = (shifts ?? []).find((x) => x.work_date === date);
     return {
       date,
-      request: r ? { a: r.availability, s: hm(r.preferred_start), e: hm(r.preferred_end), urgent: r.source === "urgent" } : null,
+      request: r ? { a: r.availability, s: hm(r.preferred_start), e: hm(r.preferred_end), urgent: r.source === "urgent", rejected: r.decision === "rejected" } : null,
       shift: s ? { type: s.shift_type, s: hm(s.planned_start), e: hm(s.planned_end), role: s.work_role, otherStore: s.store_id !== store.id } : null,
       locked: date < today,
     };
@@ -143,7 +143,7 @@ export async function PersonView({ store, sp, today }: { store: Store; sp: Recor
       </div>
       {type === "week" && (
         <p className="text-xs text-slate-500">
-          アルバイトは週ごとに確定します。確定は［週の一覧］タブの「この週のアルバイトのシフトを確定」から（店の全員分をまとめて確定します）。
+          アルバイトは、日ごとに「承認」した時点で本人に見えます。週をさばき終えたら［週の一覧］タブで「この週のアルバイトを確定済み」にします（左の列の「確定済み」になります）。
           {weeks.filter((w) => !w.decided && !isPast(w.deadline, today)).length > 0 && " 左の列が「未確定」の週が対象です。"}
         </p>
       )}

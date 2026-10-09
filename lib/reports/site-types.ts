@@ -158,7 +158,14 @@ export const certificateRequest: ReportType = {
     { key: "note", label: "メモ", kind: "text", max: 100, optional: true },
   ],
   onSiteOnly: false,
-  approveLabel: "受け付けた（発行したら書類に入れる）",
+  approveLabel: "承認して発行する",
   summary: (p) => `${p.kind} ${p.copies}（${p.due}までに・${p.purpose}）`,
-  apply: recordOnly,
+  // 在職証明書・給与証明書は PDF を作って本人の「書類」に入れる。「その他」は受け付けだけ（本部が作って書類に入れる）
+  apply: async (ctx) => {
+    const kind = String(ctx.payload.kind ?? "");
+    if (kind !== "在職証明書" && kind !== "給与証明書（所得証明）") return { recorded: true, notice: "受け付けました。本部で用意して、書類に入れます" };
+    const { issueCertificate } = await import("@/lib/certificate");
+    const r = await issueCertificate({ staffId: ctx.reporterId, kind, purpose: String(ctx.payload.purpose ?? ""), copies: Number(String(ctx.payload.copies ?? "1").replace(/\D/g, "")) || 1, issuedBy: ctx.reviewerId });
+    return { fileId: r.fileId, notice: `${kind}を発行しました。マイページの「書類」から開いて、印刷してください（社印が必要なら本部へ）` };
+  },
 };
