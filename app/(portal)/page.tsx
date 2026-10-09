@@ -12,9 +12,8 @@ import {
 } from "@/lib/shift-period";
 import { visibleShifts } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { AppShell } from "./shell/app-shell";
-import { HomeView, type Todo } from "./home-view";
-import { Toast } from "./toast";
+import { HomeView, type Todo } from "@/app/home-view";
+import { Toast } from "@/app/toast";
 
 // ホーム：本日の業務／会社からのお知らせ／システムの更新／全国ニュース の4つだけ
 
@@ -142,7 +141,7 @@ export default async function PortalHome({ searchParams }: PageProps<"/">) {
   }).format(new Date());
 
   return (
-    <AppShell staff={me}>
+    <>
       <HomeView
         name={me.name}
         today={today}
@@ -152,6 +151,6 @@ export default async function PortalHome({ searchParams }: PageProps<"/">) {
         news={news}
       />
       {line === "linked" && <Toast message="LINEと連携しました" />}
-    </AppShell>
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { lineConfig } from "@/lib/line-login";
@@ -15,7 +16,8 @@ export type CurrentStaff = {
   mustSetPassword: boolean; // 本部が決めた仮パスワードのまま（最初のログインで本人のパスワードに変えてもらう）
 };
 
-export async function getCurrentStaff(): Promise<CurrentStaff | null> {
+/** ログイン中のスタッフ。1回の表示の中では何度呼んでも1回だけ読む（枠と画面の両方で使うため） */
+export const getCurrentStaff = cache(async function getCurrentStaff(): Promise<CurrentStaff | null> {
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   const userId = claims?.claims.sub;
@@ -38,7 +40,7 @@ export async function getCurrentStaff(): Promise<CurrentStaff | null> {
     lineFriend: data.line_friend,
     mustSetPassword: data.first_login === true,
   };
-}
+});
 
 /** LINE連携が済んでいない（API など、画面を移せないところで使う）。例外なく全員に連携を求める（2026-10-08 黒田さん決定） */
 // 公式LINEの友だちだと確認できた人（true）だけを通す。確かめられていない人（null）も止め、連携の画面で確かめ直してもらう

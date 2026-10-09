@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import type { CurrentStaff } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { monthRange, workedMinutes } from "@/lib/business-day";
@@ -10,7 +11,7 @@ import { monthRange, workedMinutes } from "@/lib/business-day";
  */
 export type AttendanceScope = { all: boolean; storeIds: string[] };
 
-export async function attendanceScope(me: CurrentStaff): Promise<AttendanceScope | null> {
+export const attendanceScope = cache(async function attendanceScope(me: CurrentStaff): Promise<AttendanceScope | null> {
   if (me.isAdmin) return { all: true, storeIds: [] };
   const admin = createAdminClient();
   const [{ data: managed }, { data: self }] = await Promise.all([
@@ -20,7 +21,7 @@ export async function attendanceScope(me: CurrentStaff): Promise<AttendanceScope
   const ids = new Set((managed ?? []).map((s) => s.id));
   if (me.permission === "store" && self?.store_id) ids.add(self.store_id);
   return ids.size ? { all: false, storeIds: [...ids] } : null;
-}
+});
 
 export const inScope = (scope: AttendanceScope, storeId: string | null) => scope.all || (!!storeId && scope.storeIds.includes(storeId));
 
