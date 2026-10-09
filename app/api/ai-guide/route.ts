@@ -19,7 +19,8 @@ const client = new Anthropic();
 export async function POST(request: NextRequest) {
   const me = await getCurrentStaff();
   if (!me) return NextResponse.json({ error: "ログインしてください" }, { status: 401 });
-  const body = (await request.json().catch(() => null)) as { mode?: string; messages?: Turn[] } | null;
+  const body = (await request.json().catch(() => null)) as { mode?: string; messages?: Turn[]; conversationId?: string } | null;
+  const conversationId = /^[0-9a-f-]{36}$/.test(body?.conversationId ?? "") ? body!.conversationId! : crypto.randomUUID();
   const mode = body?.mode === "sparring" ? "sparring" : "guide";
   if (mode === "sparring" && me.permission !== "superadmin") return NextResponse.json({ error: "壁打ちは代表だけが使えます" }, { status: 403 });
   const messages = (body?.messages ?? [])
@@ -53,17 +54,54 @@ export async function POST(request: NextRequest) {
   });
 
   const encoder = new TextEncoder();
+  const question = messages.at(-1)!.content;
+  // 会話の記録（分析用）。答えの最後の [[META]] 行から、話題・状態・振った先・案内した画面を取り出す
+  const record = async (answer: string, status: string | null, usage?: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null }) => {
+    const i = answer.indexOf("[[META]]");
+    let meta: { category?: string; status?: string; escalate?: string; path?: string } = {};
+    if (i >= 0) {
+      try {
+        meta = JSON.parse(answer.slice(i + 8).trim().split("\n")[0]);
+      } catch {
+        meta = {};
+      }
+    }
+    await createAdminClient()
+      .from("ai_messages")
+      .insert({
+        conversation_id: conversationId,
+        staff_id: me.id,
+        mode,
+        level,
+        question: question.slice(0, 4000),
+        answer: (i >= 0 ? answer.slice(0, i) : answer).trim().slice(0, 8000),
+        category: meta.category?.slice(0, 40) ?? null,
+        status: status ?? meta.status?.slice(0, 20) ?? null,
+        escalate_to: meta.escalate && meta.escalate !== "なし" ? meta.escalate.slice(0, 40) : null,
+        related_path: meta.path?.slice(0, 200) || null,
+        input_tokens: usage?.input_tokens ?? null,
+        output_tokens: usage?.output_tokens ?? null,
+        cache_read_tokens: usage?.cache_read_input_tokens ?? null,
+      })
+      .then(({ error }) => error && console.error("ai_messages insert", error.message));
+  };
   const out = new ReadableStream({
     async start(controller) {
+      let full = "";
       try {
         for await (const event of stream) {
-          if (event.type === "content_block_delta" && event.delta.type === "text_delta") controller.enqueue(encoder.encode(event.delta.text));
+          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+            full += event.delta.text;
+            controller.enqueue(encoder.encode(event.delta.text));
+          }
         }
         const final = await stream.finalMessage();
+        await record(full, final.stop_reason === "refusal" ? "refused" : null, final.usage);
         if (final.stop_reason === "refusal") controller.enqueue(encoder.encode("\n\n（この質問にはお答えできませんでした。言い方を変えてもう一度聞いてください）"));
         if (final.stop_reason === "max_tokens") controller.enqueue(encoder.encode("\n\n（長くなったので途中で止まりました。「続けて」と送ってください）"));
       } catch (e) {
         console.error("ai-guide", e);
+        await record(full, "error");
         controller.enqueue(encoder.encode(e instanceof Anthropic.APIError && e.status === 401 ? "\n\n（AIの設定（APIキー）がまだできていません。本部に伝えてください）" : "\n\n（いまAIにつながりませんでした。少し待ってもう一度送ってください）"));
       } finally {
         controller.close();

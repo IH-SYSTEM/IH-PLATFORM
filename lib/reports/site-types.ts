@@ -169,3 +169,21 @@ export const certificateRequest: ReportType = {
     return { fileId: r.fileId, notice: `${kind}を発行しました。マイページの「書類」から開いて、印刷してください（社印が必要なら本部へ）` };
   },
 };
+
+// AI取説で答えられないことや、担当の判断が要る質問の受け皿（2026-10-10 黒田さん要望「難題は部署に振る」）
+export const inquiryRequest: ReportType = {
+  key: "request.inquiry",
+  version: 1,
+  category: "request",
+  title: "本部への問い合わせ",
+  description: "給与・税金・手続き・システムの困りごとなど、担当に聞きたいこと",
+  fields: [
+    { key: "to", label: "宛先", kind: "select", options: ["経理（給与・税金・社会保険）", "総務（契約・手続き・休み）", "システム（使い方・不具合）", "店長（シフト・お店のこと）"] },
+    { key: "subject", label: "件名", kind: "text", max: 50, hint: "例：10月の明細の深夜手当について" },
+    { key: "detail", label: "くわしい内容", kind: "longtext", max: 500 },
+  ],
+  onSiteOnly: false,
+  approveLabel: "回答した（本人に伝えた）",
+  summary: (p) => `【${String(p.to ?? "").split("（")[0]}】${p.subject}`,
+  apply: async () => ({ recorded: true, notice: "問い合わせに回答しました。くわしくは担当から連絡があります" }),
+};
