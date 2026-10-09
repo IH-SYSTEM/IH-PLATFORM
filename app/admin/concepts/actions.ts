@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { isCeo, requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -10,7 +10,7 @@ export type ConceptState = { ok?: boolean; error?: string; at?: number } | undef
 
 async function requireCeo() {
   const me = await requireAdmin();
-  if (me.permission !== "superadmin") redirect("/admin");
+  if (!isCeo(me)) redirect("/admin");
   return me;
 }
 

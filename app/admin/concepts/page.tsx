@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { isCeo, requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PageHeader } from "@/app/shell/page-header";
 import { saveConcept, toggleConcept } from "./actions";
@@ -10,7 +10,7 @@ export const metadata = { title: "コンセプト帳" };
 // 壁打ちのAIが「崩さない」ように守る柱。代表だけが見て、書ける
 export default async function ConceptsPage() {
   const me = await requireAdmin();
-  if (me.permission !== "superadmin") redirect("/admin");
+  if (!isCeo(me)) redirect("/admin");
   const { data: rows } = await createAdminClient().from("ceo_concepts").select("id, scope, title, body, is_active").order("is_active", { ascending: false }).order("sort_order").order("updated_at");
 
   return (
