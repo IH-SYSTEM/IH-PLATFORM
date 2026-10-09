@@ -22,7 +22,7 @@ export const hm = (t: string | null | undefined) => (t ? t.slice(0, 5) : "");
 
 /**
  * 確定シフトのうち、スタッフ本人に見せてよいもの。
- * 店長が「確定」した期間（アルバイトは週、社員は月）のシフトだけを見せる（組んでいる途中のものは見せない）
+ * アルバイトは承認したシフトをすぐ見せる。社員は店長が月を「確定」したあとだけ見せる（組んでいる途中のものは見せない）
  */
 export async function visibleShifts(staffId: string, role: string | null, from: string, to: string) {
   const type = periodTypeFor(role) ?? "week";
@@ -35,6 +35,8 @@ export async function visibleShifts(staffId: string, role: string | null, from: 
     .lte("work_date", to)
     .order("work_date");
   if (!rows?.length) return [];
+  // アルバイト：シフトは店長が希望を「承認」したときにだけできるので、承認した時点で見せる（2026-10-09 黒田さん）
+  if (type === "week") return rows;
   const { data: decisions } = await admin
     .from("shift_decisions")
     .select("store_id, period_start")

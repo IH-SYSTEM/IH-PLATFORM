@@ -17,7 +17,7 @@ export function DecideButton({ storeId, type, start, decidedAt, label }: { store
           type="button"
           disabled={pending}
           onClick={() => {
-            if (!confirm(`${label}します。スタッフのマイページに表示されるようになります。よろしいですか？`)) return;
+            if (!confirm(type === "week" ? `${label}にします（承認したシフトは、すでに本人に見えています）。よろしいですか？` : `${label}します。スタッフのマイページに表示されるようになります。よろしいですか？`)) return;
             startTransition(async () => {
               const r = await decidePeriod(storeId, type, start);
               setError(r?.error ?? null);

@@ -160,7 +160,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
         <div className="rounded-md border border-line bg-white p-4 text-sm">
           <p className="font-bold text-slate-800">アルバイトのこの週</p>
           <p className="text-xs text-slate-500">確定期限：{md(weekDeadlines(monday).decide)}</p>
-          <DecideButton storeId={store.id} type="week" start={monday} decidedAt={decided.get(`week:${monday}`) ?? null} label="この週のアルバイトのシフトを確定" />
+          <DecideButton storeId={store.id} type="week" start={monday} decidedAt={decided.get(`week:${monday}`) ?? null} label="この週のアルバイトを確定済み" />
         </div>
       </div>
 

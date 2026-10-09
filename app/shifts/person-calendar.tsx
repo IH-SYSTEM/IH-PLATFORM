@@ -112,7 +112,7 @@ export function PersonCalendar({
         </table>
       </div>
       <p className="text-xs text-slate-400">
-        各日の上が本人の希望、下が確定したシフトです。日を押して編集します。アルバイトは希望が出ている日だけ確定できます（「待機」＝希望あり・未確定）。スタッフに見えるのは、週（アルバイト）・月（社員）を確定したあとです
+        各日の上が本人の希望、下が確定したシフトです。日を押して編集します。アルバイトは希望が出ている日だけ確定できます（「待機」＝希望あり・未確定）。アルバイトは承認した時点で本人に見えます。社員は月を確定したあとです
       </p>
       {editing && (
         <CellEditor key={editing.date} storeId={storeId} row={row} cell={editing} roles={roles} defaults={defaults} onClose={() => setEditing(null)} />
