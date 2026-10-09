@@ -10,7 +10,8 @@ export const NAV: NavSection[] = [
     title: "わたし",
     items: [
       { href: "/", label: "ホーム", icon: "home", audience: "all" },
-      { href: "/shifts/request", label: "シフト", icon: "clock", audience: "all" },
+      { href: "/shifts/mine", label: "確定スケジュール", icon: "clock", audience: "all" },
+      { href: "/shifts/request", label: "シフト希望", icon: "clock", audience: "all" },
       { href: "/me", label: "給与明細", icon: "payslip", audience: "all" },
       { href: "/me/documents", label: "書類", icon: "book", audience: "all" },
       { href: "/reports", label: "報告窓口", icon: "history", audience: "all" },

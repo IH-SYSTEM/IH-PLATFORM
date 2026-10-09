@@ -5,8 +5,9 @@ import { jpDate, roleLabel, yen } from "@/lib/format";
 
 export const metadata = { title: "給与明細" };
 
-export default async function MyPayslipsPage() {
+export default async function MyPayslipsPage({ searchParams }: PageProps<"/me">) {
   const me = await requireStaff();
+  const { y } = await searchParams;
   const supabase = await createClient();
   const [{ data: slips }, { data: profile }] = await Promise.all([
     supabase
@@ -15,11 +16,15 @@ export default async function MyPayslipsPage() {
       .eq("staff_id", me.id)
       .eq("status", "confirmed")
       .order("year", { ascending: false })
-      .order("month", { ascending: false })
-      .limit(13),
+      .order("month", { ascending: false }),
     supabase.from("staff").select("role, hire_date, employee_no, department_name").eq("id", me.id).single(),
   ]);
-  const [latest, ...past] = slips ?? [];
+  const latest = (slips ?? [])[0];
+  // 年を選んで、その年の12か月を並べる（明細がある月だけ開ける）
+  const years = [...new Set((slips ?? []).map((s) => s.year))];
+  const year = years.includes(Number(y)) ? Number(y) : years[0];
+  const ofYear = (slips ?? []).filter((s) => s.year === year);
+  const sum = (k: "total_payment" | "total_deduction" | "net_payment") => ofYear.reduce((a, s) => a + Number(s[k]), 0);
 
   return (
     <div className="space-y-6">
@@ -55,24 +60,47 @@ export default async function MyPayslipsPage() {
         )}
       </section>
 
-      {past.length > 0 && (
-        <section>
-          <h2 className="mb-2 text-sm font-bold text-slate-500">過去の明細</h2>
-          <ul className="divide-y divide-line overflow-hidden rounded-md border border-line bg-white">
-            {past.map((s) => (
-              <li key={s.id}>
-                <Link href={`/me/salary/${s.id}`} className="flex items-center justify-between px-5 py-3.5 hover:bg-brand-soft">
-                  <span className="text-sm font-medium text-slate-700">
-                    {s.year}年{s.month}月分
-                  </span>
-                  <span className="text-sm font-bold tabular-nums text-slate-900">
-                    {yen(s.net_payment)}
-                    <span aria-hidden className="ml-2 text-slate-400">›</span>
-                  </span>
+      {years.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-slate-500">年月を選ぶ</h2>
+            <div className="flex flex-wrap gap-1.5">
+              {years.map((yr) => (
+                <Link key={yr} href={`/me?y=${yr}`} className={`rounded-full px-3.5 py-1.5 text-sm font-bold ${yr === year ? "bg-brand text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}>
+                  {yr}年
                 </Link>
-              </li>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((mo) => {
+              const slip = ofYear.find((s) => s.month === mo);
+              return slip ? (
+                <Link key={mo} href={`/me/salary/${slip.id}`} className="rounded-md border border-line bg-white px-3 py-3 hover:border-brand hover:bg-brand-soft">
+                  <p className="text-xs font-bold text-slate-500">{mo}月分</p>
+                  <p className="mt-1 text-sm font-bold tabular-nums text-slate-900">{yen(slip.net_payment)}</p>
+                </Link>
+              ) : (
+                <div key={mo} className="rounded-md border border-dashed border-slate-200 px-3 py-3 text-slate-300">
+                  <p className="text-xs font-bold">{mo}月分</p>
+                  <p className="mt-1 text-sm">—</p>
+                </div>
+              );
+            })}
+          </div>
+          <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line text-sm">
+            {[
+              [`${year}年の支給合計`, sum("total_payment")],
+              ["控除合計", sum("total_deduction")],
+              ["差引支給合計", sum("net_payment")],
+            ].map(([label, value]) => (
+              <div key={label} className="bg-white px-4 py-3">
+                <dt className="text-xs text-slate-500">{label}</dt>
+                <dd className="mt-0.5 font-bold tabular-nums text-slate-900">{yen(Number(value))}</dd>
+              </div>
             ))}
-          </ul>
+          </dl>
+          <p className="text-xs text-slate-400">確定した月だけ開けます。月を押すと明細が開き、印刷・PDF保存もできます</p>
         </section>
       )}
 
