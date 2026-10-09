@@ -3,10 +3,11 @@
 import { useActionState, useEffect, useState } from "react";
 import { saveShift, type ShiftState } from "./actions";
 import { sendUrgentCall, type UrgentState } from "./urgent-actions";
+import { InlineApprove, RejectedMark } from "./inline-approve";
 
 export type Cell = {
   date: string;
-  request: { a: string; s: string; e: string; urgent?: boolean } | null;
+  request: { a: string; s: string; e: string; urgent?: boolean; rejected?: boolean } | null;
   shift: { type: string; s: string; e: string; role: string | null; otherStore: boolean } | null;
   locked: boolean;
 };
@@ -52,7 +53,7 @@ export function ShiftGrid({
   return (
     <>
       <div className="overflow-x-auto rounded-md border border-line bg-white">
-        <table className="w-full min-w-[760px] table-fixed text-xs">
+        <table className="w-full min-w-[980px] table-fixed text-xs">
           <thead className="bg-slate-50 text-slate-500">
             <tr>
               <th className="w-32 px-2 py-2 text-left font-medium">スタッフ</th>
@@ -87,7 +88,29 @@ export function ShiftGrid({
                 {row.cells.map((c) => {
                   const hasRequest = Boolean(c.request && c.request.a !== "off");
                   const editable = !c.locked && !c.shift?.otherStore && (!row.partTime || hasRequest || Boolean(c.shift));
-                  const waiting = row.partTime && hasRequest && !c.shift;
+                  const waiting = row.partTime && hasRequest && !c.shift && !c.request?.rejected;
+                  // アルバイトの未確定の希望は、表の中で時間を直して承認・却下する
+                  if (row.partTime && hasRequest && !c.shift && !c.locked) {
+                    return (
+                      <td key={c.date} className="p-1 align-top">
+                        <p className="mb-0.5 text-center text-[10px]">
+                          <RequestMark r={c.request} partTime />
+                        </p>
+                        {c.request?.rejected ? (
+                          <RejectedMark storeId={storeId} staffId={row.id} date={c.date} />
+                        ) : (
+                          <InlineApprove
+                            storeId={storeId}
+                            staffId={row.id}
+                            date={c.date}
+                            start={c.request?.a === "partial" || c.request?.urgent ? c.request.s : defaults.start}
+                            end={c.request?.a === "partial" || c.request?.urgent ? c.request.e : defaults.end}
+                            roles={roles}
+                          />
+                        )}
+                      </td>
+                    );
+                  }
                   return (
                     <td key={c.date} className="p-1 align-top">
                       <button
@@ -147,7 +170,7 @@ export function ShiftGrid({
         </table>
       </div>
       <p className="text-xs text-slate-400">
-        上段が本人の希望、下段が確定したシフトです。マスを押して編集します。アルバイトは希望が出ている日だけ確定できます（「待機」＝希望あり・未確定）。人が足りない日は、3日前から日付の下の［急募］で募れます。過ぎた日は変更できません
+        上段が本人の希望、下段が確定したシフトです。アルバイトの未確定の希望は、マスの中で時間と役割を直して「承認」か「却下」を押します。確定したマスは押すと直せます。人が足りない日は、3日前から日付の下の［急募］で募れます。過ぎた日は変更できません
       </p>
 
       {urgent && <UrgentEditor storeId={storeId} date={urgent} reasons={urgentReasons} defaults={defaults} onClose={() => setUrgent(null)} />}

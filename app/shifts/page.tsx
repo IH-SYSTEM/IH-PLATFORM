@@ -86,7 +86,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
   const ids = people.map((p) => p.id);
 
   const [{ data: requests }, { data: shifts }, { data: subs }, { data: decisions }, { data: allStaff }] = await Promise.all([
-    ids.length ? admin.from("shift_requests").select("staff_id, work_date, availability, preferred_start, preferred_end, source").in("staff_id", ids).in("work_date", days) : Promise.resolve({ data: [] }),
+    ids.length ? admin.from("shift_requests").select("staff_id, work_date, availability, preferred_start, preferred_end, source, decision").in("staff_id", ids).in("work_date", days) : Promise.resolve({ data: [] }),
     ids.length ? admin.from("shift_schedule").select("staff_id, store_id, work_date, shift_type, planned_start, planned_end, work_role").in("staff_id", ids).in("work_date", days) : Promise.resolve({ data: [] }),
     ids.length ? admin.from("shift_request_submissions").select("staff_id, period_type, period_start").in("staff_id", ids) : Promise.resolve({ data: [] }),
     admin.from("shift_decisions").select("period_type, period_start, decided_at").eq("store_id", store.id),
@@ -116,7 +116,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
           const s = (shifts ?? []).find((x) => x.staff_id === p.id && x.work_date === date);
           return {
             date,
-            request: r ? { a: r.availability, s: hm(r.preferred_start), e: hm(r.preferred_end), urgent: r.source === "urgent" } : null,
+            request: r ? { a: r.availability, s: hm(r.preferred_start), e: hm(r.preferred_end), urgent: r.source === "urgent", rejected: r.decision === "rejected" } : null,
             shift: s ? { type: s.shift_type, s: hm(s.planned_start), e: hm(s.planned_end), role: s.work_role, otherStore: s.store_id !== store.id } : null,
             locked: date < today,
           };

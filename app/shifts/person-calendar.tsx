@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CellEditor, RequestMark, TYPE_LABEL, type Cell, type GridRow } from "./shift-grid";
+import { InlineApprove, RejectedMark } from "./inline-approve";
 
 export type WeekStatus = { monday: string; decided: boolean; deadline: string; submitted: boolean };
 
@@ -28,7 +29,7 @@ export function PersonCalendar({
   return (
     <>
       <div className="overflow-x-auto rounded-md border border-line bg-white">
-        <table className="w-full min-w-[720px] table-fixed text-xs">
+        <table className="w-full min-w-[900px] table-fixed text-xs">
           <thead className="bg-slate-50 text-slate-500">
             <tr>
               {row.partTime && <th className="w-24 px-2 py-2 text-left font-medium">週</th>}
@@ -57,8 +58,29 @@ export function PersonCalendar({
                   if (!c) return <td key={i} className="bg-slate-50/60" />;
                   const hasRequest = Boolean(c.request && c.request.a !== "off");
                   const editable = !c.locked && !c.shift?.otherStore && (!row.partTime || hasRequest || Boolean(c.shift));
-                  const waiting = row.partTime && hasRequest && !c.shift;
+                  const waiting = row.partTime && hasRequest && !c.shift && !c.request?.rejected;
                   const day = dow(c.date);
+                  if (row.partTime && hasRequest && !c.shift && !c.locked) {
+                    return (
+                      <td key={c.date} className="p-1 align-top">
+                        <p className={`text-xs font-bold ${day === 0 ? "text-accent" : day === 6 ? "text-brand" : "text-slate-700"}`}>
+                          {Number(c.date.slice(8, 10))} <span className="text-[10px] font-normal"><RequestMark r={c.request} partTime /></span>
+                        </p>
+                        {c.request?.rejected ? (
+                          <RejectedMark storeId={storeId} staffId={row.id} date={c.date} />
+                        ) : (
+                          <InlineApprove
+                            storeId={storeId}
+                            staffId={row.id}
+                            date={c.date}
+                            start={c.request?.a === "partial" || c.request?.urgent ? c.request.s : defaults.start}
+                            end={c.request?.a === "partial" || c.request?.urgent ? c.request.e : defaults.end}
+                            roles={roles}
+                          />
+                        )}
+                      </td>
+                    );
+                  }
                   return (
                     <td key={c.date} className="p-1 align-top">
                       <button
