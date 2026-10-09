@@ -34,6 +34,7 @@ export const NAV: NavSection[] = [
       { href: "/admin/reports", label: "報告の受付", icon: "history", audience: "admin" },
       { href: "/admin/announcements", label: "お知らせ", icon: "book", audience: "admin" },
       { href: "/admin/line", label: "LINE配信", icon: "history", audience: "admin" },
+      { href: "/admin/ai-logs", label: "AI取説の記録", icon: "chart", audience: "admin" },
       { href: "/admin/salary", label: "給与入力", icon: "yen", audience: "admin" },
       { href: "/admin/salary-history", label: "給与履歴出力", icon: "history", audience: "admin" },
       { href: "/admin/roster", label: "労働者名簿", icon: "book", audience: "admin" },

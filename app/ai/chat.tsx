@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { RichText } from "./rich-text";
 
 type Turn = { role: "user" | "assistant"; content: string };
+
+/** 答えの最後の分析用の行（[[META]]…）は画面に出さない。流れてくる途中の書きかけも隠す */
+const visible = (text: string) => text.split("[[META")[0].replace(/\[\[?M?E?T?A?$/, "").trimEnd();
 type Mode = "guide" | "sparring";
 
 const SUGGEST: Record<Mode, string[]> = {
@@ -18,6 +21,8 @@ export function Chat({ canSpar, initial }: { canSpar: boolean; initial?: string 
   const [turns, setTurns] = useState<Record<Mode, Turn[]>>({ guide: [], sparring: [] });
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  // 会話ごとの番号（記録で「同じ会話」をまとめるため）。消して最初からにすると新しくなる
+  const [conv, setConv] = useState<Record<Mode, string>>(() => ({ guide: crypto.randomUUID(), sparring: crypto.randomUUID() }));
   const bottom = useRef<HTMLDivElement>(null);
   const list = turns[mode];
 
@@ -40,7 +45,7 @@ export function Chat({ canSpar, initial }: { canSpar: boolean; initial?: string 
     setInput("");
     setBusy(true);
     try {
-      const res = await fetch("/api/ai-guide", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode, messages: next }) });
+      const res = await fetch("/api/ai-guide", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode, messages: next.map((t) => (t.role === "assistant" ? { ...t, content: visible(t.content) } : t)), conversationId: conv[mode] }) });
       if (!res.ok || !res.body) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(err.error ?? "うまく送れませんでした");
@@ -107,7 +112,7 @@ export function Chat({ canSpar, initial }: { canSpar: boolean; initial?: string 
             </div>
           ) : (
             <div key={i} className="max-w-[95%] rounded-lg bg-slate-50 px-4 py-3">
-              {t.content ? <RichText text={t.content} /> : <span className="text-sm text-slate-400">考えています…</span>}
+              {visible(t.content) ? <RichText text={visible(t.content)} /> : <span className="text-sm text-slate-400">考えています…</span>}
             </div>
           ),
         )}
@@ -137,7 +142,14 @@ export function Chat({ canSpar, initial }: { canSpar: boolean; initial?: string 
         </button>
       </form>
       {list.length > 0 && (
-        <button type="button" onClick={() => setTurns((t) => ({ ...t, [mode]: [] }))} className="self-start text-xs text-slate-400 hover:text-accent">
+        <button
+          type="button"
+          onClick={() => {
+            setTurns((t) => ({ ...t, [mode]: [] }));
+            setConv((c) => ({ ...c, [mode]: crypto.randomUUID() }));
+          }}
+          className="self-start text-xs text-slate-400 hover:text-accent"
+        >
           会話を消して最初から
         </button>
       )}
