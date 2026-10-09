@@ -100,3 +100,23 @@ export async function decidePeriod(storeId: string, periodType: "week" | "month"
   revalidatePath("/shifts");
   return { ok: true, at: Date.now() };
 }
+
+/** アルバイトのシフト希望を却下する（その日はシフトに入れない。「待機」から外す）。undo=true で取り消す */
+export async function rejectRequest(storeId: string, staffId: string, date: string, undo = false): Promise<ShiftState> {
+  let me;
+  try {
+    me = await requireShiftEditor(storeId);
+  } catch (e) {
+    return { error: (e as Error).message, at: Date.now() };
+  }
+  if (!DATE.test(date)) return { error: "日付が正しくありません", at: Date.now() };
+  if (date < businessDayJST()) return { error: "過ぎた日は変更できません", at: Date.now() };
+  const { error } = await createAdminClient()
+    .from("shift_requests")
+    .update(undo ? { decision: null, decided_by: null, decided_at: null } : { decision: "rejected", decided_by: me.id, decided_at: new Date().toISOString() })
+    .eq("staff_id", staffId)
+    .eq("work_date", date);
+  if (error) return { error: "保存できませんでした", at: Date.now() };
+  revalidatePath("/shifts");
+  return { ok: true, at: Date.now() };
+}
