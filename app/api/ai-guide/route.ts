@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentStaff } from "@/lib/auth";
-import { GUIDE_SYSTEM } from "@/lib/ai-guide/prompt";
+import { guideSystem, type GuideLevel } from "@/lib/ai-guide/prompt";
+import { attendanceScope } from "@/lib/attendance";
 import { SPARRING_SYSTEM, sparringContext } from "@/lib/ai-guide/sparring";
 import { ROLE_LABELS } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -28,11 +29,12 @@ export async function POST(request: NextRequest) {
   if (!messages.length || messages.at(-1)!.role !== "user") return NextResponse.json({ error: "質問を入れてください" }, { status: 400 });
 
   let variable: string;
+  // 権限：本部＝管理者、店長＝店舗マスタの店長または権限「店長」（勤怠を見られる範囲がある人）、それ以外は一般スタッフ
+  const level: GuideLevel = me.isAdmin ? "admin" : (await attendanceScope(me)) ? "manager" : "staff";
   if (mode === "guide") {
     const { data: self } = await createAdminClient().from("staff").select("store_id, stores(name)").eq("id", me.id).single();
     const store = (self?.stores as unknown as { name: string } | null)?.name ?? "未設定";
-    const level = me.isAdmin ? "本部（管理者）" : me.permission === "store" ? "店長" : "一般スタッフ";
-    variable = `## いま質問している人\n名前：${me.name}／雇用区分：${ROLE_LABELS[me.role ?? ""] ?? "未設定"}／権限：${level}／所属：${store}`;
+    variable = `## いま質問している人\n名前：${me.name}／雇用区分：${ROLE_LABELS[me.role ?? ""] ?? "未設定"}／所属：${store}`;
   } else {
     variable = await sparringContext();
   }
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
     fallbacks: "default",
     output_config: { effort: mode === "sparring" ? "high" : "low" },
     system: [
-      { type: "text", text: mode === "sparring" ? SPARRING_SYSTEM : GUIDE_SYSTEM, cache_control: { type: "ephemeral" } },
+      { type: "text", text: mode === "sparring" ? SPARRING_SYSTEM : guideSystem(level), cache_control: { type: "ephemeral" } },
       { type: "text", text: variable },
     ],
     messages,

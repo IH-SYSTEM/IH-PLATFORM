@@ -13,7 +13,7 @@ const SUGGEST: Record<Mode, string[]> = {
 };
 
 /** AI取説（全員）／壁打ち（代表だけ）。会話はこの画面の中だけで持つ（ページを離れると消える） */
-export function Chat({ canSpar }: { canSpar: boolean }) {
+export function Chat({ canSpar, initial }: { canSpar: boolean; initial?: string }) {
   const [mode, setMode] = useState<Mode>("guide");
   const [turns, setTurns] = useState<Record<Mode, Turn[]>>({ guide: [], sparring: [] });
   const [input, setInput] = useState("");
@@ -22,6 +22,15 @@ export function Chat({ canSpar }: { canSpar: boolean }) {
   const list = turns[mode];
 
   useEffect(() => bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [list]);
+  // ホームから聞かれた質問は、開いたときに1回だけ送る
+  const asked = useRef(false);
+  useEffect(() => {
+    if (!initial || asked.current) return;
+    asked.current = true;
+    window.history.replaceState(null, "", "/ai");
+    void send(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial]);
 
   async function send(text: string) {
     const q = text.trim();
