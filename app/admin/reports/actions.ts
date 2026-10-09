@@ -45,9 +45,10 @@ export async function approveReport(reportId: string, _prev: ReviewState): Promi
   if (!claimed) return { error: "この報告はすでに処理されています", at: Date.now() };
 
   const type = reportType(claimed.type);
+  let applied: Record<string, unknown> = {};
   try {
     if (!type) throw new ApplyError("この報告の種類は、今は処理できません");
-    const applied = await type.apply({
+    applied = await type.apply({
       reportId,
       storeId: claimed.store_id,
       reporterId: claimed.reporter_id,
@@ -62,10 +63,11 @@ export async function approveReport(reportId: string, _prev: ReviewState): Promi
     return { error: "反映に失敗しました。時間をおいてもう一度お試しください", at: Date.now() };
   }
 
-  await notify(reportId, (s) => `【IKKOU HOLDINGS 本部】報告を受け付けました（${type?.approveLabel ?? "承認・反映済み"}）。\n${s}`);
+  const notice = typeof applied.notice === "string" ? applied.notice : null;
+  await notify(reportId, (s) => (notice ? `【IKKOU HOLDINGS 本部】${notice}\n${s}` : `【IKKOU HOLDINGS 本部】報告を受け付けました（${type?.approveLabel ?? "承認・反映済み"}）。\n${s}`));
   revalidatePath("/admin/reports");
   revalidatePath("/attendance");
-  return { ok: "承認して反映しました", at: Date.now() };
+  return { ok: notice ?? "承認して反映しました", at: Date.now() };
 }
 
 export async function rejectReport(reportId: string, _prev: ReviewState, fd: FormData): Promise<ReviewState> {

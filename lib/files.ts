@@ -19,6 +19,7 @@ export const FILE_CATEGORIES = {
   contract: { label: "雇用契約書・労働条件通知書" },
   withholding_slip: { label: "源泉徴収票" },
   tax_certificate: { label: "控除証明書（年末調整）" },
+  certificate: { label: "在職証明書・給与証明書" },
   receipt: { label: "領収書" },
   report: { label: "報告の写真" },
   other: { label: "その他の書類" },
