@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse, type NextRequest } from "next/server";
-import { getCurrentStaff } from "@/lib/auth";
+import { getCurrentStaff, isCeo } from "@/lib/auth";
 import { guideSystem, type GuideLevel } from "@/lib/ai-guide/prompt";
 import { attendanceScope } from "@/lib/attendance";
 import { SPARRING_SYSTEM, sparringContext } from "@/lib/ai-guide/sparring";
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => null)) as { mode?: string; messages?: Turn[]; conversationId?: string } | null;
   const conversationId = /^[0-9a-f-]{36}$/.test(body?.conversationId ?? "") ? body!.conversationId! : crypto.randomUUID();
   const mode = body?.mode === "sparring" ? "sparring" : "guide";
-  if (mode === "sparring" && me.permission !== "superadmin") return NextResponse.json({ error: "壁打ちは代表だけが使えます" }, { status: 403 });
+  if (mode === "sparring" && !isCeo(me)) return NextResponse.json({ error: "壁打ちは代表だけが使えます" }, { status: 403 });
   const messages = (body?.messages ?? [])
     .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string" && m.content.trim())
     .slice(-20)

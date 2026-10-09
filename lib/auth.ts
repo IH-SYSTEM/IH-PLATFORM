@@ -62,3 +62,9 @@ export async function requireAdmin() {
   if (!staff.isAdmin) redirect("/");
   return staff;
 }
+
+/**
+ * 代表（CEO）本人か。壁打ち・コンセプト帳は代表本人だけが使う（2026-10-10 黒田さん「私にしかないこと」）。
+ * 権限が最高管理者でも、本人でなければ使えない。本人は環境変数 CEO_STAFF_ID で決める
+ */
+export const isCeo = (s: CurrentStaff) => s.permission === "superadmin" && !!process.env.CEO_STAFF_ID && s.id === process.env.CEO_STAFF_ID;
