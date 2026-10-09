@@ -96,7 +96,7 @@ export default async function MyShiftsPage({ searchParams }: PageProps<"/shifts/
           </div>
         ))}
       </div>
-      <p className="text-xs text-slate-400">店長が確定したシフトだけが表示されます（アルバイトは週ごと、社員は月ごとに確定）。希望を出すのは「シフト希望」から。</p>
+      <p className="text-xs text-slate-400">アルバイトは店長が承認したシフトがすぐ表示されます。社員は店長が月を確定したあとに表示されます。希望を出すのは「シフト希望」から。</p>
     </div>
   );
 }

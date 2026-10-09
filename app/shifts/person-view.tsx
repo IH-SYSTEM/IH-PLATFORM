@@ -143,7 +143,7 @@ export async function PersonView({ store, sp, today }: { store: Store; sp: Recor
       </div>
       {type === "week" && (
         <p className="text-xs text-slate-500">
-          アルバイトは週ごとに確定します。確定は［週の一覧］タブの「この週のアルバイトのシフトを確定」から（店の全員分をまとめて確定します）。
+          アルバイトは、日ごとに「承認」した時点で本人に見えます。週をさばき終えたら［週の一覧］タブで「この週のアルバイトを確定済み」にします（左の列の「確定済み」になります）。
           {weeks.filter((w) => !w.decided && !isPast(w.deadline, today)).length > 0 && " 左の列が「未確定」の週が対象です。"}
         </p>
       )}
