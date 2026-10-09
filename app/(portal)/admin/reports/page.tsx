@@ -4,7 +4,7 @@ import { describePayload } from "@/lib/reports/fields";
 import { reportType } from "@/lib/reports/registry";
 import { CATEGORIES, type CategoryKey } from "@/lib/reports/types";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { StatusBadge } from "@/app/reports/status-badge";
+import { StatusBadge } from "@/app/(portal)/reports/status-badge";
 import { approveReport, rejectReport } from "./actions";
 import { ReviewButtons } from "./review-buttons";
 

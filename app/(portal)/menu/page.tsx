@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { Icon } from "@/app/icons";
-import { AppShell, sectionsFor } from "@/app/shell/app-shell";
+import { sectionsFor } from "@/app/shell/app-shell";
 import { PageHeader } from "@/app/shell/page-header";
 
 import { logout } from "@/app/login/actions";
@@ -13,7 +13,7 @@ export default async function MenuPage() {
   const me = await requireStaff();
   const sections = await sectionsFor(me);
   return (
-    <AppShell staff={me}>
+    <>
       <PageHeader title="メニュー" />
       <div className="space-y-6">
         {sections.map((s) => (
@@ -36,6 +36,6 @@ export default async function MenuPage() {
           <button className="w-full rounded-md border border-line bg-white px-4 py-3.5 text-left text-sm font-medium text-accent hover:bg-accent-soft">ログアウト</button>
         </form>
       </div>
-    </AppShell>
+    </>
   );
 }

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { CurrentStaff } from "@/lib/auth";
 import { AppShell } from "@/app/shell/app-shell";
 import { PageHeader } from "@/app/shell/page-header";
-import { ReportCatalog } from "@/app/reports/report-catalog";
+import { ReportCatalog } from "@/app/(portal)/reports/report-catalog";
 
 // 開発中だけ使う、報告窓口の入口の見た目の確認用（本番では 404。本番ではログインも必要）
 export default async function ReportsPreview() {
