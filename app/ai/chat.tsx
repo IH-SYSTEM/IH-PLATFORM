@@ -26,7 +26,10 @@ export function Chat({ canSpar, initial }: { canSpar: boolean; initial?: string 
   const bottom = useRef<HTMLDivElement>(null);
   const list = turns[mode];
 
-  useEffect(() => bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [list]);
+  // 新しいブラウザでは scrollIntoView が値を返すため、波かっこで包んで何も返さない（返すと画面が落ちる）
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [list]);
   // ホームから聞かれた質問は、開いたときに1回だけ送る
   const asked = useRef(false);
   useEffect(() => {
