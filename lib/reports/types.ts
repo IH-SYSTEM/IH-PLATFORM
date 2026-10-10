@@ -1,4 +1,5 @@
 import type { Field, Payload } from "./fields";
+import type { DutyKey } from "@/lib/duties";
 
 export type CategoryKey = "attendance" | "request" | "site" | "harassment";
 
@@ -40,6 +41,8 @@ export type ReportType = {
   anonymous?: (p: Payload) => boolean;
   /** 本部の受付で読める人を、特別管理者だけにする（ハラスメント相談） */
   superadminOnly?: boolean;
+  /** 承認・却下ができる担当（ない種類は総務）。代表もできる */
+  duty?: (p: Payload) => DutyKey;
   /** 本部の［承認］ボタンの文言（記録するだけの報告は「確認済みにする」など） */
   approveLabel?: string;
   /** 一覧に出す1行の要約 */
@@ -48,4 +51,13 @@ export type ReportType = {
   reportedAt?: (p: Payload) => string | null;
   /** 承認したときの処理。反映したものを返す */
   apply: (ctx: ApplyContext) => Promise<Record<string, unknown>>;
+};
+
+/** その報告を承認・却下できる担当 */
+export const reportDuty = (t: ReportType | null, p: Payload): DutyKey => t?.duty?.(p) ?? "soumu";
+
+/** 承認・却下ができる担当の一覧（経理あては、経理の入力・承認のどちらでもよい） */
+export const reviewDuties = (t: ReportType | null, p: Payload): DutyKey[] => {
+  const d = reportDuty(t, p);
+  return d === "keiri_input" ? ["keiri_input", "keiri_approve"] : [d];
 };

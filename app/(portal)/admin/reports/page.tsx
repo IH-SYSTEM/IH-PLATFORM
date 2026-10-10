@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
+import { DUTY_LABELS, canApprove } from "@/lib/duties";
+import { reviewDuties } from "@/lib/reports/types";
 import { describePayload } from "@/lib/reports/fields";
 import { reportType } from "@/lib/reports/registry";
 import { CATEGORIES, type CategoryKey } from "@/lib/reports/types";
@@ -98,6 +100,8 @@ export default async function AdminReportsPage({ searchParams }: PageProps<"/adm
           {(reports ?? []).map((r) => {
             const t = reportType(r.type);
             const at = t?.reportedAt?.(r.payload);
+            const duties = reviewDuties(t, r.payload);
+            const mine = r.category === "harassment" ? me.permission === "superadmin" : canApprove(me, ...duties);
             const late = at ? Math.abs(Date.parse(r.created_at) - Date.parse(at)) > LATE_MS : false;
             return (
               <li key={r.id} className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
@@ -108,6 +112,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps<"/adm
                       <span className="ml-2 font-normal text-slate-400">{storeOf.get(r.store_id) ?? "店舗不明"}</span>
                     </p>
                     <p className="mt-0.5 font-bold text-slate-900">{t?.title ?? r.type}</p>
+                    <p className="text-xs text-slate-400">担当：{duties.map((d) => DUTY_LABELS[d]).join("・")}</p>
                   </div>
                   <StatusBadge status={r.status} />
                 </div>
@@ -140,7 +145,9 @@ export default async function AdminReportsPage({ searchParams }: PageProps<"/adm
                   )}
                   {late && <span className="font-bold text-amber-700">事後報告（報告日時と内容の時刻が1時間以上離れています）</span>}
                 </div>
-                {r.status === "pending" ? (
+                {r.status === "pending" && !mine ? (
+                  <p className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-500">確認待ち（{duties.map((d) => DUTY_LABELS[d]).join("・")}の担当が処理します）</p>
+                ) : r.status === "pending" ? (
                   <ReviewButtons approveLabel={t?.approveLabel ?? "承認して反映"} approve={approveReport.bind(null, r.id)} reject={rejectReport.bind(null, r.id)} />
                 ) : (
                   <p className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-500">

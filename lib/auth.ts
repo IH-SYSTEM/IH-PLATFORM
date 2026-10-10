@@ -3,6 +3,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { lineConfig } from "@/lib/line-login";
+import type { DutyKey } from "@/lib/duties";
 
 export type CurrentStaff = {
   id: string;
@@ -14,6 +15,7 @@ export type CurrentStaff = {
   lineLinked: boolean;
   lineFriend: boolean | null;
   mustSetPassword: boolean; // 本部が決めた仮パスワードのまま（最初のログインで本人のパスワードに変えてもらう）
+  duties: DutyKey[]; // 担当（入力・承認できる仕事）。管理者のときだけ入る
 };
 
 /** ログイン中のスタッフ。1回の表示の中では何度呼んでも1回だけ読む（枠と画面の両方で使うため） */
@@ -28,6 +30,8 @@ export const getCurrentStaff = cache(async function getCurrentStaff(): Promise<C
     .eq("auth_user_id", userId)
     .maybeSingle();
   if (!data || data.retired) return null;
+  const isAdmin = data.permission === "admin" || data.permission === "superadmin";
+  const { data: duties } = isAdmin ? await supabase.from("staff_duties").select("duty").eq("staff_id", data.id) : { data: [] };
   return {
     id: data.id,
     name: data.name,
@@ -35,10 +39,11 @@ export const getCurrentStaff = cache(async function getCurrentStaff(): Promise<C
     role: data.role,
     permission: data.permission,
     // 管理者かどうかは「権限」だけで決める。雇用区分（role）の「管理部」は働き方の区分で、権限ではない
-    isAdmin: data.permission === "admin" || data.permission === "superadmin",
+    isAdmin,
     lineLinked: Boolean(data.line_user_id),
     lineFriend: data.line_friend,
     mustSetPassword: data.first_login === true,
+    duties: (duties ?? []).map((d) => d.duty as DutyKey),
   };
 });
 

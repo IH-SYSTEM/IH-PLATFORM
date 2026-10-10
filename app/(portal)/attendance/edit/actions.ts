@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { hasDuty, noDutyMessage } from "@/lib/duties";
 import { findAttendance, pick, recordEdit, SNAPSHOT_COLUMNS, type AttendanceSnapshot } from "@/lib/attendance-write";
 import { jstCheckoutToISO, jstDateTimeToISO } from "@/lib/business-day";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -19,6 +20,7 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
  */
 export async function saveAttendance(attendanceId: string | null, _prev: EditState, fd: FormData): Promise<EditState> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "soumu")) return { error: noDutyMessage("soumu"), at: Date.now() };
   const admin = createAdminClient();
   const fail = (error: string) => ({ error, at: Date.now() });
   const get = (k: string) => String(fd.get(k) ?? "").trim();
@@ -80,6 +82,7 @@ export async function saveAttendance(attendanceId: string | null, _prev: EditSta
 
 export async function deleteAttendance(attendanceId: string, _prev: EditState, fd: FormData): Promise<EditState> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "soumu")) return { error: noDutyMessage("soumu"), at: Date.now() };
   const admin = createAdminClient();
   const reason = String(fd.get("reason") ?? "");
   if (!(EDIT_REASONS as readonly string[]).includes(reason)) return { error: "理由を選んでから削除してください", at: Date.now() };

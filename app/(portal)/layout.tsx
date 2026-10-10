@@ -1,5 +1,6 @@
 import { requireStaff } from "@/lib/auth";
 import { AppShell } from "@/app/shell/app-shell";
+import { DutyNotice } from "./duty-notice";
 
 /**
  * ログイン後の画面の共通の枠（PCのサイドバー・スマホの上下のバー）。
@@ -7,5 +8,10 @@ import { AppShell } from "@/app/shell/app-shell";
  */
 export default async function PortalLayout({ children }: LayoutProps<"/">) {
   const staff = await requireStaff();
-  return <AppShell staff={staff}>{children}</AppShell>;
+  return (
+    <AppShell staff={staff}>
+      <DutyNotice duties={staff.duties} isAdmin={staff.isAdmin} />
+      {children}
+    </AppShell>
+  );
 }

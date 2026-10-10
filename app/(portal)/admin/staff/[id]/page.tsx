@@ -9,6 +9,9 @@ import { WageHistory } from "../wage-history";
 import { addWage, deleteLatestWage } from "../wage-actions";
 import { businessDayJST } from "@/lib/business-day";
 import { saveStaff, setTempPassword } from "../actions";
+import { DutyPanel } from "../duty-panel";
+import { saveRoleAndDuties } from "../duty-actions";
+import { canAssign, hasDuty } from "@/lib/duties";
 import { audit } from "@/lib/audit";
 import { FILE_CATEGORIES, type FileRow } from "@/lib/files";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -29,10 +32,14 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
   if (!staff) notFound();
   // マイナンバー・口座など個人情報を表示するページなので、開いたことを記録する
   await audit({ actor: me.id, action: "view", targetType: "staff", targetId: staff.id, subject: staff.id });
-  const [{ data: wageRows }, { data: names }] = await Promise.all([
+  const canEdit = hasDuty(me, "soumu");
+  const [{ data: wageRows }, { data: names }, { data: allDuties }, { data: myDuties }] = await Promise.all([
     createAdminClient().from("staff_wage_history").select("id, valid_from, valid_to, employment_type, amount, note, created_by").eq("staff_id", staff.id).order("valid_from", { ascending: false }),
     createAdminClient().from("staff").select("id, name"),
+    createAdminClient().from("duties").select("key, label, description, exclusive_with").order("sort_order"),
+    createAdminClient().from("staff_duties").select("duty").eq("staff_id", staff.id),
   ]);
+  const assignable = canAssign(me) && staff.id !== me.id;
   const nameOf = new Map((names ?? []).map((n) => [n.id, n.name]));
   const { data: files } = await createAdminClient()
     .from("files")
@@ -54,7 +61,18 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
         </h1>
       </div>
 
-      {!staff.retired && <TempPasswordPanel action={setTempPassword.bind(null, staff.id)} />}
+
+      <DutyPanel
+        permission={staff.permission ?? "member"}
+        duties={(myDuties ?? []).map((d) => d.duty)}
+        all={allDuties ?? []}
+        action={saveRoleAndDuties.bind(null, staff.id)}
+        editable={assignable}
+        reason={staff.id === me.id ? "自分の立場と担当は変えられません" : "変えられるのは「システム」の担当か代表だけです"}
+        canGrantSuperadmin={me.permission === "superadmin"}
+      />
+
+      {!staff.retired && hasDuty(me, "soumu", "system") && <TempPasswordPanel action={setTempPassword.bind(null, staff.id)} />}
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-800">書類</h2>
@@ -100,8 +118,7 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
         stores={stores ?? []}
         companies={companies ?? []}
         action={saveStaff.bind(null, staff.id)}
-        isSelf={staff.id === me.id}
-        canGrantSuperadmin={me.permission === "superadmin"}
+        readOnly={!canEdit}
         createdNotice={created === "1"}
       />
     </div>

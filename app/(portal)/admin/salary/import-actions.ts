@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { hasDuty, noDutyMessage } from "@/lib/duties";
 import { audit } from "@/lib/audit";
 import { monthRange } from "@/lib/business-day";
 import { calculatePayroll, type Master } from "@/lib/payroll/calculator";
@@ -34,6 +35,7 @@ const mondayOf = (ymd: string) => {
  */
 export async function importAttendance(year: number, month: number, _prev: ImportResult | undefined): Promise<ImportResult> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "keiri_input")) return { error: noDutyMessage("keiri_input"), at: Date.now() };
   if (!Number.isInteger(year) || month < 1 || month > 12) return { error: "対象月が正しくありません", at: Date.now() };
   const ym = `${year}-${String(month).padStart(2, "0")}`;
   const { start, end } = monthRange(ym);
@@ -196,6 +198,9 @@ export async function importAttendance(year: number, month: number, _prev: Impor
       total_deduction: t.totalDeduction,
       net_payment: t.netPayment,
       status: "draft",
+      drafted_by: me.id,
+      confirmed_by: null,
+      confirmed_at: null,
     };
     const { error } = existing
       ? await admin.from("salary_records").update(row).eq("id", existing.id)

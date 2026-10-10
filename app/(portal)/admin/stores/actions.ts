@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { hasDuty, noDutyMessage } from "@/lib/duties";
 import { createClient } from "@/lib/supabase/server";
 import { STORE_CODE, newDisplayKey } from "@/lib/punch";
 
@@ -15,6 +16,7 @@ const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 
 export async function saveStore(storeId: string | null, _prev: StoreSaveState, fd: FormData): Promise<StoreSaveState> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "soumu")) return { error: noDutyMessage("soumu"), at: Date.now() };
   const supabase = await createClient();
   let createdId: string | null = null;
 
@@ -131,6 +133,7 @@ export type DisplayKeyState = { ok?: boolean; error?: string; at?: number } | un
 /** 掲示キーを発行する。再発行すると、古いURLを開いている iPad ではQRが出なくなる */
 export async function issueDisplayKey(storeId: string, _prev: DisplayKeyState): Promise<DisplayKeyState> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "system")) return { error: noDutyMessage("system"), at: Date.now() };
   const supabase = await createClient();
   const { data: store } = await supabase.from("stores").select("code").eq("id", storeId).maybeSingle();
   if (!store?.code) return { error: "先に店舗コードを登録してください", at: Date.now() };

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { hasDuty, noDutyMessage } from "@/lib/duties";
 import { audit } from "@/lib/audit";
 import { syncHistoryFromMaster } from "@/lib/wage-sync";
 import { createClient } from "@/lib/supabase/server";
@@ -36,6 +37,7 @@ function readForm(fd: FormData) {
 
 export async function saveStaff(staffId: string | null, _prev: SaveState, fd: FormData): Promise<SaveState> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "soumu")) return { error: noDutyMessage("soumu"), at: Date.now() };
   const supabase = await createClient();
   const admin = createAdminClient();
 
@@ -72,15 +74,8 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
       : { data: null };
     if (staffId && !existing) throw new InputError("スタッフが見つかりません");
 
-    const requested = text("permission") ?? "member";
-    if (!PERMISSIONS.some((p) => p.value === requested)) throw new InputError("権限が正しくありません");
-    let permission = requested;
-    const current = existing?.permission ?? null;
-    if (staffId === me.id) {
-      permission = current ?? "member";
-    } else if ((current === "superadmin" || requested === "superadmin") && current !== requested && me.permission !== "superadmin") {
-      throw new InputError("特別管理者の付与・解除は特別管理者のみ行えます");
-    }
+    // 立場（権限）はここでは変えない。「立場と担当」の欄（システム担当か代表だけ）で変える（2026-10-10 権限の作り直し）
+    const permission = existing?.permission ?? "member";
 
     const prevPm: PayrollMaster = existing?.payroll_master ?? {};
     // 標準報酬月額の等級（健康保険の1〜50等級）。正社員は必須（2026-10-08 黒田さん決定）
@@ -204,6 +199,7 @@ export type TempPasswordState = { ok?: boolean; error?: string; at?: number } | 
 // 仮パスワードに戻す（パスワードを忘れた人用）。次のログインで本人が自分のパスワードに変える
 export async function setTempPassword(staffId: string): Promise<TempPasswordState> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "soumu", "system")) return { error: noDutyMessage("soumu", "system"), at: Date.now() };
   const password = TEMP_PASSWORD;
   const admin = createAdminClient();
   const { data: staff } = await admin.from("staff").select("retired, auth_user_id").eq("id", staffId).single();

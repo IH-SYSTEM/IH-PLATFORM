@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { hasDuty, noDutyMessage } from "@/lib/duties";
 import { audit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addWageRow, syncMaster, AMOUNT_KEY, type WageType } from "@/lib/wage-sync";
@@ -10,6 +11,7 @@ export type WageState = { ok?: boolean; error?: string; at?: number } | undefine
 
 export async function addWage(staffId: string, _prev: WageState, fd: FormData): Promise<WageState> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "soumu")) return { error: noDutyMessage("soumu"), at: Date.now() };
   const from = String(fd.get("valid_from") ?? "");
   const type = String(fd.get("employment_type") ?? "") as WageType;
   const amount = Number(String(fd.get("amount") ?? "").replace(/[,，円]/g, ""));
@@ -27,6 +29,7 @@ export async function addWage(staffId: string, _prev: WageState, fd: FormData): 
 /** いちばん新しい行を消し、1つ前の行を「今の設定」に戻す（入れ間違いの訂正用） */
 export async function deleteLatestWage(staffId: string) {
   const me = await requireAdmin();
+  if (!hasDuty(me, "soumu")) throw new Error(noDutyMessage("soumu"));
   const admin = createAdminClient();
   const { data: rows } = await admin.from("staff_wage_history").select("id, employment_type, amount").eq("staff_id", staffId).order("valid_from", { ascending: false }).limit(2);
   if (!rows?.length) return;

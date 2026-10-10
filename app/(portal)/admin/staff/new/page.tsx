@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
+import { hasDuty } from "@/lib/duties";
 import { createClient } from "@/lib/supabase/server";
 import { StaffForm } from "../staff-form";
 import { saveStaff } from "../actions";
@@ -28,8 +29,7 @@ export default async function StaffNewPage() {
         stores={stores ?? []}
         companies={companies ?? []}
         action={saveStaff.bind(null, null)}
-        isSelf={false}
-        canGrantSuperadmin={me.permission === "superadmin"}
+        readOnly={!hasDuty(me, "soumu")}
         createdNotice={false}
       />
     </div>

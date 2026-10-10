@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { hasDuty, noDutyMessage } from "@/lib/duties";
 import { audit } from "@/lib/audit";
 import { parseAirRegi } from "@/lib/pos/airregi";
 import { savePosReceipts } from "@/lib/pos/save";
@@ -12,6 +13,7 @@ export type ImportState = { ok?: string; error?: string; at?: number } | undefin
 /** エアレジの会計明細CSVを取り込む */
 export async function importAirRegi(_prev: ImportState, fd: FormData): Promise<ImportState> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "keiri_input")) return { error: noDutyMessage("keiri_input"), at: Date.now() };
   const fail = (error: string) => ({ error, at: Date.now() });
   const storeId = String(fd.get("store_id") ?? "");
   const file = fd.get("file");

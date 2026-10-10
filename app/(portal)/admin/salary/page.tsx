@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
+import { hasDuty } from "@/lib/duties";
 import { createClient } from "@/lib/supabase/server";
 import { yen } from "@/lib/format";
 import { EMPLOYMENT_TYPES } from "@/lib/staff";
@@ -11,7 +12,7 @@ import { GradeReminder } from "../grade-reminder";
 const typeLabel = (t: string | null | undefined) => EMPLOYMENT_TYPES.find((e) => e.value === t)?.label ?? "未設定";
 
 export default async function SalaryMonthPage({ searchParams }: PageProps<"/admin/salary">) {
-  await requireAdmin();
+  const me = await requireAdmin();
   const params = await searchParams;
   const period = parsePeriod(params.ym);
   const supabase = await createClient();
@@ -45,7 +46,7 @@ export default async function SalaryMonthPage({ searchParams }: PageProps<"/admi
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">給与入力</h1>
-          <p className="mt-1 text-sm text-slate-500">スタッフを選んで勤怠・支給・控除を入力し、確定します</p>
+          <p className="mt-1 text-sm text-slate-500">経理（入力）が勤怠・支給・控除を入れて下書き保存 → 経理（承認）か代表が確定します</p>
         </div>
         <div className="flex items-center gap-1 rounded-md border border-slate-200 bg-white p-1 shadow-sm">
           <Link href={`/admin/salary?ym=${ym(shiftPeriod(period, -1))}`} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100" aria-label="前の月">
@@ -60,7 +61,7 @@ export default async function SalaryMonthPage({ searchParams }: PageProps<"/admi
 
       <GradeReminder />
 
-      <ImportButton label={`${periodLabel(period)}分`} action={importAttendance.bind(null, period.year, period.month)} />
+      {hasDuty(me, "keiri_input") && <ImportButton label={`${periodLabel(period)}分`} action={importAttendance.bind(null, period.year, period.month)} />}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -105,7 +106,7 @@ export default async function SalaryMonthPage({ searchParams }: PageProps<"/admi
                   {!r.record ? (
                     <span className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700">未入力</span>
                   ) : r.record.status === "draft" ? (
-                    <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">下書き</span>
+                    <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">承認待ち</span>
                   ) : (
                     <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">確定</span>
                   )}

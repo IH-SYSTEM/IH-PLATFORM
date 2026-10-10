@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { hasDuty, noDutyMessage } from "@/lib/duties";
 import { audit } from "@/lib/audit";
 import { sendLine } from "@/lib/line-push";
 import { resolveSegment, type Segment } from "@/lib/line-segment";
@@ -25,6 +26,7 @@ export async function previewSegment(fd: FormData): Promise<Preview> {
 
 export async function sendBroadcast(_prev: SendState, fd: FormData): Promise<SendState> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "system")) return { error: noDutyMessage("system"), at: Date.now() };
   const text = String(fd.get("text") ?? "").trim();
   // 「自分にだけテスト送信」：見え方の確認用。送った記録にも残る
   if (fd.get("test") === "1") {
