@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useState } from "react";
 import { ROLE_LABELS } from "@/lib/format";
-import { AGE_GROUPS, ALLOWANCES, DEDUCTIONS, EMPLOYMENT_TYPES, PERMISSIONS, TEMP_PASSWORD, ageGroupFor, type StaffRecord } from "@/lib/staff";
+import { AGE_GROUPS, ALLOWANCES, DEDUCTIONS, EMPLOYMENT_TYPES, TEMP_PASSWORD, permissionLabel, ageGroupFor, type StaffRecord } from "@/lib/staff";
 import { Toast } from "@/app/toast";
 import { STANDARD_MONTHLY_REMUNERATION } from "@/lib/payroll/tables";
 import type { SaveState } from "./actions";
@@ -13,19 +13,18 @@ type Props = {
   stores: { id: string; name: string }[];
   companies: { id: string; name: string }[];
   action: (prev: SaveState, fd: FormData) => Promise<SaveState>;
-  isSelf: boolean;
-  canGrantSuperadmin: boolean;
   createdNotice: boolean;
+  /** 総務の担当でない管理者は見るだけ（入力欄を止め、保存ボタンを出さない） */
+  readOnly?: boolean;
 };
 
-export function StaffForm({ staff, stores, companies, action, isSelf, canGrantSuperadmin, createdNotice }: Props) {
+export function StaffForm({ staff, stores, companies, action, createdNotice, readOnly = false }: Props) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const pm = staff?.payroll_master ?? {};
   const [employmentType, setEmploymentType] = useState(pm.employmentType ?? "");
   const [retired, setRetired] = useState(staff?.retired ?? false);
   const [birthdate, setBirthdate] = useState(staff?.birthdate ?? "");
   const [showMynumber, setShowMynumber] = useState(false);
-  const isSuperadmin = staff?.permission === "superadmin";
 
   return (
     <form
@@ -37,6 +36,7 @@ export function StaffForm({ staff, stores, companies, action, isSelf, canGrantSu
       }}
       className="space-y-5 pb-24"
     >
+      <fieldset disabled={readOnly} className="contents">
       <Section title="基本情報">
         <Field label="氏名" required>
           <input name="name" defaultValue={staff?.name ?? ""} required className={input} />
@@ -102,16 +102,11 @@ export function StaffForm({ staff, stores, companies, action, isSelf, canGrantSu
         <Field label="入社日">
           <input name="hire_date" type="date" defaultValue={staff?.hire_date ?? ""} className={input} />
         </Field>
-        <Field label="システム権限">
-          <select name="permission" defaultValue={staff?.permission ?? "member"} disabled={isSelf || (isSuperadmin && !canGrantSuperadmin)} className={input}>
-            {PERMISSIONS.filter((p) => p.value !== "superadmin" || canGrantSuperadmin || isSuperadmin).map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-          {isSelf && <span className="text-xs text-slate-400">自分の権限は変更できません</span>}
-          {(isSelf || (isSuperadmin && !canGrantSuperadmin)) && <input type="hidden" name="permission" value={staff?.permission ?? "member"} />}
+        <Field label="立場（権限）">
+          <p className="py-2 text-sm text-slate-700">
+            {permissionLabel(staff?.permission)}
+            <span className="ml-2 text-xs text-slate-400">{staff ? "上の「立場と担当」で変えます" : "登録すると一般スタッフ。立場と担当は登録のあとで決めます"}</span>
+          </p>
         </Field>
         <label className="flex items-center gap-2 self-end pb-2 text-sm text-slate-700">
           <input type="checkbox" name="line_added" defaultChecked={staff?.line_added ?? false} className="size-4 rounded border-slate-300" />
@@ -290,7 +285,8 @@ export function StaffForm({ staff, stores, companies, action, isSelf, canGrantSu
         </Field>
       </Section>
 
-      <SaveBar pending={pending} error={state?.error} label={staff ? "保存する" : "登録する"} />
+      </fieldset>
+      {!readOnly && <SaveBar pending={pending} error={state?.error} label={staff ? "保存する" : "登録する"} />}
 
       {state?.ok && <Toast key={state.at} message="保存しました" />}
       {state?.error && <Toast key={state.at} message={state.error} tone="error" />}

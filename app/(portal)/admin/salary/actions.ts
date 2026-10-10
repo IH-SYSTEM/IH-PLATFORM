@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { audit } from "@/lib/audit";
+import { canApprove, hasDuty, noDutyMessage } from "@/lib/duties";
+import { pushLine } from "@/lib/line-push";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { normalize, totals, type EmploymentType, type SalaryValues } from "@/lib/payroll/record";
 
@@ -23,9 +27,14 @@ function parseValues(raw: string): SalaryValues {
   return normalize({ employmentType: v.employmentType, attendance: v.attendance ?? {}, payment: v.payment ?? {}, deduction: v.deduction ?? {} });
 }
 
+/**
+ * 給与の入力（経理・入力の担当）。保存はいつも下書き。確定済みのものを直すと下書きに戻り、承認し直しになる。
+ * 確定は confirmSalary（経理・承認の担当か代表。入力した本人はできない）
+ */
 export async function saveSalary(staffId: string, year: number, month: number, _prev: SalarySaveState, fd: FormData): Promise<SalarySaveState> {
-  await requireAdmin();
-  const status = fd.get("status") === "confirmed" ? "confirmed" : "draft";
+  const me = await requireAdmin();
+  if (!hasDuty(me, "keiri_input")) return { error: noDutyMessage("keiri_input"), at: Date.now() };
+  const status = "draft" as const;
   let values: SalaryValues;
   try {
     values = parseValues(String(fd.get("values") ?? "{}"));
@@ -53,6 +62,9 @@ export async function saveSalary(staffId: string, year: number, month: number, _
     net_payment: t.netPayment,
     memo: String(fd.get("memo") ?? "").trim() || null,
     status,
+    drafted_by: me.id,
+    confirmed_by: null,
+    confirmed_at: null,
   };
 
   const { data: existing } = await supabase
@@ -77,4 +89,61 @@ export async function saveSalary(staffId: string, year: number, month: number, _
   revalidatePath("/admin");
   revalidatePath("/me");
   return { ok: true, status, at: Date.now() };
+}
+
+export type ApproveState = { ok?: string; error?: string; at?: number } | undefined;
+
+async function draftFor(staffId: string, year: number, month: number) {
+  const { data } = await createAdminClient()
+    .from("salary_records")
+    .select("id, status, drafted_by, staff_name")
+    .eq("staff_id", staffId)
+    .eq("year", year)
+    .eq("month", month)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data;
+}
+
+/** 給与を確定する（経理・承認の担当か代表）。入力した本人は確定できない。確定すると本人の給与明細に出る */
+export async function confirmSalary(staffId: string, year: number, month: number, _prev: ApproveState): Promise<ApproveState> {
+  const me = await requireAdmin();
+  if (!canApprove(me, "keiri_approve")) return { error: "確定できるのは「経理（承認）」の担当か代表だけです", at: Date.now() };
+  const rec = await draftFor(staffId, year, month);
+  if (!rec) return { error: "まだ入力されていません", at: Date.now() };
+  if (rec.status === "confirmed") return { error: "もう確定しています", at: Date.now() };
+  if (rec.drafted_by === me.id) return { error: "自分で入力した給与は確定できません。ほかの承認の人に頼んでください", at: Date.now() };
+  const { error } = await createAdminClient()
+    .from("salary_records")
+    .update({ status: "confirmed", confirmed_by: me.id, confirmed_at: new Date().toISOString() })
+    .eq("id", rec.id)
+    .eq("status", "draft");
+  if (error) return { error: "確定できませんでした", at: Date.now() };
+  await audit({ actor: me.id, action: "update", targetType: "salary", targetId: rec.id, subject: staffId, detail: { confirm: `${year}-${month}` } });
+  revalidatePath("/admin/salary");
+  revalidatePath(`/admin/salary/${staffId}`);
+  revalidatePath("/me");
+  return { ok: "確定しました。本人の給与明細に出ます", at: Date.now() };
+}
+
+/** 差し戻す（経理・承認の担当か代表）。確定済みなら下書きに戻し、入力した人に理由を LINE で知らせる */
+export async function returnSalary(staffId: string, year: number, month: number, _prev: ApproveState, fd: FormData): Promise<ApproveState> {
+  const me = await requireAdmin();
+  if (!canApprove(me, "keiri_approve")) return { error: "差し戻せるのは「経理（承認）」の担当か代表だけです", at: Date.now() };
+  const reason = String(fd.get("reason") ?? "").trim();
+  if (!reason) return { error: "直してほしいところを書いてください", at: Date.now() };
+  const rec = await draftFor(staffId, year, month);
+  if (!rec) return { error: "まだ入力されていません", at: Date.now() };
+  const admin = createAdminClient();
+  await admin.from("salary_records").update({ status: "draft", confirmed_by: null, confirmed_at: null }).eq("id", rec.id);
+  await audit({ actor: me.id, action: "update", targetType: "salary", targetId: rec.id, subject: staffId, detail: { return: `${year}-${month}`, reason } });
+  if (rec.drafted_by) {
+    const { data: drafter } = await admin.from("staff").select("line_user_id").eq("id", rec.drafted_by).maybeSingle();
+    await pushLine([drafter?.line_user_id], `【給与の差し戻し】${rec.staff_name}さん ${year}年${month}月分\n${me.name}さんより：${reason}\n\nIH ポータル → 給与入力 で直してください`, "report");
+  }
+  revalidatePath("/admin/salary");
+  revalidatePath(`/admin/salary/${staffId}`);
+  revalidatePath("/me");
+  return { ok: "差し戻しました。入力した人に LINE で知らせました", at: Date.now() };
 }

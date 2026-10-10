@@ -93,7 +93,9 @@ export function SalaryForm({
   incomeTaxColumn,
   record,
   action,
+  canInput,
 }: {
+  canInput: boolean;
   staffId: string;
   master: Master | null;
   incomeTaxColumn: string | null;
@@ -169,11 +171,10 @@ export function SalaryForm({
     );
   }
 
-  function submit(status: "draft" | "confirmed") {
+  function submit() {
     if (!values) return;
-    if (status === "confirmed" && !window.confirm("確定すると、スタッフのマイページに給与明細が表示されます。確定しますか？")) return;
+    if (savedStatus === "confirmed" && !window.confirm("確定済みの給与を直すと下書きに戻り、承認し直しになります（それまで本人の給与明細から消えます）。直しますか？")) return;
     const fd = new FormData();
-    fd.set("status", status);
     fd.set("values", JSON.stringify(values));
     fd.set("memo", memo);
     startTransition(() => formAction(fd));
@@ -183,7 +184,7 @@ export function SalaryForm({
 
   return (
     <div className="grid gap-5 pb-28 lg:grid-cols-3 lg:pb-0">
-      <div className="space-y-5 lg:col-span-2">
+      <fieldset disabled={!canInput} className="space-y-5 lg:col-span-2">
         <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-end gap-4">
             <label className="block space-y-1">
@@ -297,7 +298,7 @@ export function SalaryForm({
             </section>
           </>
         )}
-      </div>
+      </fieldset>
 
       <aside className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white p-4 shadow-lg lg:sticky lg:inset-auto lg:top-6 lg:self-start lg:rounded-md lg:border lg:p-5 lg:shadow-sm">
         <div className="flex items-center justify-between">
@@ -325,27 +326,22 @@ export function SalaryForm({
           <p className="text-2xl font-bold tabular-nums text-slate-900 lg:mt-1 lg:text-3xl">{t ? yen(t.netPayment) : "—"}</p>
         </div>
         {state?.error && <p className="mt-3 text-sm font-medium text-rose-600">{state.error}</p>}
-        <div className="mt-3 grid grid-cols-2 gap-2 lg:mt-5 lg:grid-cols-1">
-          <button
-            type="button"
-            disabled={!values || pending}
-            onClick={() => submit("draft")}
-            className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            下書き保存
-          </button>
-          <button
-            type="button"
-            disabled={!values || pending}
-            onClick={() => submit("confirmed")}
-            className="rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-2 disabled:opacity-50"
-          >
-            {pending ? "保存中…" : "確定する"}
-          </button>
-        </div>
+        {canInput && (
+          <div className="mt-3 lg:mt-5">
+            <button
+              type="button"
+              disabled={!values || pending}
+              onClick={submit}
+              className="w-full rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-brand-2 disabled:opacity-50"
+            >
+              {pending ? "保存中…" : "下書き保存（承認に回す）"}
+            </button>
+            <p className="mt-2 text-xs text-slate-500">確定は「経理（承認）」の担当がします</p>
+          </div>
+        )}
       </aside>
 
-      {state?.ok && <Toast key={state.at} message={state.status === "confirmed" ? "確定しました" : "下書き保存しました"} />}
+      {state?.ok && <Toast key={state.at} message="下書き保存しました。承認に回っています" />}
       {state?.error && <Toast key={state.at} message={state.error} tone="error" />}
     </div>
   );

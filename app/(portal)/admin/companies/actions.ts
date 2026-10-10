@@ -3,12 +3,14 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { hasDuty, noDutyMessage } from "@/lib/duties";
 import { createClient } from "@/lib/supabase/server";
 
 export type CompanySaveState = { ok?: boolean; error?: string; at?: number } | undefined;
 
 export async function saveCompany(companyId: string | null, _prev: CompanySaveState, fd: FormData): Promise<CompanySaveState> {
-  await requireAdmin();
+  const me = await requireAdmin();
+  if (!hasDuty(me, "soumu")) return { error: noDutyMessage("soumu"), at: Date.now() };
   const fail = (error: string) => ({ error, at: Date.now() });
   const text = (k: string) => {
     const v = String(fd.get(k) ?? "").trim();

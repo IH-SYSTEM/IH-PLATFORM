@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
+import { hasDuty, noDutyMessage } from "@/lib/duties";
 import { audit } from "@/lib/audit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendLine } from "@/lib/line-push";
@@ -14,6 +15,7 @@ const KINDS = ["notice", "system", "news"] as const;
 /** お知らせ・システムの更新・ニュースを載せる（管理者のみ） */
 export async function postAnnouncement(_prev: PostState, fd: FormData): Promise<PostState> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "soumu")) return { error: noDutyMessage("soumu"), at: Date.now() };
   const fail = (error: string) => ({ error, at: Date.now() });
   const get = (k: string) => String(fd.get(k) ?? "").trim();
 
@@ -58,6 +60,7 @@ export async function postAnnouncement(_prev: PostState, fd: FormData): Promise<
 
 export async function deleteAnnouncement(id: string): Promise<void> {
   const me = await requireAdmin();
+  if (!hasDuty(me, "soumu")) throw new Error(noDutyMessage("soumu"));
   await createAdminClient().from("announcements").delete().eq("id", id);
   await audit({ actor: me.id, action: "delete", targetType: "announcement", targetId: id });
   revalidatePath("/");

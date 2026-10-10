@@ -35,7 +35,7 @@ export default async function HomePreview() {
     isAdmin: true,
     lineLinked: true,
     lineFriend: true,
-    mustSetPassword: false,
+    mustSetPassword: false, duties: [],
   };
   return (
     <AppShell staff={fake}>

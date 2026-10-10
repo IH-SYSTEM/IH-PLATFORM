@@ -184,6 +184,11 @@ export const inquiryRequest: ReportType = {
   ],
   onSiteOnly: false,
   approveLabel: "回答した（本人に伝えた）",
+  // 宛先の部署の担当が受ける（2026-10-10 権限の作り直し）。店長あての問い合わせは、今は総務が受けて店長につなぐ
+  duty: (p) => {
+    const to = String(p.to ?? "");
+    return to.startsWith("経理") ? "keiri_input" : to.startsWith("システム") ? "system" : "soumu";
+  },
   summary: (p) => `【${String(p.to ?? "").split("（")[0]}】${p.subject}`,
   apply: async () => ({ recorded: true, notice: "問い合わせに回答しました。くわしくは担当から連絡があります" }),
 };

@@ -1,18 +1,25 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, type CurrentStaff } from "@/lib/auth";
+import { canApprove, noDutyMessage } from "@/lib/duties";
 import { pushLine } from "@/lib/line-push";
 import { reportType } from "@/lib/reports/registry";
-import { ApplyError } from "@/lib/reports/types";
+import { ApplyError, reviewDuties } from "@/lib/reports/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type ReviewState = { ok?: string; error?: string; at?: number } | undefined;
 
-/** ハラスメントの相談は、特別管理者だけが処理できる */
-async function canReview(permission: string | null, reportId: string) {
-  const { data } = await createAdminClient().from("reports").select("category").eq("id", reportId).maybeSingle();
-  return !!data && (data.category !== "harassment" || permission === "superadmin");
+/**
+ * 処理できるか。ハラスメントの相談は特別管理者だけ。それ以外は種類ごとの担当（経理あての問い合わせは経理の入力・承認の両方）か代表。
+ * 処理できない理由を返す（できるときは null）
+ */
+async function cannotReview(me: CurrentStaff, reportId: string): Promise<string | null> {
+  const { data } = await createAdminClient().from("reports").select("category, type, payload").eq("id", reportId).maybeSingle();
+  if (!data) return "報告が見つかりません";
+  if (data.category === "harassment") return me.permission === "superadmin" ? null : "この報告を処理する権限がありません";
+  const duties = reviewDuties(reportType(data.type), data.payload);
+  return canApprove(me, ...duties) ? null : noDutyMessage(...duties);
 }
 
 async function notify(reportId: string, text: (summary: string) => string) {
@@ -34,7 +41,8 @@ export async function approveReport(reportId: string, _prev: ReviewState): Promi
   const me = await requireAdmin();
   const admin = createAdminClient();
   const now = new Date().toISOString();
-  if (!(await canReview(me.permission, reportId))) return { error: "この報告を処理する権限がありません", at: Date.now() };
+  const denied = await cannotReview(me, reportId);
+  if (denied) return { error: denied, at: Date.now() };
   const { data: claimed } = await admin
     .from("reports")
     .update({ status: "approved", reviewed_by: me.id, reviewed_at: now })
@@ -72,7 +80,8 @@ export async function approveReport(reportId: string, _prev: ReviewState): Promi
 
 export async function rejectReport(reportId: string, _prev: ReviewState, fd: FormData): Promise<ReviewState> {
   const me = await requireAdmin();
-  if (!(await canReview(me.permission, reportId))) return { error: "この報告を処理する権限がありません", at: Date.now() };
+  const denied = await cannotReview(me, reportId);
+  if (denied) return { error: denied, at: Date.now() };
   const note = String(fd.get("note") ?? "").trim().slice(0, 200);
   if (!note) return { error: "却下の理由を入力してください", at: Date.now() };
   const { data } = await createAdminClient()

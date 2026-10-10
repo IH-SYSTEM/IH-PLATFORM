@@ -5,10 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { parsePeriod, periodLabel, shiftPeriod, ym } from "@/lib/payroll/period";
 import type { Master } from "@/lib/payroll/calculator";
 import { SalaryForm, type ExistingRecord } from "../salary-form";
-import { saveSalary } from "../actions";
+import { confirmSalary, returnSalary, saveSalary } from "../actions";
+import { ApprovePanel } from "../approve-panel";
+import { canApprove, hasDuty } from "@/lib/duties";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function SalaryEditPage({ params, searchParams }: PageProps<"/admin/salary/[staffId]">) {
-  await requireAdmin();
+  const me = await requireAdmin();
   const { staffId } = await params;
   const period = parsePeriod((await searchParams).ym);
   const supabase = await createClient();
@@ -17,15 +20,19 @@ export default async function SalaryEditPage({ params, searchParams }: PageProps
     supabase.from("staff").select("id, name, department_name, payroll_master").eq("id", staffId).maybeSingle(),
     supabase
       .from("salary_records")
-      .select("employment_type, attendance, payment, deduction, memo, status, updated_at")
+      .select("employment_type, attendance, payment, deduction, memo, status, updated_at, drafted_by, confirmed_by")
       .eq("staff_id", staffId)
       .eq("year", period.year)
       .eq("month", period.month)
       .order("updated_at", { ascending: false })
       .limit(1)
-      .maybeSingle<ExistingRecord>(),
+      .maybeSingle<ExistingRecord & { drafted_by: string | null; confirmed_by: string | null }>(),
   ]);
   if (!staff) notFound();
+  const canInput = hasDuty(me, "keiri_input");
+  const ids = [record?.drafted_by, record?.confirmed_by].filter((v): v is string => !!v);
+  const { data: people } = ids.length ? await createAdminClient().from("staff").select("id, name").in("id", ids) : { data: [] };
+  const nameOf = (id: string | null | undefined) => (people ?? []).find((p) => p.id === id)?.name ?? null;
 
   const master = staff.payroll_master as (Master & { incomeTaxColumn?: string }) | null;
 
@@ -52,7 +59,19 @@ export default async function SalaryEditPage({ params, searchParams }: PageProps
         </div>
       </div>
 
+      {record && canApprove(me, "keiri_approve") && (
+        <ApprovePanel
+          status={record.status}
+          draftedBy={nameOf(record.drafted_by)}
+          confirmedBy={nameOf(record.confirmed_by)}
+          selfDrafted={record.drafted_by === me.id}
+          confirm={confirmSalary.bind(null, staff.id, period.year, period.month)}
+          sendBack={returnSalary.bind(null, staff.id, period.year, period.month)}
+        />
+      )}
+
       <SalaryForm
+        canInput={canInput}
         key={`${staff.id}-${ym(period)}`}
         staffId={staff.id}
         master={master}
