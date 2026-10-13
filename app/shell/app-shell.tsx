@@ -16,7 +16,7 @@ const isManagerOf = cache(async (me: CurrentStaff) => (await attendanceScope(me)
 
 export async function sectionsFor(me: CurrentStaff) {
   const [isManager, modules, org] = await Promise.all([isManagerOf(me), myModules(me), loadOrg()]);
-  return navFor({ isAdmin: me.isAdmin, isManager, modules, level: org.levelOf(me.id) });
+  return navFor({ isAdmin: me.isAdmin, isManager, modules, level: org.levelOf(me.id), duties: me.duties });
 }
 
 /**
