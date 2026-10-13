@@ -19,6 +19,20 @@ set file_size_limit = 52428800,
     ]
 where id = 'private-files';
 
+-- AI が読んだ要約（入れたときに AI が書類を読み、何の書類か・大事な数字や出来事をまとめておく。壁打ちで使う）
+alter table files add column if not exists ai_summary text;
+alter table files add column if not exists ai_summarized_at timestamptz;
+alter table files add column if not exists ai_error text;
+
+-- 会社ごとの沿革と、いまの要点（書類の要約から AI がまとめ直す。書類を入れる・消すたびに更新）
+create table if not exists company_history (
+  company_id uuid primary key references companies(id) on delete cascade,
+  history text not null,
+  updated_at timestamptz not null default now()
+);
+alter table company_history enable row level security;
+-- 読み書きはサーバー（service role）だけ。壁打ち（代表）と保管庫（経理・総務）の画面から使う
+
 -- 会社の書類は、管理者でも経理・総務の担当（と代表）でなければ読めない
 drop policy if exists files_select on files;
 create policy files_select on files for select to authenticated

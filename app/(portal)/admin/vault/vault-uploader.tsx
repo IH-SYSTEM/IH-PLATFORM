@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
-import { deleteVaultFile, finishVaultUpload, startVaultUpload } from "./actions";
+import { deleteVaultFile, finishVaultUpload, resummarizeVaultFile, startVaultUpload } from "./actions";
 
 const BUCKET = "private-files";
 const ACCEPT = [
@@ -46,7 +46,7 @@ export function VaultUploader({ companies, categories, companyId }: { companies:
       if (error) throw new Error("送信に失敗しました。通信状況を確かめて、もう一度お試しください");
       const done = await finishVaultUpload(start.fileId);
       if ("error" in done) throw new Error(done.error);
-      setMessage({ tone: "ok", text: `「${f.name}」を保管しました` });
+      setMessage({ tone: "ok", text: `「${f.name}」を保管しました。AI が中身を読んでいます（1〜2分）` });
       setNote("");
       router.refresh();
     } catch (e) {
@@ -120,6 +120,27 @@ export function VaultDeleteButton({ fileId, name }: { fileId: string; name: stri
       className="text-xs text-slate-400 hover:text-accent disabled:opacity-50"
     >
       消す
+    </button>
+  );
+}
+
+export function ResummarizeButton({ fileId }: { fileId: string }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() =>
+        start(async () => {
+          const r = await resummarizeVaultFile(fileId);
+          if ("error" in r) window.alert(r.error);
+          router.refresh();
+        })
+      }
+      className="ml-1 font-bold text-brand underline disabled:opacity-50"
+    >
+      読み直す
     </button>
   );
 }

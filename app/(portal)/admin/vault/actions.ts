@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { rebuildCompanyHistory, summarizeVaultFile } from "@/lib/ai-guide/vault-ai";
 import { requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { BUCKET, VAULT_MAX_BYTES, VAULT_TYPES, canUseVault, isVaultCategory, newPath, signedUploadFor } from "@/lib/files";
@@ -58,6 +60,12 @@ export async function finishVaultUpload(fileId: string): Promise<{ ok: true } | 
   if (!exists) return { error: "ファイルが届いていません。もう一度お試しください" };
   await admin.from("files").update({ status: "ready" }).eq("id", fileId);
   await audit({ actor: me.id, action: "upload", targetType: "company_file", targetId: fileId, detail: { company: f.owner_company_id, category: f.category, name: f.name } });
+  // 返事のあとで、AI が中身を読んで要約し、その会社の沿革をまとめ直す（画面は待たせない）
+  const companyId = f.owner_company_id;
+  after(async () => {
+    await summarizeVaultFile(fileId);
+    await rebuildCompanyHistory(companyId);
+  });
   revalidatePath("/admin/vault");
   return { ok: true };
 }
@@ -72,6 +80,24 @@ export async function deleteVaultFile(fileId: string): Promise<{ ok: true } | { 
   await admin.storage.from(BUCKET).remove([f.path]);
   await admin.from("files").update({ status: "deleted", deleted_at: new Date().toISOString() }).eq("id", fileId);
   await audit({ actor: me.id, action: "delete", targetType: "company_file", targetId: fileId, detail: { company: f.owner_company_id, category: f.category, name: f.name } });
+  const companyId = f.owner_company_id;
+  after(() => rebuildCompanyHistory(companyId));
+  revalidatePath("/admin/vault");
+  return { ok: true };
+}
+
+/** AI に読み直させる（読めなかったとき・書類の日付やメモを直したとき） */
+export async function resummarizeVaultFile(fileId: string): Promise<{ ok: true } | { error: string }> {
+  const me = await requireAdmin();
+  if (!canUseVault(me)) return { error: DENIED };
+  const { data: f } = await createAdminClient().from("files").select("owner_company_id").eq("id", fileId).eq("status", "ready").maybeSingle();
+  if (!f?.owner_company_id) return { error: "ファイルが見つかりません" };
+  await createAdminClient().from("files").update({ ai_summary: null, ai_error: null, ai_summarized_at: null }).eq("id", fileId);
+  const companyId = f.owner_company_id;
+  after(async () => {
+    await summarizeVaultFile(fileId);
+    await rebuildCompanyHistory(companyId);
+  });
   revalidatePath("/admin/vault");
   return { ok: true };
 }

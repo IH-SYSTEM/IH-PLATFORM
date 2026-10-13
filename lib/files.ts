@@ -74,6 +74,8 @@ export type FileRow = {
   owner_company_id?: string | null;
   doc_date?: string | null;
   note?: string | null;
+  ai_summary?: string | null;
+  ai_error?: string | null;
 };
 
 /** 見てよいか：管理者、または本人向けに公開された本人の書類。会社の書類は経理・総務の担当だけ */
