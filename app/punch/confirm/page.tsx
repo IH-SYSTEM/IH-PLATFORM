@@ -1,9 +1,10 @@
-import { toJSTTimeString } from "@/lib/business-day";
+import { businessDayJST, toJSTTimeString } from "@/lib/business-day";
 import { punchStatus, verifyTicket } from "@/lib/punch";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PunchCard } from "../punch-card";
 import { PunchButtons } from "./punch-buttons";
-import { punch } from "./actions";
+import { confirmPunchNotice, punch } from "./actions";
+import { checklistFor, pendingNotices } from "@/lib/workboard";
 
 export const metadata = { title: "打刻" };
 
@@ -37,13 +38,23 @@ export default async function PunchConfirmPage({ searchParams }: PageProps<"/pun
     );
   }
 
+  // ワークボード：この打刻の前に確かめてもらうお知らせと、退勤チェックリスト
+  const mode = status.kind === "working" ? "check_out" : "check_in";
+  const [notices, checklist] = await Promise.all([
+    pendingNotices({ staffId: t.staffId, storeId: tok.store_id, timing: mode, today: businessDayJST() }),
+    mode === "check_out" ? checklistFor(tok.store_id) : Promise.resolve([]),
+  ]);
+
   return (
     <PunchCard store={store?.name} title={`${staff.name}さん`}>
       <PunchButtons
         statusLabel={status.kind === "working" ? `勤務中（出勤 ${toJSTTimeString(status.checkinTime)}）` : "まだ出勤していません"}
-        mode={status.kind === "working" ? "check_out" : "check_in"}
+        mode={mode}
         checkIn={punch.bind(null, raw, "check_in")}
         checkOut={punch.bind(null, raw, "check_out")}
+        notices={notices.map((n) => ({ id: n.id, title: n.title, body: n.body, importance: n.importance }))}
+        checklist={checklist}
+        confirm={confirmPunchNotice.bind(null, raw)}
       />
     </PunchCard>
   );
