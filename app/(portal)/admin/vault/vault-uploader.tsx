@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
-import { deleteVaultFile, finishVaultUpload, resummarizeVaultFile, startVaultUpload } from "./actions";
+import { deleteVaultFile, finishVaultUpload, fixVaultFile, resummarizeVaultFile, startVaultUpload } from "./actions";
 
 const BUCKET = "private-files";
 const ACCEPT = [
@@ -22,48 +22,79 @@ const ACCEPT = [
 ].join(",");
 const input = "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm";
 
-/** 会社の書類のアップロード（会社・種類・日付・メモを決めてからファイルを選ぶ） */
-export function VaultUploader({ companies, categories, companyId }: { companies: { id: string; name: string }[]; categories: { value: string; label: string }[]; companyId: string }) {
+/** 送る前の種類（端末によって CSV などが空で来るので、拡張子から補う） */
+const typeOf = (f: File) => {
+  if (f.type) return f.type;
+  const ext = f.name.toLowerCase().split(".").pop();
+  return ({ csv: "text/csv", pdf: "application/pdf", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" } as Record<string, string>)[ext ?? ""] ?? "";
+};
+
+/**
+ * 会社の書類のアップロード。いくつでもまとめて選べる（ドラッグ＆ドロップも）。
+ * 会社・種類は、ふだんは「AI に振り分けてもらう」。AI が中身を読んで、会社・種類・書類の名前・日付を決める
+ */
+export function VaultUploader({ companies, categories }: { companies: { id: string; name: string }[]; categories: { value: string; label: string }[] }) {
   const router = useRouter();
   const file = useRef<HTMLInputElement>(null);
-  const [company, setCompany] = useState(companyId);
-  const [cat, setCat] = useState(categories[0]?.value ?? "corp_other");
-  const [docDate, setDocDate] = useState("");
-  const [note, setNote] = useState("");
+  const [company, setCompany] = useState("auto");
+  const [cat, setCat] = useState("auto");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [over, setOver] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [failed, setFailed] = useState<string[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
 
-  const upload = async (f: File) => {
+  const uploadOne = async (f: File) => {
+    const type = typeOf(f);
+    const start = await startVaultUpload({ companyId: company, category: cat, name: f.name, contentType: type, size: f.size, docDate: "", note: "" });
+    if ("error" in start) throw new Error(start.error);
+    const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const { error } = await supabase.storage.from(BUCKET).uploadToSignedUrl(start.path, start.token, f, { contentType: type });
+    if (error) throw new Error("送信に失敗しました");
+    const done = await finishVaultUpload(start.fileId);
+    if ("error" in done) throw new Error(done.error);
+  };
+
+  const uploadAll = async (list: File[]) => {
+    if (!list.length) return;
     setBusy(true);
+    setFailed([]);
     setMessage(null);
-    try {
-      // CSV は端末によって種類が空で来るので補う
-      const type = f.type || (f.name.toLowerCase().endsWith(".csv") ? "text/csv" : "");
-      const start = await startVaultUpload({ companyId: company, category: cat, name: f.name, contentType: type, size: f.size, docDate, note });
-      if ("error" in start) throw new Error(start.error);
-      const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-      const { error } = await supabase.storage.from(BUCKET).uploadToSignedUrl(start.path, start.token, f, { contentType: type });
-      if (error) throw new Error("送信に失敗しました。通信状況を確かめて、もう一度お試しください");
-      const done = await finishVaultUpload(start.fileId);
-      if ("error" in done) throw new Error(done.error);
-      setMessage({ tone: "ok", text: `「${f.name}」を保管しました。AI が中身を読んでいます（1〜2分）` });
-      setNote("");
-      router.refresh();
-    } catch (e) {
-      setMessage({ tone: "error", text: (e as Error).message });
-    } finally {
-      setBusy(false);
-      if (file.current) file.current.value = "";
+    const bad: string[] = [];
+    for (let i = 0; i < list.length; i++) {
+      setProgress({ done: i, total: list.length });
+      try {
+        await uploadOne(list[i]);
+      } catch (e) {
+        bad.push(`${list[i].name}（${(e as Error).message}）`);
+      }
     }
+    setProgress(null);
+    setFailed(bad);
+    setMessage(`${list.length - bad.length}件を保管しました。AI が1件ずつ読んで振り分けています（1件1〜2分。再読み込みで反映されます）`);
+    setBusy(false);
+    if (file.current) file.current.value = "";
+    router.refresh();
   };
 
   return (
-    <div className="space-y-3 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-semibold text-slate-800">書類を保管する</h2>
+    <div
+      onDragOver={(e) => (e.preventDefault(), setOver(true))}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        if (!busy) uploadAll([...e.dataTransfer.files]);
+      }}
+      className={`space-y-3 rounded-md border-2 border-dashed bg-white p-5 shadow-sm ${over ? "border-brand bg-brand-soft" : "border-slate-200"}`}
+    >
+      <h2 className="text-sm font-semibold text-slate-800">書類を保管する（まとめて入れられます）</h2>
+      <p className="text-xs text-slate-500">今ある書類を、古いものも含めて全部入れてください。AI が中身を読んで、会社・種類・書類の名前・日付を振り分けます。同じ書類の版は「最新」「過去」に並びます</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1">
           <span className="text-xs font-medium text-slate-600">会社</span>
           <select value={company} onChange={(e) => setCompany(e.target.value)} className={`${input} w-full`}>
+            <option value="auto">AI に振り分けてもらう</option>
             {companies.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -74,6 +105,7 @@ export function VaultUploader({ companies, categories, companyId }: { companies:
         <label className="block space-y-1">
           <span className="text-xs font-medium text-slate-600">書類の種類</span>
           <select value={cat} onChange={(e) => setCat(e.target.value)} className={`${input} w-full`}>
+            <option value="auto">AI に振り分けてもらう</option>
             {categories.map((c) => (
               <option key={c.value} value={c.value}>
                 {c.label}
@@ -81,24 +113,65 @@ export function VaultUploader({ companies, categories, companyId }: { companies:
             ))}
           </select>
         </label>
-        <label className="block space-y-1">
-          <span className="text-xs font-medium text-slate-600">書類の日付（任意。決算期末・登記日・契約日など）</span>
-          <input type="date" value={docDate} onChange={(e) => setDocDate(e.target.value)} className={`${input} w-full`} />
-        </label>
-        <label className="block space-y-1">
-          <span className="text-xs font-medium text-slate-600">メモ（任意）</span>
-          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="例：第12期（2026年3月期）" className={`${input} w-full`} />
-        </label>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" disabled={busy} onClick={() => file.current?.click()} className="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-brand-2 disabled:opacity-60">
-          {busy ? "アップロード中…" : "ファイルを選んで保管する"}
+          {progress ? `保管しています… ${progress.done + 1}/${progress.total}` : "ファイルを選ぶ（いくつでも）"}
         </button>
-        <span className="text-xs text-slate-400">PDF・写真・Excel・Word・CSV、50MBまで</span>
-        <input ref={file} type="file" accept={ACCEPT} hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+        <span className="text-xs text-slate-400">ここにファイルを落としても入ります。PDF・写真・Excel・Word・CSV、1つ50MBまで</span>
+        <input ref={file} type="file" accept={ACCEPT} multiple hidden onChange={(e) => uploadAll([...(e.target.files ?? [])])} />
       </div>
-      {message && <p className={`text-sm font-bold ${message.tone === "ok" ? "text-emerald-700" : "text-accent"}`}>{message.text}</p>}
+      {message && <p className="text-sm font-bold text-emerald-700">{message}</p>}
+      {failed.length > 0 && (
+        <div className="text-sm text-accent">
+          <p className="font-bold">入らなかったもの（{failed.length}件）</p>
+          <ul className="list-inside list-disc text-xs">
+            {failed.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
+  );
+}
+
+/** AI の振り分けを直す */
+export function FixForm({
+  file,
+  companies,
+  categories,
+}: {
+  file: { id: string; company: string; category: string; doc_kind: string | null; doc_date: string | null; note: string | null };
+  companies: { id: string; name: string }[];
+  categories: { value: string; label: string }[];
+}) {
+  const [state, formAction, pending] = useActionState(fixVaultFile.bind(null, file.id), undefined);
+  return (
+    <form action={formAction} className="mt-2 grid gap-2 rounded bg-slate-50 p-2 sm:grid-cols-3">
+      <select name="company_id" defaultValue={file.company} className={input}>
+        {companies.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+      <select name="category" defaultValue={file.category} className={input}>
+        {categories.map((c) => (
+          <option key={c.value} value={c.value}>
+            {c.label}
+          </option>
+        ))}
+      </select>
+      <input name="doc_kind" defaultValue={file.doc_kind ?? ""} maxLength={60} placeholder="書類の名前（例：定款）" className={input} />
+      <input name="doc_date" type="date" defaultValue={file.doc_date ?? ""} className={input} />
+      <input name="note" defaultValue={file.note ?? ""} maxLength={500} placeholder="メモ" className={input} />
+      <button disabled={pending} className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">
+        {pending ? "保存中…" : "直す"}
+      </button>
+      {state?.error && <p className="text-xs text-accent sm:col-span-3">{state.error}</p>}
+      {state?.ok && <p className="text-xs text-emerald-700 sm:col-span-3">{state.ok}</p>}
+    </form>
   );
 }
 
