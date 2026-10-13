@@ -20,7 +20,7 @@ export async function saveHeads(unitId: string, _prev: OrgState, fd: FormData): 
   const { error } = await admin.from("org_units").update({ head_staff_ids: heads }).eq("id", unitId);
   if (error) return { error: "保存できませんでした", at: Date.now() };
   await audit({ actor: me.id, action: "update", targetType: "org_unit", targetId: unitId, detail: { heads } });
-  revalidatePath("/admin/org");
+  revalidatePath("/org");
   return { ok: "責任者を保存しました", at: Date.now() };
 }
 
@@ -36,6 +36,6 @@ export async function saveTitle(_prev: OrgState, fd: FormData): Promise<OrgState
   const { error } = await createAdminClient().from("staff").update({ org_title: title }).eq("id", staffId);
   if (error) return { error: "保存できませんでした", at: Date.now() };
   await audit({ actor: me.id, action: "update", targetType: "staff", targetId: staffId, subject: staffId, detail: { org_title: title } });
-  revalidatePath("/admin/org");
+  revalidatePath("/org");
   return { ok: title ? `「${title}」にしました` : "役職を外しました", at: Date.now() };
 }

@@ -3,7 +3,8 @@ import type { AppIcon } from "@/lib/apps";
 // ポータル全体のメニュー。PCのサイドバー・スマホの「メニュー」画面・ホームは、すべてここから作る（1か所で決める）
 //   audience … all：全員／manager：店長と管理者／admin：管理者
 //   module … モジュール（権限付与で割り当てた人だけに出す。audience より優先）
-export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin"; module?: string };
+//   minLevel … 組織図の段がこれ以上の人だけに出す（4＝部長・経理主任以上）
+export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin"; module?: string; minLevel?: number };
 export type NavSection = { title: string; items: NavItem[] };
 
 export const NAV: NavSection[] = [
@@ -44,15 +45,16 @@ export const NAV: NavSection[] = [
       { href: "/admin/companies", label: "会社マスタ", icon: "store", audience: "admin" },
       { href: "/admin/stores", label: "店舗・部署マスタ", icon: "store", audience: "admin" },
       { href: "/admin/login-status", label: "ログイン状況", icon: "login", audience: "admin" },
-      { href: "/admin/org", label: "組織図", icon: "users", audience: "admin" },
+      { href: "/org", label: "組織図", icon: "users", audience: "admin", minLevel: 4 },
       { href: "/admin/permissions", label: "権限付与", icon: "key", audience: "admin" },
     ],
   },
 ];
 
 /** その人に見せるメニュー。空になった区分は出さない */
-export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Set<string> }): NavSection[] {
-  const ok = (i: NavItem) => (i.module ? opts.modules.has(i.module) : i.audience === "all" || opts.isAdmin || (i.audience === "manager" && opts.isManager));
+export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Set<string>; level: number }): NavSection[] {
+  const ok = (i: NavItem) =>
+    i.minLevel ? opts.level >= i.minLevel : i.module ? opts.modules.has(i.module) : i.audience === "all" || opts.isAdmin || (i.audience === "manager" && opts.isManager);
   return NAV.map((s) => ({ ...s, items: s.items.filter(ok) })).filter((s) => s.items.length);
 }
 
