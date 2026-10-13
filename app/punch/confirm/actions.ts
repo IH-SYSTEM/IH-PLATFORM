@@ -3,6 +3,7 @@
 import { businessDayJST } from "@/lib/business-day";
 import { consumeToken, punchStatus, verifyTicket, type PunchAction } from "@/lib/punch";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checklistFor, confirmNotice, pendingNotices } from "@/lib/workboard";
 
 export type PunchResult = { ok: true; action: PunchAction; at: string } | { ok: false; error: string } | undefined;
 
@@ -17,6 +18,11 @@ export async function punch(ticket: string, action: PunchAction, _prev: PunchRes
   if (!t) return { ok: false, error: EXPIRED };
   const admin = createAdminClient();
   const status = await punchStatus(t.staffId);
+
+  // ワークボード：その打刻の前のお知らせを全部確認していなければ止める（画面を飛ばして送られても、ここで止まる）
+  const { data: tok } = await admin.from("punch_tokens").select("store_id").eq("token", t.token).maybeSingle();
+  const pending = await pendingNotices({ staffId: t.staffId, storeId: tok?.store_id ?? null, timing: action, today: businessDayJST() });
+  if (pending.length) return { ok: false, error: `まだ確認していないお知らせが${pending.length}件あります。確認してから押してください` };
 
   if (action === "check_in") {
     if (status.kind !== "before_checkin") return { ok: false, error: "すでに出勤しています" };
@@ -40,6 +46,10 @@ export async function punch(ticket: string, action: PunchAction, _prev: PunchRes
   if (status.kind !== "working") return { ok: false, error: "出勤の記録がないため、退勤できません" };
   const breakMinutes = Number(fd.get("break_minutes") ?? 0);
   if (!Number.isInteger(breakMinutes) || breakMinutes < 0 || breakMinutes > 600) return { ok: false, error: "休憩時間の値が正しくありません" };
+  // 退勤チェックリスト：全部にチェックが入っていなければ止める
+  const items = await checklistFor(tok?.store_id ?? null);
+  const checked = new Set(fd.getAll("checklist").map(String));
+  if (items.some((i) => !checked.has(i.id))) return { ok: false, error: "退勤チェックリストを全部済ませてから押してください" };
   const used = await consumeToken(t.token, t.staffId, "check_out");
   if (!used) return { ok: false, error: EXPIRED };
   const now = new Date();
@@ -52,5 +62,15 @@ export async function punch(ticket: string, action: PunchAction, _prev: PunchRes
     console.error("check_out failed", error);
     return { ok: false, error: "退勤を記録できませんでした。店長に伝えて、打刻修正で直してください" };
   }
+  if (items.length) {
+    await admin.from("workboard_checklist_logs").insert({ attendance_id: status.attendanceId, staff_id: t.staffId, store_id: used.store_id, items: items.map((i) => ({ id: i.id, label: i.label })) });
+  }
   return { ok: true, action, at: now.toISOString() };
+}
+
+/** ワークボードのお知らせを「確認しました」にする（打刻の確認画面から。本人の札で確かめる） */
+export async function confirmPunchNotice(ticket: string, noticeId: string): Promise<{ ok: boolean; error?: string }> {
+  const t = verifyTicket(ticket);
+  if (!t) return { ok: false, error: EXPIRED };
+  return (await confirmNotice(t.staffId, noticeId)) ? { ok: true } : { ok: false, error: "記録できませんでした。もう一度押してください" };
 }

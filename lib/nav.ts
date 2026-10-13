@@ -2,7 +2,8 @@ import type { AppIcon } from "@/lib/apps";
 
 // ポータル全体のメニュー。PCのサイドバー・スマホの「メニュー」画面・ホームは、すべてここから作る（1か所で決める）
 //   audience … all：全員／manager：店長と管理者／admin：管理者
-export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin" };
+//   module … モジュール（権限付与で割り当てた人だけに出す。audience より優先）
+export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin"; module?: string };
 export type NavSection = { title: string; items: NavItem[] };
 
 export const NAV: NavSection[] = [
@@ -23,6 +24,7 @@ export const NAV: NavSection[] = [
     items: [
       { href: "/shifts", label: "シフト確定", icon: "clock", audience: "manager" },
       { href: "/attendance", label: "勤怠", icon: "chart", audience: "manager" },
+      { href: "/workboard", label: "ワークボード", icon: "book", audience: "all", module: "workboard" },
     ],
   },
   {
@@ -42,14 +44,15 @@ export const NAV: NavSection[] = [
       { href: "/admin/companies", label: "会社マスタ", icon: "store", audience: "admin" },
       { href: "/admin/stores", label: "店舗・部署マスタ", icon: "store", audience: "admin" },
       { href: "/admin/login-status", label: "ログイン状況", icon: "login", audience: "admin" },
+      { href: "/admin/permissions", label: "権限付与", icon: "key", audience: "admin" },
     ],
   },
 ];
 
 /** その人に見せるメニュー。空になった区分は出さない */
-export function navFor(opts: { isAdmin: boolean; isManager: boolean }): NavSection[] {
-  const ok = (a: NavItem["audience"]) => a === "all" || opts.isAdmin || (a === "manager" && opts.isManager);
-  return NAV.map((s) => ({ ...s, items: s.items.filter((i) => ok(i.audience)) })).filter((s) => s.items.length);
+export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Set<string> }): NavSection[] {
+  const ok = (i: NavItem) => (i.module ? opts.modules.has(i.module) : i.audience === "all" || opts.isAdmin || (i.audience === "manager" && opts.isManager));
+  return NAV.map((s) => ({ ...s, items: s.items.filter(ok) })).filter((s) => s.items.length);
 }
 
 /** いま開いているページに当たるメニュー（いちばん長く一致するもの） */
