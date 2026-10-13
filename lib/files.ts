@@ -76,6 +76,7 @@ export type FileRow = {
   note?: string | null;
   ai_summary?: string | null;
   ai_error?: string | null;
+  doc_kind?: string | null;
 };
 
 /** 見てよいか：管理者、または本人向けに公開された本人の書類。会社の書類は経理・総務の担当だけ */
