@@ -32,7 +32,8 @@ export default async function PermissionsPage({ searchParams }: PageProps<"/admi
     loadOrg(),
   ]);
   const storeName = new Map((stores ?? []).map((s) => [s.id, s.name]));
-  const dutiesOf = (id: string) => (staffDuties ?? []).filter((d) => d.staff_id === id).map((d) => DUTY_LABELS[d.duty as keyof typeof DUTY_LABELS] ?? d.duty);
+  const dutiesOf = (id: string) =>
+    id === process.env.CEO_STAFF_ID ? ["すべて（代表）"] : (staffDuties ?? []).filter((d) => d.staff_id === id).map((d) => DUTY_LABELS[d.duty as keyof typeof DUTY_LABELS] ?? d.duty);
   const rows = (staff ?? []).filter((s) => (!q || s.name.includes(q) || (s.furigana ?? "").includes(q)) && (!storeFilter || s.store_id === storeFilter));
   // 一覧で見せる「使える機能」（自動＋人ごとの設定）
   const modulesOf = (s: { id: string; permission: string | null }) => {

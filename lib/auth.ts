@@ -43,9 +43,13 @@ export const getCurrentStaff = cache(async function getCurrentStaff(): Promise<C
     lineLinked: Boolean(data.line_user_id),
     lineFriend: data.line_friend,
     mustSetPassword: data.first_login === true,
-    duties: (duties ?? []).map((d) => d.duty as DutyKey),
+    // 代表（社長）は、すべての担当の入力・承認ができる（2026-10-13 黒田さん「普段は触らないが、できるようにはしておきたい」）
+    duties: isCeoId(data.id, data.permission) ? ALL_DUTIES : (duties ?? []).map((d) => d.duty as DutyKey),
   };
 });
+
+const ALL_DUTIES: DutyKey[] = ["keiri_input", "keiri_approve", "soumu", "jinji", "system"];
+const isCeoId = (id: string, permission: string | null) => permission === "superadmin" && !!process.env.CEO_STAFF_ID && id === process.env.CEO_STAFF_ID;
 
 /** LINE連携が済んでいない（API など、画面を移せないところで使う）。例外なく全員に連携を求める（2026-10-08 黒田さん決定） */
 // 公式LINEの友だちだと確認できた人（true）だけを通す。確かめられていない人（null）も止め、連携の画面で確かめ直してもらう
@@ -74,4 +78,4 @@ export async function requireAdmin() {
  * 代表（CEO）本人か。壁打ち・コンセプト帳は代表本人だけが使う（2026-10-10 黒田さん「私にしかないこと」）。
  * 権限が最高管理者でも、本人でなければ使えない。本人は環境変数 CEO_STAFF_ID で決める
  */
-export const isCeo = (s: CurrentStaff) => s.permission === "superadmin" && !!process.env.CEO_STAFF_ID && s.id === process.env.CEO_STAFF_ID;
+export const isCeo = (s: CurrentStaff) => isCeoId(s.id, s.permission);
