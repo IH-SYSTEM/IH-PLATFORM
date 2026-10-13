@@ -14,22 +14,48 @@ export const POSITION_LABELS: Record<string, string> = { member: "一般スタ�
 /** 段での割り当て（その段以上が使える） */
 export const RANK_GRANT_LABELS: Record<string, string> = { "2": "正社員以上", "3": "店長・事業責任者以上", "4": "部長・経理主任以上", "5": "社長" };
 
-/** 立場のまとまり。特別管理者は管理者と同じに数える */
-const positionOf = (s: CurrentStaff) => (s.permission === "superadmin" ? "admin" : (s.permission ?? "member"));
+type Grant = { module: string; grantee_type: string; grantee: string };
+type Person = { id: string; permission: string | null; duties: string[] };
+export type ModuleState = { on: boolean; auto: boolean; autoReason: string | null; override: boolean | null };
 
-/** その人が使えるモジュールの一覧（1回の表示の中では1回だけ読む） */
-export const myModules = cache(async function myModules(me: CurrentStaff): Promise<Set<ModuleKey>> {
-  const [{ data }, org] = await Promise.all([createAdminClient().from("module_grants").select("module, grantee_type, grantee"), loadOrg()]);
-  const pos = positionOf(me);
-  const level = org.levelOf(me.id);
-  const ok = (g: { grantee_type: string; grantee: string }) =>
-    (g.grantee_type === "position" && g.grantee === pos) ||
+/** 立場のまとまり。特別管理者は管理者と同じに数える */
+const positionOf = (permission: string | null) => (permission === "superadmin" ? "admin" : (permission ?? "member"));
+const isAdminPos = (permission: string | null) => permission === "admin" || permission === "superadmin";
+
+/** 自動で付く理由（階層・立場・担当の「はじめの設定」）。付かなければ null */
+function autoReason(grants: Grant[], module: string, p: Person, level: number): string | null {
+  for (const g of grants.filter((x) => x.module === module)) {
+    if (g.grantee_type === "rank" && level >= Number(g.grantee)) return `階層：${RANK_GRANT_LABELS[g.grantee] ?? g.grantee}`;
+    if (g.grantee_type === "position" && g.grantee === positionOf(p.permission)) return `立場：${POSITION_LABELS[g.grantee] ?? g.grantee}`;
     // 担当は管理者のときだけ効く（担当の決まりと同じ）
-    (g.grantee_type === "duty" && me.isAdmin && me.duties.includes(g.grantee as never)) ||
-    (g.grantee_type === "staff" && g.grantee === me.id) ||
-    // 段：その段以上（組織図の階層）
-    (g.grantee_type === "rank" && level >= Number(g.grantee));
-  return new Set((data ?? []).filter(ok).map((g) => g.module as ModuleKey));
+    if (g.grantee_type === "duty" && isAdminPos(p.permission) && p.duties.includes(g.grantee)) return "担当";
+  }
+  return null;
+}
+
+/** ある人の、機能ごとの状態（自動で付くか・人ごとの設定・最終的に使えるか） */
+export async function moduleStatesFor(p: Person): Promise<Record<string, ModuleState>> {
+  const admin = createAdminClient();
+  const [{ data: modules }, { data: grants }, { data: overrides }, org] = await Promise.all([
+    admin.from("modules").select("key"),
+    admin.from("module_grants").select("module, grantee_type, grantee"),
+    admin.from("staff_module_overrides").select("module, allowed").eq("staff_id", p.id),
+    loadOrg(),
+  ]);
+  const level = org.levelOf(p.id);
+  return Object.fromEntries(
+    (modules ?? []).map((m) => {
+      const reason = autoReason(grants ?? [], m.key, p, level);
+      const ov = (overrides ?? []).find((o) => o.module === m.key)?.allowed ?? null;
+      return [m.key, { on: ov ?? !!reason, auto: !!reason, autoReason: reason, override: ov }];
+    }),
+  );
+}
+
+/** その人が使えるモジュールの一覧（1回の表示の中では1回だけ読む）。人ごとの設定があればそれを優先 */
+export const myModules = cache(async function myModules(me: CurrentStaff): Promise<Set<ModuleKey>> {
+  const states = await moduleStatesFor({ id: me.id, permission: me.permission, duties: me.duties });
+  return new Set(Object.entries(states).filter(([, v]) => v.on).map(([k]) => k as ModuleKey));
 });
 
 export async function canUse(me: CurrentStaff, key: ModuleKey) {

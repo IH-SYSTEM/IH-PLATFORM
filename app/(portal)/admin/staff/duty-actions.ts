@@ -59,5 +59,7 @@ export async function saveRoleAndDuties(staffId: string, _prev: DutyState, fd: F
   });
   revalidatePath(`/admin/staff/${staffId}`);
   revalidatePath("/admin/staff");
+  revalidatePath(`/admin/permissions/${staffId}`);
+  revalidatePath("/admin/permissions");
   return { ok: true, at: Date.now() };
 }
