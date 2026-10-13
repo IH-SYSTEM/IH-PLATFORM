@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchCrm } from "./crm";
+import { fetchFunfo } from "./funfo";
 import { fetchIkkou } from "./ikkou";
 import { savePosReceipts } from "./save";
 
@@ -9,6 +10,7 @@ export const AUTO_SOURCES = {
   IKK: { source: "ikkou" as const, fetch: (from: string, to: string) => fetchIkkou(from, to) },
   CFM: { source: "crm" as const, fetch: (from: string, to: string) => fetchCrm("CFM", from, to) },
   SKC: { source: "crm" as const, fetch: (from: string, to: string) => fetchCrm("SKC", from, to) },
+  OBZ: { source: "funfo" as const, fetch: (from: string, to: string) => fetchFunfo("obanzai@ikkou-e.com", from, to) },
 };
 export type AutoCode = keyof typeof AUTO_SOURCES;
 

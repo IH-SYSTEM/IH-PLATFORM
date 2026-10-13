@@ -8,7 +8,7 @@ import type { PosReceipt } from "./airregi.ts";
 
 export async function savePosReceipts(
   admin: SupabaseClient,
-  opts: { storeId: string; source: "airregi" | "ikkou" | "crm"; fileName: string; file: Buffer; receipts: PosReceipt[]; importedBy: string | null },
+  opts: { storeId: string; source: "airregi" | "ikkou" | "crm" | "funfo"; fileName: string; file: Buffer; receipts: PosReceipt[]; importedBy: string | null },
 ): Promise<{ error?: string; dateFrom?: string; dateTo?: string; total?: number }> {
   const { storeId, source, receipts } = opts;
   if (!receipts.length) return { error: "会計が1件も入っていません" };

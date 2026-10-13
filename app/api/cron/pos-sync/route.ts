@@ -2,10 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { businessDayJST } from "@/lib/business-day";
 import { AUTO_SOURCES, syncStore, type AutoCode } from "@/lib/pos/sync";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
- * 毎朝、自動で取り込める店（一鴻・COOKIE for MEN・COOKIE熊本）の直近7日分を取り込む（Vercel Cron）。
+ * 毎朝、自動で取り込める店（一鴻・COOKIE for MEN・COOKIE熊本・obanzai）の直近7日分を取り込む（Vercel Cron）。
  * ?store=IKK などで1店だけ、?from=YYYY-MM-DD&to=YYYY-MM-DD で過去分もまとめて入れられる（最大62日）
  */
 export async function GET(request: NextRequest) {
