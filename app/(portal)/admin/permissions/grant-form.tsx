@@ -8,6 +8,7 @@ type Opt = { key: string; label: string };
 
 /** 1つの機能の割り当て（立場・担当・個人）。変えられない人には見るだけで出す */
 export function GrantForm({
+  ranks,
   positions,
   duties,
   staff,
@@ -15,6 +16,7 @@ export function GrantForm({
   editable,
   action,
 }: {
+  ranks: Opt[];
   positions: Opt[];
   duties: Opt[];
   staff: { id: string; name: string; store: string }[];
@@ -31,6 +33,17 @@ export function GrantForm({
   return (
     <form action={formAction} className="space-y-3">
       <fieldset disabled={!editable || pending} className="space-y-3">
+        <div>
+          <p className="text-xs font-medium text-slate-500">階層で（組織図の段。その段以上が使えます）</p>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {ranks.map((r) => (
+              <label key={r.key} className={box}>
+                <input type="checkbox" name="rank" value={r.key} defaultChecked={has(`rank:${r.key}`)} />
+                {r.label}
+              </label>
+            ))}
+          </div>
+        </div>
         <div>
           <p className="text-xs font-medium text-slate-500">立場で</p>
           <div className="mt-1 flex flex-wrap gap-2">

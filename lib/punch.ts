@@ -31,8 +31,12 @@ export const DEFAULT_DISPLAY_RADIUS_M = 50;
 
 export type DisplayStore = { id: string; name: string; code: string; lat: number | null; lng: number | null; radius: number };
 
+/** 変えた店舗コードの、前のコード（店に置いた打刻画面のアドレスを、開き直さなくても使えるように） */
+const OLD_CODES: Record<string, string> = { IKK: "IKU" }; // 2026-10-13 一鴻を IKU に
+
 /** 店舗コードと掲示キーが一致した店舗。どちらが違っても null（どちらが違うかは返さない） */
-export async function storeForDisplay(code: string, key: string): Promise<DisplayStore | null> {
+export async function storeForDisplay(rawCode: string, key: string): Promise<DisplayStore | null> {
+  const code = OLD_CODES[rawCode] ?? rawCode;
   if (!STORE_CODE.test(code) || !key) return null;
   const admin = createAdminClient();
   const { data: store } = await admin

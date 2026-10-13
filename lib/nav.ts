@@ -44,6 +44,7 @@ export const NAV: NavSection[] = [
       { href: "/admin/companies", label: "会社マスタ", icon: "store", audience: "admin" },
       { href: "/admin/stores", label: "店舗・部署マスタ", icon: "store", audience: "admin" },
       { href: "/admin/login-status", label: "ログイン状況", icon: "login", audience: "admin" },
+      { href: "/admin/org", label: "組織図", icon: "users", audience: "admin" },
       { href: "/admin/permissions", label: "権限付与", icon: "key", audience: "admin" },
     ],
   },

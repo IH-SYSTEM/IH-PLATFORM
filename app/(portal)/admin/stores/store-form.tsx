@@ -65,7 +65,7 @@ export function StoreForm({
         <Field label="店舗名" required>
           <input name="name" defaultValue={store?.name ?? ""} required className={input} />
         </Field>
-        <Field label="店舗コード" hint={store?.code ? "打刻QRのURLに使っているため変更できません" : "英大文字2〜4文字（例：IKK）。打刻QRのURLに使い、登録後は変更できません"}>
+        <Field label="店舗コード" hint={store?.code ? "打刻QRのURLに使っているため変更できません" : "英大文字2〜4文字（例：IKU）。打刻QRのURLに使い、登録後は変更できません"}>
           <input
             name="code"
             defaultValue={store?.code ?? ""}

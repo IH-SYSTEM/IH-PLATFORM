@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { DUTY_LABELS, canAssign } from "@/lib/duties";
-import { POSITION_LABELS } from "@/lib/modules";
+import { POSITION_LABELS, RANK_GRANT_LABELS } from "@/lib/modules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type GrantState = { ok?: string; error?: string; at?: number } | undefined;
@@ -18,10 +18,12 @@ export async function saveModuleGrants(moduleKey: string, _prev: GrantState, fd:
   if (!mod) return { error: "機能が見つかりません", at: Date.now() };
 
   const positions = fd.getAll("position").map(String).filter((p) => p in POSITION_LABELS);
+  const ranks = fd.getAll("rank").map(String).filter((r) => r in RANK_GRANT_LABELS);
   const duties = fd.getAll("duty").map(String).filter((d) => d in DUTY_LABELS);
   const people = fd.getAll("staff").map(String);
   const { data: valid } = people.length ? await admin.from("staff").select("id").in("id", people).eq("retired", false) : { data: [] };
   const next = [
+    ...ranks.map((g) => ({ grantee_type: "rank", grantee: g })),
     ...positions.map((g) => ({ grantee_type: "position", grantee: g })),
     ...duties.map((g) => ({ grantee_type: "duty", grantee: g })),
     ...(valid ?? []).map((s) => ({ grantee_type: "staff", grantee: s.id })),

@@ -7,7 +7,7 @@ import { savePosReceipts } from "./save";
 
 /** 自動で取り込む店：店舗コード → 読み方 */
 export const AUTO_SOURCES = {
-  IKK: { source: "ikkou" as const, fetch: (from: string, to: string) => fetchIkkou(from, to) },
+  IKU: { source: "ikkou" as const, fetch: (from: string, to: string) => fetchIkkou(from, to) },
   CFM: { source: "crm" as const, fetch: (from: string, to: string) => fetchCrm("CFM", from, to) },
   SKC: { source: "crm" as const, fetch: (from: string, to: string) => fetchCrm("SKC", from, to) },
   OBZ: { source: "funfo" as const, fetch: (from: string, to: string) => fetchFunfo("obanzai@ikkou-e.com", from, to) },
@@ -17,7 +17,8 @@ export type AutoCode = keyof typeof AUTO_SOURCES;
 /** 1店分を取り込む。同じ会計・来店は上書きなので、期間が重なっても二重にならない */
 export async function syncStore(code: AutoCode, from: string, to: string) {
   const admin = createAdminClient();
-  const { data: store } = await admin.from("stores").select("id").eq("code", code).single();
+  // 一鴻は 2026-10-13 に IKK → IKU。切り替えの前後でも取り込めるように、前のコードでも探す
+  const { data: store } = await admin.from("stores").select("id").in("code", code === "IKU" ? ["IKU", "IKK"] : [code]).limit(1).maybeSingle();
   if (!store) return { code, error: `店舗 ${code} がありません` };
   const src = AUTO_SOURCES[code];
   const { receipts, raw, error } = await src.fetch(from, to);
