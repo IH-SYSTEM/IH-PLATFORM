@@ -9,9 +9,7 @@ import { WageHistory } from "../wage-history";
 import { addWage, deleteLatestWage } from "../wage-actions";
 import { businessDayJST } from "@/lib/business-day";
 import { saveStaff, setTempPassword } from "../actions";
-import { DutyPanel } from "../duty-panel";
-import { saveRoleAndDuties } from "../duty-actions";
-import { canAssign, hasDuty } from "@/lib/duties";
+import { hasDuty } from "@/lib/duties";
 import { audit } from "@/lib/audit";
 import { FILE_CATEGORIES, type FileRow } from "@/lib/files";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -33,13 +31,10 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
   // マイナンバー・口座など個人情報を表示するページなので、開いたことを記録する
   await audit({ actor: me.id, action: "view", targetType: "staff", targetId: staff.id, subject: staff.id });
   const canEdit = hasDuty(me, "soumu");
-  const [{ data: wageRows }, { data: names }, { data: allDuties }, { data: myDuties }] = await Promise.all([
+  const [{ data: wageRows }, { data: names }] = await Promise.all([
     createAdminClient().from("staff_wage_history").select("id, valid_from, valid_to, employment_type, amount, note, created_by").eq("staff_id", staff.id).order("valid_from", { ascending: false }),
     createAdminClient().from("staff").select("id, name"),
-    createAdminClient().from("duties").select("key, label, description, exclusive_with").order("sort_order"),
-    createAdminClient().from("staff_duties").select("duty").eq("staff_id", staff.id),
   ]);
-  const assignable = canAssign(me) && staff.id !== me.id;
   const nameOf = new Map((names ?? []).map((n) => [n.id, n.name]));
   const { data: files } = await createAdminClient()
     .from("files")
@@ -60,17 +55,12 @@ export default async function StaffEditPage({ params, searchParams }: PageProps<
           {staff.retired && <span className="ml-3 rounded-full bg-slate-200 px-2.5 py-1 align-middle text-xs font-medium text-slate-600">退職</span>}
         </h1>
       </div>
-
-
-      <DutyPanel
-        permission={staff.permission ?? "member"}
-        duties={(myDuties ?? []).map((d) => d.duty)}
-        all={allDuties ?? []}
-        action={saveRoleAndDuties.bind(null, staff.id)}
-        editable={assignable}
-        reason={staff.id === me.id ? "自分の立場と担当は変えられません" : "変えられるのは「システム」の担当か代表だけです"}
-        canGrantSuperadmin={me.permission === "superadmin"}
-      />
+      <div className="flex items-center justify-between rounded-md border border-slate-200 bg-white px-5 py-3 text-sm shadow-sm">
+        <span className="text-slate-600">立場・担当・使える機能</span>
+        <Link href={`/admin/permissions/${staff.id}`} className="font-bold text-brand hover:underline">
+          権限付与で見る・変える →
+        </Link>
+      </div>
 
       {!staff.retired && hasDuty(me, "soumu", "system") && <TempPasswordPanel action={setTempPassword.bind(null, staff.id)} />}
 

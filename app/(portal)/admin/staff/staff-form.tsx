@@ -105,7 +105,7 @@ export function StaffForm({ staff, stores, companies, action, createdNotice, rea
         <Field label="立場（権限）">
           <p className="py-2 text-sm text-slate-700">
             {permissionLabel(staff?.permission)}
-            <span className="ml-2 text-xs text-slate-400">{staff ? "上の「立場と担当」で変えます" : "登録すると一般スタッフ。立場と担当は登録のあとで決めます"}</span>
+            <span className="ml-2 text-xs text-slate-400">{staff ? "「権限付与」で変えます" : "登録すると一般スタッフ。立場と担当は登録のあとで「権限付与」で決めます"}</span>
           </p>
         </Field>
         <label className="flex items-center gap-2 self-end pb-2 text-sm text-slate-700">

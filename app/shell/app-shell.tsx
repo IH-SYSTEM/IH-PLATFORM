@@ -5,6 +5,7 @@ import type { CurrentStaff } from "@/lib/auth";
 import { attendanceScope } from "@/lib/attendance";
 import { navFor } from "@/lib/nav";
 import { myModules } from "@/lib/modules";
+import { loadOrg } from "@/lib/org";
 import { permissionLabel } from "@/lib/staff";
 import { logout } from "@/app/login/actions";
 import { MobileTabBar } from "@/app/mobile-tab-bar";
@@ -14,8 +15,8 @@ import { SidebarNav } from "./sidebar-nav";
 const isManagerOf = cache(async (me: CurrentStaff) => (await attendanceScope(me)) !== null);
 
 export async function sectionsFor(me: CurrentStaff) {
-  const [isManager, modules] = await Promise.all([isManagerOf(me), myModules(me)]);
-  return navFor({ isAdmin: me.isAdmin, isManager, modules });
+  const [isManager, modules, org] = await Promise.all([isManagerOf(me), myModules(me), loadOrg()]);
+  return navFor({ isAdmin: me.isAdmin, isManager, modules, level: org.levelOf(me.id) });
 }
 
 /**
