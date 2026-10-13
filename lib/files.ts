@@ -14,6 +14,38 @@ export const ALLOWED_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
 };
 
+// 会社の書類の保管庫で使えるファイル（Excel・Word・CSV も入れられる。50MB まで）
+export const VAULT_MAX_BYTES = 50 * 1024 * 1024;
+export const VAULT_TYPES: Record<string, string> = {
+  ...ALLOWED_TYPES,
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+  "application/msword": "doc",
+  "text/csv": "csv",
+};
+
+// 会社の書類の種類（保管庫。2026-10-13）
+export const VAULT_CATEGORIES = {
+  corp_articles: { label: "定款" },
+  corp_registry: { label: "登記簿謄本・印鑑証明" },
+  corp_financials: { label: "決算書" },
+  corp_tax: { label: "税務申告書・納税証明" },
+  corp_minutes: { label: "議事録" },
+  corp_contract: { label: "契約書（取引先・賃貸・リース）" },
+  corp_license: { label: "許認可・届出" },
+  corp_insurance: { label: "保険" },
+  corp_bank: { label: "金融機関・借入" },
+  corp_labor: { label: "労務（就業規則・36協定など）" },
+  corp_other: { label: "その他" },
+} as const;
+export type VaultCategory = keyof typeof VAULT_CATEGORIES;
+export const isVaultCategory = (v: unknown): v is VaultCategory => typeof v === "string" && v in VAULT_CATEGORIES;
+
+/** 会社の書類を見る・入れる・消すことができる担当（経理・総務。代表はすべての担当を持つ扱い） */
+export const VAULT_DUTIES = ["soumu", "keiri_input", "keiri_approve"] as const;
+export const canUseVault = (me: CurrentStaff) => me.isAdmin && VAULT_DUTIES.some((d) => me.duties.includes(d));
+
 // 書類の種類。label は画面に出す名前
 export const FILE_CATEGORIES = {
   contract: { label: "雇用契約書・労働条件通知書" },
@@ -39,17 +71,24 @@ export type FileRow = {
   visible_to_owner: boolean;
   uploaded_by: string;
   created_at: string;
+  owner_company_id?: string | null;
+  doc_date?: string | null;
+  note?: string | null;
+  ai_summary?: string | null;
+  ai_error?: string | null;
 };
 
-/** 見てよいか：管理者、または本人向けに公開された本人の書類 */
+/** 見てよいか：管理者、または本人向けに公開された本人の書類。会社の書類は経理・総務の担当だけ */
 export function canView(me: CurrentStaff, f: FileRow) {
   if (f.status !== "ready") return false;
+  // 会社の書類（保管庫）は、経理・総務の担当と代表だけ
+  if (f.owner_company_id) return canUseVault(me);
   return me.isAdmin || (f.owner_staff_id === me.id && f.visible_to_owner);
 }
 
 /** 保存場所のパス。推測できないように乱数を入れ、元のファイル名は使わない */
-export function newPath(category: FileCategory, owner: string | null, contentType: string) {
-  return `${category}/${owner ?? "_"}/${randomUUID()}.${ALLOWED_TYPES[contentType]}`;
+export function newPath(category: FileCategory | VaultCategory, owner: string | null, contentType: string) {
+  return `${category}/${owner ?? "_"}/${randomUUID()}.${VAULT_TYPES[contentType]}`;
 }
 
 /** アップロード用の、1回だけ使えるURL（ブラウザから保存場所へ直接送る。Vercel の容量制限を通らない） */

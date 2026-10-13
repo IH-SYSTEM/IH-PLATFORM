@@ -4,7 +4,8 @@ import type { AppIcon } from "@/lib/apps";
 //   audience … all：全員／manager：店長と管理者／admin：管理者
 //   module … モジュール（権限付与で割り当てた人だけに出す。audience より優先）
 //   minLevel … 組織図の段がこれ以上の人だけに出す（4＝部長・経理主任以上）
-export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin"; module?: string; minLevel?: number };
+//   duties … この担当のどれかを持つ管理者だけに出す
+export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin"; module?: string; minLevel?: number; duties?: string[] };
 export type NavSection = { title: string; items: NavItem[] };
 
 export const NAV: NavSection[] = [
@@ -42,6 +43,7 @@ export const NAV: NavSection[] = [
       { href: "/admin/salary-history", label: "給与履歴出力", icon: "history", audience: "admin" },
       { href: "/admin/roster", label: "労働者名簿", icon: "book", audience: "admin" },
       { href: "/admin/staff", label: "スタッフ管理", icon: "users", audience: "admin" },
+      { href: "/admin/vault", label: "会社の書類", icon: "book", audience: "admin", duties: ["soumu", "keiri_input", "keiri_approve"] },
       { href: "/admin/companies", label: "会社マスタ", icon: "store", audience: "admin" },
       { href: "/admin/stores", label: "店舗・部署マスタ", icon: "store", audience: "admin" },
       { href: "/admin/login-status", label: "ログイン状況", icon: "login", audience: "admin" },
@@ -52,9 +54,15 @@ export const NAV: NavSection[] = [
 ];
 
 /** その人に見せるメニュー。空になった区分は出さない */
-export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Set<string>; level: number }): NavSection[] {
+export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Set<string>; level: number; duties: string[] }): NavSection[] {
   const ok = (i: NavItem) =>
-    i.minLevel ? opts.level >= i.minLevel : i.module ? opts.modules.has(i.module) : i.audience === "all" || opts.isAdmin || (i.audience === "manager" && opts.isManager);
+    i.duties
+      ? opts.isAdmin && i.duties.some((d) => opts.duties.includes(d))
+      : i.minLevel
+        ? opts.level >= i.minLevel
+        : i.module
+          ? opts.modules.has(i.module)
+          : i.audience === "all" || opts.isAdmin || (i.audience === "manager" && opts.isManager);
   return NAV.map((s) => ({ ...s, items: s.items.filter(ok) })).filter((s) => s.items.length);
 }
 
