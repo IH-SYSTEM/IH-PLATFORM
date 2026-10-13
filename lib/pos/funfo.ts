@@ -1,4 +1,5 @@
 import "server-only";
+import type { PosReceipt } from "./airregi.ts";
 
 // FUNFO（obanzai のレジ）の OpenAPI。公開鍵（clientId）と秘密鍵（clientSecret）でアクセストークンをもらい、
 // それを Authorization: Bearer に付けて各 API を呼ぶ。鍵は Vercel の環境変数 FUNFO_PUBLIC_KEY / FUNFO_SECRET_KEY
@@ -49,4 +50,50 @@ export async function funfoPost(path: string, body: Record<string, unknown>): Pr
   });
   const json = (await res.json().catch(() => ({}))) as Envelope;
   return { status: res.status, json };
+}
+
+type AmountRow = { hour: string; realTaxAmount: number; taxAmount: number; personNum: number; foodCount: number; discount: number; orderNum: number };
+type PayRow = { hour: string; payTypeInfos?: { payTypeName: string; amount: number }[] };
+
+/**
+ * obanzai の売上を、1日1行の会計として読む（FUNFO の伝票の一覧には番号・時刻がないため、日の合計を使う）。
+ * FUNFO の「1日」は開店（18時）から翌3時までで、こちらの営業日（6時切替）と同じ数え方。売上のない日（休み）は入れない
+ */
+export async function fetchFunfo(storeEmail: string, from: string, to: string): Promise<{ receipts: PosReceipt[]; raw: string; error?: string }> {
+  const dates: string[] = [];
+  for (let d = from; d <= to; d = new Date(Date.parse(`${d}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10)) dates.push(d);
+  const raw: Record<string, unknown> = {};
+  const receipts: PosReceipt[] = [];
+  for (let i = 0; i < dates.length; i += 5) {
+    const got = await Promise.all(
+      dates.slice(i, i + 5).map(async (date) => ({
+        date,
+        r: await funfoPost("/clientApi/statistics/v2/store/sale/data", { orderDate: date, orderType: 7, storeEmails: [storeEmail], userEmail: storeEmail }),
+      })),
+    );
+    for (const { date, r } of got) {
+      if (r.error) return { receipts: [], raw: "", error: r.error };
+      if (r.json.retCode !== 0) return { receipts: [], raw: "", error: `FUNFO から読めませんでした（${date}・${r.json.retMsg ?? r.status}）` };
+      raw[date] = r.json.data;
+      const data = r.json.data as { amountHours?: AmountRow[]; payTypeHours?: PayRow[] };
+      const day = data.amountHours?.find((h) => h.hour === date);
+      if (!day || !(Number(day.realTaxAmount) > 0)) continue;
+      const pay = data.payTypeHours?.find((h) => h.hour === date)?.payTypeInfos ?? [];
+      receipts.push({
+        receiptNo: `funfo-${date}`,
+        businessDate: date,
+        checkoutAt: `${date}T23:59:00+09:00`,
+        total: Math.round(Number(day.realTaxAmount)),
+        tax: Math.round(Number(day.taxAmount)),
+        people: Number(day.personNum) || 0,
+        items: Number(day.foodCount) || 0,
+        discount: -Math.abs(Math.round(Number(day.discount) || 0)),
+        payments: Object.fromEntries(pay.filter((p) => Number(p.amount) > 0).map((p) => [p.payTypeName, Math.round(Number(p.amount))])),
+        cashier: "",
+        slip: `${Number(day.orderNum) || 0}組`,
+        lines: [],
+      });
+    }
+  }
+  return { receipts, raw: JSON.stringify(raw) };
 }

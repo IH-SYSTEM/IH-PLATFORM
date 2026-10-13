@@ -30,7 +30,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/sale
     admin.from("pos_daily_by_source").select("store_id, business_date, source, sales").gte("business_date", from).lt("business_date", to).limit(5000),
   ]);
   // 突き合わせ：基準（CRM）と、レジ（エアレジなど）の両方がある日に、金額がずれている日
-  const SOURCE_LABEL: Record<string, string> = { airregi: "エアレジ", ikkou: "一鴻レジ", crm: "CRM" };
+  const SOURCE_LABEL: Record<string, string> = { airregi: "エアレジ", ikkou: "一鴻レジ", crm: "CRM", funfo: "FUNFO" };
   const mismatches = (stores ?? []).flatMap((s) => {
     if (!s.sales_source) return [];
     const mine = (bySource ?? []).filter((r) => r.store_id === s.id);

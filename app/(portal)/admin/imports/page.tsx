@@ -6,7 +6,6 @@ import { ImportForm } from "./import-form";
 export const metadata = { title: "データ取り込み" };
 
 const when = (iso: string) => new Date(iso).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
-const md = (d: string | null) => (d ? `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}` : "");
 
 // データ集積所の入口。いまはエアレジ（「一」・根っこ・COOKIE熊本）。ほかのレジ・会計はここに足していく
 export default async function ImportsPage() {
@@ -29,9 +28,8 @@ export default async function ImportsPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs text-slate-500">
               <tr>
-                <th className="px-4 py-2.5 font-medium">日時</th>
+                <th className="px-4 py-2.5 font-medium">取り込んだ日時</th>
                 <th className="px-4 py-2.5 font-medium">店舗</th>
-                <th className="px-4 py-2.5 font-medium">期間</th>
                 <th className="px-4 py-2.5 text-right font-medium">会計</th>
                 <th className="px-4 py-2.5 font-medium">取り込んだ人</th>
               </tr>
@@ -41,16 +39,13 @@ export default async function ImportsPage() {
                 <tr key={h.id}>
                   <td className="px-4 py-2.5 tabular-nums text-slate-500">{when(h.created_at)}</td>
                   <td className="px-4 py-2.5 font-bold text-slate-900">{storeName.get(h.store_id) ?? "—"}</td>
-                  <td className="px-4 py-2.5 tabular-nums">
-                    {md(h.date_from)}〜{md(h.date_to)}
-                  </td>
                   <td className="px-4 py-2.5 text-right tabular-nums">{h.receipts}件</td>
                   <td className="px-4 py-2.5 text-slate-500">{h.imported_by ? (staffName.get(h.imported_by) ?? "—") : "自動"}</td>
                 </tr>
               ))}
               {!history?.length && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
                     まだありません
                   </td>
                 </tr>
