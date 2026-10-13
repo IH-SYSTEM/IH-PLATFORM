@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
 import { businessDayJST } from "@/lib/business-day";
 import { canUse } from "@/lib/modules";
-import { LEVEL_LABELS, loadOrg } from "@/lib/org";
+import { loadOrg } from "@/lib/org";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { IMPORTANCE_MARK, TIMING_LABEL, targetsOf, workboardStores, type Notice, type Timing } from "@/lib/workboard";
 import { addChecklistItem, createNotice, createSchedule, deleteSchedule, removeChecklistItem, stopNotice, toggleSchedule } from "./actions";
@@ -55,9 +55,6 @@ export default async function WorkboardPage({ searchParams }: PageProps<"/workbo
       <div>
         <h1 className="text-2xl font-bold text-slate-900">ワークボード</h1>
         <p className="mt-1 text-sm text-slate-500">打刻のときに必ず確かめてもらうお知らせです。出勤前のものは確認しないと出勤できず、退勤前のものとチェックリストは済ませないと退勤できません</p>
-        <p className="mt-1 text-xs text-slate-500">
-          あなたは「{LEVEL_LABELS[scope.level] ?? "—"}」の段です。お知らせは、配下（{scope.all ? "全社" : stores.map((s) => s.name).join("・") || "なし"}）の、自分より下の段の人にだけ届きます
-        </p>
       </div>
       <nav className="flex gap-1 border-b border-slate-200">
         {TABS.map(([k, l]) => (
