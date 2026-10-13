@@ -1,6 +1,6 @@
 import "server-only";
 import type { CurrentStaff } from "@/lib/auth";
-import { attendanceScope } from "@/lib/attendance";
+import { loadOrg } from "@/lib/org";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -24,6 +24,7 @@ export type Notice = {
   starts_on: string;
   ends_on: string | null;
   schedule_id: string | null;
+  sender_level: number | null;
   is_active: boolean;
   created_by: string | null;
   created_at: string;
@@ -55,6 +56,7 @@ export async function ensureScheduledNotices(today: string) {
       starts_on: today,
       ends_on: today,
       schedule_id: s.id,
+      sender_level: s.sender_level,
       created_by: s.created_by,
     })),
     { onConflict: "schedule_id,starts_on", ignoreDuplicates: true },
@@ -80,9 +82,12 @@ export async function pendingNotices(opts: { staffId: string; storeId: string | 
   ]);
   const done = new Set((reads ?? []).map((r) => r.notice_id));
   const stores = [opts.storeId, me?.store_id].filter(Boolean) as string[];
+  const myLevel = (await loadOrg()).levelOf(opts.staffId);
   return (notices ?? []).filter(
     (n) =>
       !done.has(n.id) &&
+      // 出した人より下の段の人にだけ見せる
+      (n.sender_level === null || myLevel < n.sender_level) &&
       (n.audience === "all" || (n.audience === "store" && n.audience_ids.some((id) => stores.includes(id))) || (n.audience === "staff" && n.audience_ids.includes(opts.staffId))),
   );
 }
@@ -99,17 +104,16 @@ export async function checklistFor(storeId: string | null): Promise<{ id: string
   return (data ?? []).map((i) => ({ id: i.id, label: i.label }));
 }
 
-/** ワークボードを管理できる店の範囲（管理者は全店、店長は自分の店、それ以外は所属の店） */
-export async function workboardStores(me: CurrentStaff): Promise<{ all: boolean; storeIds: string[] }> {
-  const scope = await attendanceScope(me);
-  if (scope) return scope;
-  const { data } = await createAdminClient().from("staff").select("store_id").eq("id", me.id).single();
-  return { all: false, storeIds: data?.store_id ? [data.store_id] : [] };
+/** ワークボードで扱える範囲（組織図の配下の店。社長・部長・経理主任は全社）と、自分の段 */
+export async function workboardStores(me: CurrentStaff): Promise<{ all: boolean; storeIds: string[]; level: number }> {
+  const org = await loadOrg();
+  return { ...org.scopeOf(me.id), level: org.levelOf(me.id) };
 }
 
-/** お知らせを見せる相手（在籍のスタッフ）。確認状況の「まだの人」を出すのに使う */
-export function targetsOf<T extends { id: string; store_id: string | null }>(n: Pick<Notice, "audience" | "audience_ids">, staff: T[]): T[] {
-  if (n.audience === "all") return staff;
-  if (n.audience === "store") return staff.filter((s) => s.store_id && n.audience_ids.includes(s.store_id));
-  return staff.filter((s) => n.audience_ids.includes(s.id));
+/** お知らせを見せる相手（在籍のスタッフ）。確認状況の「まだの人」を出すのに使う。出した人より下の段だけ */
+export function targetsOf<T extends { id: string; store_id: string | null }>(n: Pick<Notice, "audience" | "audience_ids" | "sender_level">, staff: T[], levelOf: (id: string) => number): T[] {
+  const below = (s: T) => n.sender_level === null || levelOf(s.id) < n.sender_level;
+  if (n.audience === "all") return staff.filter(below);
+  if (n.audience === "store") return staff.filter((s) => s.store_id && n.audience_ids.includes(s.store_id) && below(s));
+  return staff.filter((s) => n.audience_ids.includes(s.id) && below(s));
 }

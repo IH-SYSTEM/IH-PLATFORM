@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
 import { businessDayJST } from "@/lib/business-day";
 import { canUse } from "@/lib/modules";
+import { LEVEL_LABELS, loadOrg } from "@/lib/org";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { IMPORTANCE_MARK, TIMING_LABEL, targetsOf, workboardStores, type Notice, type Timing } from "@/lib/workboard";
 import { addChecklistItem, createNotice, createSchedule, deleteSchedule, removeChecklistItem, stopNotice, toggleSchedule } from "./actions";
@@ -28,6 +29,7 @@ export default async function WorkboardPage({ searchParams }: PageProps<"/workbo
   const sp = await searchParams;
   const tab = TABS.some(([k]) => k === sp.tab) ? (sp.tab as string) : "notices";
   const scope = await workboardStores(me);
+  const org = await loadOrg();
   const today = businessDayJST();
   const admin = createAdminClient();
 
@@ -37,7 +39,8 @@ export default async function WorkboardPage({ searchParams }: PageProps<"/workbo
   ]);
   const stores = (allStores ?? []).filter((s) => scope.all || scope.storeIds.includes(s.id));
   const storeName = new Map((allStores ?? []).map((s) => [s.id, s.name]));
-  const staff = (allStaff ?? []).filter((s) => scope.all || (s.store_id && scope.storeIds.includes(s.store_id)));
+  // 選べる人：配下にいて、自分より下の段の人
+  const staff = (allStaff ?? []).filter((s) => org.canReach(me.id, s.id));
   const staffName = new Map((allStaff ?? []).map((s) => [s.id, s.name]));
   // 自分の範囲のものだけ見せる（全員あては本部だけ、店あては自分の店が入っているもの、人あては自分の店の人が入っているもの）
   const visible = (n: { audience: string; audience_ids: string[] }) =>
@@ -52,6 +55,9 @@ export default async function WorkboardPage({ searchParams }: PageProps<"/workbo
       <div>
         <h1 className="text-2xl font-bold text-slate-900">ワークボード</h1>
         <p className="mt-1 text-sm text-slate-500">打刻のときに必ず確かめてもらうお知らせです。出勤前のものは確認しないと出勤できず、退勤前のものとチェックリストは済ませないと退勤できません</p>
+        <p className="mt-1 text-xs text-slate-500">
+          あなたは「{LEVEL_LABELS[scope.level] ?? "—"}」の段です。お知らせは、配下（{scope.all ? "全社" : stores.map((s) => s.name).join("・") || "なし"}）の、自分より下の段の人にだけ届きます
+        </p>
       </div>
       <nav className="flex gap-1 border-b border-slate-200">
         {TABS.map(([k, l]) => (
@@ -62,7 +68,7 @@ export default async function WorkboardPage({ searchParams }: PageProps<"/workbo
       </nav>
 
       {tab === "notices" && (
-        <NoticesTab today={today} visible={visible} audienceLabel={audienceLabel} staffName={staffName} allStaff={allStaff ?? []}>
+        <NoticesTab today={today} visible={visible} audienceLabel={audienceLabel} staffName={staffName} allStaff={allStaff ?? []} levelOf={org.levelOf}>
           <NoticeForm
             mode="notice"
             stores={stores}
@@ -102,8 +108,10 @@ async function NoticesTab({
   audienceLabel,
   staffName,
   allStaff,
+  levelOf,
   children,
 }: {
+  levelOf: (id: string) => number;
   today: string;
   visible: (n: Notice) => boolean;
   audienceLabel: (n: Notice) => string;
@@ -125,7 +133,7 @@ async function NoticesTab({
         <h2 className="text-sm font-bold text-slate-700">最近30日のお知らせと確認の状況</h2>
         {notices.length === 0 && <p className="text-sm text-slate-400">まだありません</p>}
         {notices.map((n) => {
-          const targets = targetsOf(n, allStaff);
+          const targets = targetsOf(n, allStaff, levelOf);
           const done = new Map((reads ?? []).filter((r) => r.notice_id === n.id).map((r) => [r.staff_id, r.confirmed_at]));
           const yet = targets.filter((t) => !done.has(t.id));
           return (

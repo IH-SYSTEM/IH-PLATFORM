@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { DUTY_LABELS, canAssign } from "@/lib/duties";
-import { POSITION_LABELS } from "@/lib/modules";
+import { POSITION_LABELS, RANK_GRANT_LABELS } from "@/lib/modules";
 import { permissionLabel } from "@/lib/staff";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { saveModuleGrants } from "./actions";
@@ -35,7 +35,7 @@ export default async function PermissionsPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">権限付与</h1>
         <p className="mt-1 text-sm text-slate-500">
-          権限は「立場（見られる範囲）」「担当（入力・承認できる仕事）」「機能（モジュール）」の3つで決まります。
+          権限は「立場（見られる範囲）」「担当（入力・承認できる仕事）」「機能（モジュール）」の3つで決まります。機能は、組織図の「階層」でも割り当てられます。
           {editable ? "" : "変えられるのは「システム」の担当か代表だけです（見ることはできます）。"}
         </p>
       </div>
@@ -47,6 +47,7 @@ export default async function PermissionsPage() {
             <h3 className="font-bold text-slate-900">{m.label}</h3>
             <p className="mb-3 text-sm text-slate-500">{m.description}</p>
             <GrantForm
+              ranks={Object.entries(RANK_GRANT_LABELS).map(([key, label]) => ({ key, label }))}
               positions={Object.entries(POSITION_LABELS).map(([key, label]) => ({ key, label }))}
               duties={(duties ?? []).map((d) => ({ key: d.key, label: d.label }))}
               staff={staffOpts}

@@ -6,39 +6,46 @@ import { audit } from "@/lib/audit";
 import { businessDayJST } from "@/lib/business-day";
 import { canUse } from "@/lib/modules";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadOrg } from "@/lib/org";
 import { IMPORTANCE, workboardStores } from "@/lib/workboard";
 
 export type WbState = { ok?: string; error?: string; at?: number } | undefined;
 const fail = (error: string): WbState => ({ error, at: Date.now() });
 
 /** ワークボードを使える人か。使えなければ理由を返す */
-async function gate(): Promise<{ me: CurrentStaff; scope: { all: boolean; storeIds: string[] } } | { error: string }> {
+type Scope = { all: boolean; storeIds: string[]; level: number };
+
+async function gate(): Promise<{ me: CurrentStaff; scope: Scope } | { error: string }> {
   const me = await requireStaff();
   if (!(await canUse(me, "workboard"))) return { error: "ワークボードを使う権限がありません（権限付与で割り当てます）" };
-  return { me, scope: await workboardStores(me) };
+  const scope = await workboardStores(me);
+  if (scope.level < 2 || (!scope.all && !scope.storeIds.length)) return { error: "配下のスタッフがいないため、お知らせは出せません" };
+  return { me, scope };
 }
 
-/** 出す相手を読み、自分の範囲を超えていないかを確かめる */
-async function readAudience(fd: FormData, scope: { all: boolean; storeIds: string[] }) {
+/**
+ * 出す相手を読み、自分の範囲を超えていないかを確かめる（組織図の配下で、自分より下の段の人だけ）。
+ * 全員・店あてのときも、見えるのは自分より下の段の人だけ（sender_level で絞る）
+ */
+async function readAudience(fd: FormData, scope: Scope, meId: string) {
   const audience = String(fd.get("audience") ?? "store");
+  const sender_level = scope.level;
   if (audience === "all") {
-    if (!scope.all) throw new Error("全員あては、本部（管理者）だけが出せます");
-    return { audience, audience_ids: [] as string[] };
+    if (!scope.all) throw new Error("全員あては、社長・部長・経理主任だけが出せます");
+    return { audience, audience_ids: [] as string[], sender_level };
   }
   if (audience === "store") {
     const ids = fd.getAll("store_ids").map(String);
     if (!ids.length) throw new Error("店舗を選んでください");
-    if (!scope.all && ids.some((id) => !scope.storeIds.includes(id))) throw new Error("自分の店にだけ出せます");
-    return { audience, audience_ids: ids };
+    if (!scope.all && ids.some((id) => !scope.storeIds.includes(id))) throw new Error("自分の配下の店・事業にだけ出せます");
+    return { audience, audience_ids: ids, sender_level };
   }
   if (audience === "staff") {
     const ids = fd.getAll("staff_ids").map(String);
     if (!ids.length) throw new Error("スタッフを選んでください");
-    if (!scope.all) {
-      const { data } = await createAdminClient().from("staff").select("id, store_id").in("id", ids);
-      if ((data ?? []).some((s) => !s.store_id || !scope.storeIds.includes(s.store_id))) throw new Error("自分の店のスタッフにだけ出せます");
-    }
-    return { audience, audience_ids: ids };
+    const org = await loadOrg();
+    if (ids.some((id) => !org.canReach(meId, id))) throw new Error("自分の配下で、自分より下の段の人にだけ出せます");
+    return { audience, audience_ids: ids, sender_level };
   }
   throw new Error("出す相手を選んでください");
 }
@@ -60,7 +67,7 @@ export async function createNotice(_prev: WbState, fd: FormData): Promise<WbStat
   if ("error" in g) return fail(g.error);
   try {
     const content = readContent(fd);
-    const aud = await readAudience(fd, g.scope);
+    const aud = await readAudience(fd, g.scope, g.me.id);
     const starts_on = String(fd.get("starts_on") || businessDayJST());
     const ends_on = String(fd.get("ends_on") || "") || null;
     if (ends_on && ends_on < starts_on) return fail("終わりの日が、始まりの日より前です");
@@ -97,7 +104,7 @@ export async function createSchedule(_prev: WbState, fd: FormData): Promise<WbSt
   if ("error" in g) return fail(g.error);
   try {
     const content = readContent(fd);
-    const aud = await readAudience(fd, g.scope);
+    const aud = await readAudience(fd, g.scope, g.me.id);
     const recurrence = String(fd.get("recurrence") ?? "");
     const row: Record<string, unknown> = { ...content, ...aud, recurrence, created_by: g.me.id };
     if (recurrence === "monthly") row.day_of_month = Number(fd.get("day_of_month"));
