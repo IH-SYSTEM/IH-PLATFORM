@@ -22,12 +22,12 @@ export function ImportForm({ stores, action }: { stores: { id: string; name: str
           </select>
         </label>
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-slate-600">エアレジの「会計明細」CSV</span>
+          <span className="text-xs font-medium text-slate-600">エアレジの CSV（「会計明細」か「売上集計」）</span>
           <input name="file" type="file" accept=".csv,text/csv" required className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-bold" />
         </label>
       </div>
       <p className="text-xs leading-relaxed text-slate-500">
-        エアレジ → 売上・分析 → 日別売上 → 「CSVデータをダウンロードする」→「会計明細」。前月1日〜当日しか出せないので、少なくとも月1回（できれば週1回）取り込んでください。期間が重なっても二重にはなりません。
+        エアレジ → 売上・分析 → 日別売上 → 「CSVデータをダウンロードする」→「会計明細」。前月1日〜当日しか出せないので、少なくとも月1回（できれば週1回）取り込んでください。期間が重なっても二重にはなりません。過去の分で「会計明細」が出せないときは「売上集計」（日ごとの合計）でも取り込めます。同じ日に両方あれば「会計明細」を使います。
       </p>
       {state?.error && <p className="text-sm font-bold text-accent">{state.error}</p>}
       {state?.ok && <p className="text-sm font-bold text-emerald-700">{state.ok}</p>}

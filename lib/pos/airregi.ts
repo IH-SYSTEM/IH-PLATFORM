@@ -100,3 +100,44 @@ export function parseAirRegi(text: string): { receipts: PosReceipt[]; error?: st
   }
   return { receipts };
 }
+
+/**
+ * エアレジの「売上集計」CSV（日ごとの合計。過去の分はこれしかないことがある）を、1日1行の会計として読む。
+ * 列：集計期間（YYYYMMDD）・売上・会計数・客数・商品数・現金支払合計額・現金その他支払合計額・割引額 など。
+ * 同じ日に「会計明細」があれば、そちらを優先する（取り込むときに、明細のある日は入れない・明細を入れたら日計を消す）
+ */
+export const DAILY_PREFIX = "daily-";
+export function parseAirRegiDaily(text: string, storeId: string): { receipts: PosReceipt[]; error?: string } {
+  const rows = parseCsv(text);
+  const header = rows[0] ?? [];
+  if (!["集計期間", "売上", "客数"].every((c) => header.includes(c))) return { receipts: [], error: "エアレジの「会計明細」か「売上集計」のCSVを選んでください（列が足りません）" };
+  const col = (r: string[], name: string) => r[header.indexOf(name)] ?? "";
+  const receipts: PosReceipt[] = [];
+  for (const r of rows.slice(1)) {
+    const d = col(r, "集計期間").replace(/\D/g, "");
+    if (d.length !== 8) continue; // 合計の行・空行
+    const date = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+    const total = num(col(r, "売上"));
+    if (!total) continue; // 休みの日
+    const payments: Record<string, number> = {};
+    if (num(col(r, "現金支払合計額"))) payments["現金"] = num(col(r, "現金支払合計額"));
+    if (num(col(r, "現金その他支払合計額"))) payments["現金以外"] = num(col(r, "現金その他支払合計額"));
+    receipts.push({
+      // 店ごとに別の番号にする（別の店の取り違えの確認に引っかからないように）
+      receiptNo: `${DAILY_PREFIX}${date}-${storeId}`,
+      businessDate: date,
+      checkoutAt: `${date}T23:59:00+09:00`,
+      total,
+      tax: 0,
+      people: num(col(r, "客数")),
+      items: num(col(r, "商品数")),
+      discount: -Math.abs(num(col(r, "割引額"))),
+      payments,
+      cashier: "",
+      slip: `${num(col(r, "会計数"))}会計`,
+      lines: [],
+    });
+  }
+  if (!receipts.length) return { receipts: [], error: "売上の入った日がありません" };
+  return { receipts };
+}
