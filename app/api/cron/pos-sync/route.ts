@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { businessDayJST } from "@/lib/business-day";
 import { AUTO_SOURCES, syncStore, type AutoCode } from "@/lib/pos/sync";
+import { runMaintenance } from "@/lib/data-store/maintenance";
 
 export const maxDuration = 300;
 
@@ -24,5 +25,14 @@ export async function GET(request: NextRequest) {
     if ("error" in r) console.error("pos-sync", r);
     results.push(r);
   }
-  return NextResponse.json({ from, to, results });
+  // 毎月1日は、利用データ保管庫の整理もする（Vercel の自動処理の数を増やさないため、ここに相乗り）
+  let maintenance: string | null = null;
+  if (today.endsWith("-01") || sp.get("maintenance") === "1") {
+    try {
+      maintenance = (await runMaintenance()).summary;
+    } catch (e) {
+      console.error("maintenance failed", e);
+    }
+  }
+  return NextResponse.json({ from, to, results, maintenance });
 }

@@ -37,6 +37,7 @@ export const VAULT_CATEGORIES = {
   corp_insurance: { label: "保険" },
   corp_bank: { label: "金融機関・借入" },
   corp_labor: { label: "労務（就業規則・36協定など）" },
+  corp_data: { label: "データ（表）" },
   corp_other: { label: "その他" },
 } as const;
 export type VaultCategory = keyof typeof VAULT_CATEGORIES;
