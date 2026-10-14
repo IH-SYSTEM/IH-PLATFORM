@@ -59,12 +59,14 @@ export function AddUserForm({ action, defaultExpires }: { action: Act; defaultEx
   );
 }
 
-export function UserRowForm({ user, update, reset }: { user: { expires_on: string; is_active: boolean }; update: Act; reset: (p: PState) => Promise<PState> }) {
+export function UserRowForm({ user, update, reset }: { user: { name: string; email: string; expires_on: string; is_active: boolean }; update: Act; reset: (p: PState) => Promise<PState> }) {
   const [state, act, pending] = useActionState(update, undefined);
   const [rState, rAct, rPending] = useActionState(reset, undefined);
   return (
     <div className="space-y-2">
       <form action={act} className="flex flex-wrap items-center gap-2 text-sm">
+        <input name="name" defaultValue={user.name} maxLength={100} required aria-label="担当者の名前" className={`${input} w-32`} />
+        <input name="email" type="email" defaultValue={user.email} required aria-label="メールアドレス" className={`${input} w-56`} />
         <label className="flex items-center gap-1 text-xs text-slate-600">
           有効期限
           <input name="expires_on" type="date" defaultValue={user.expires_on} className={input} />
@@ -154,5 +156,32 @@ export function TogglePartnerButton({ active, act }: { active: boolean; act: () 
     >
       {active ? "この銀行を止める" : "再開する"}
     </button>
+  );
+}
+
+/** 銀行の名前・メモを直す（「編集」を押すと開く） */
+export function EditPartnerForm({ name, note, action }: { name: string; note: string | null; action: Act }) {
+  const [open, setOpen] = useState(false);
+  const [state, act, pending] = useActionState(action, undefined);
+  if (!open)
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="rounded-md px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300">
+        編集
+      </button>
+    );
+  return (
+    <form action={act} className="mt-2 flex w-full flex-wrap gap-2">
+      <input name="name" defaultValue={name} required maxLength={100} placeholder="銀行の名前" className={`${input} min-w-0 flex-1`} />
+      <input name="note" defaultValue={note ?? ""} maxLength={500} placeholder="メモ（任意）" className={`${input} min-w-0 flex-1`} />
+      <button disabled={pending} className="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+        保存
+      </button>
+      <button type="button" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 text-sm text-slate-500">
+        閉じる
+      </button>
+      <div className="w-full">
+        <Result state={state} />
+      </div>
+    </form>
   );
 }

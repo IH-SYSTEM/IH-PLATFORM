@@ -4,8 +4,8 @@ import { requireAdmin } from "@/lib/auth";
 import { businessDayJST } from "@/lib/business-day";
 import { VAULT_CATEGORIES, canUseVault, formatBytes } from "@/lib/files";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { addPartnerUser, resetPartnerPassword, saveShares, togglePartner, updatePartnerUser } from "../actions";
-import { AddUserForm, SharesForm, TogglePartnerButton, UserRowForm } from "../forms";
+import { addPartnerUser, resetPartnerPassword, saveShares, togglePartner, updatePartner, updatePartnerUser } from "../actions";
+import { AddUserForm, EditPartnerForm, SharesForm, TogglePartnerButton, UserRowForm } from "../forms";
 
 export const metadata = { title: "取引先（銀行）" };
 
@@ -50,7 +50,10 @@ export default async function PartnerPage({ params }: PageProps<"/admin/partners
           <h1 className="mt-2 text-2xl font-bold text-slate-900">{partner.name}</h1>
           {partner.note && <p className="text-sm text-slate-500">{partner.note}</p>}
         </div>
-        <TogglePartnerButton active={partner.is_active} act={togglePartner.bind(null, id, !partner.is_active)} />
+        <div className="flex items-center gap-2">
+          <EditPartnerForm name={partner.name} note={partner.note} action={updatePartner.bind(null, id)} />
+          <TogglePartnerButton active={partner.is_active} act={togglePartner.bind(null, id, !partner.is_active)} />
+        </div>
       </div>
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
