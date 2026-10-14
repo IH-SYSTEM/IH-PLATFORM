@@ -66,11 +66,16 @@ export async function updatePartnerUser(userId: string, partnerId: string, _prev
   const me = await gate();
   const expires = String(fd.get("expires_on") ?? "");
   const active = fd.get("is_active") === "on";
+  const name = String(fd.get("name") ?? "").trim();
+  const email = String(fd.get("email") ?? "").trim().toLowerCase();
+  if (!name || name.length > 100) return { error: "担当者の名前を入れてください", at: Date.now() };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "メールアドレスを正しく入れてください", at: Date.now() };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(expires)) return { error: "有効期限を選んでください", at: Date.now() };
   const admin = createAdminClient();
-  await admin.from("partner_users").update({ expires_on: expires, is_active: active }).eq("id", userId).eq("partner_id", partnerId);
+  const { error } = await admin.from("partner_users").update({ name, email, expires_on: expires, is_active: active }).eq("id", userId).eq("partner_id", partnerId);
+  if (error) return { error: error.code === "23505" ? "このメールアドレスは、もう登録されています" : "保存できませんでした", at: Date.now() };
   if (!active) await admin.from("partner_sessions").update({ revoked_at: new Date().toISOString() }).eq("user_id", userId).is("revoked_at", null);
-  await audit({ actor: me.id, action: "update", targetType: "partner_user", targetId: userId, detail: { expires, active } });
+  await audit({ actor: me.id, action: "update", targetType: "partner_user", targetId: userId, detail: { name, email, expires, active } });
   revalidatePath(`/admin/partners/${partnerId}`);
   return { ok: "保存しました", at: Date.now() };
 }
@@ -110,4 +115,18 @@ export async function togglePartner(partnerId: string, active: boolean) {
   await audit({ actor: me.id, action: "update", targetType: "partner", targetId: partnerId, detail: { active } });
   revalidatePath(`/admin/partners/${partnerId}`);
   revalidatePath("/admin/partners");
+}
+
+/** 銀行の名前・メモを直す */
+export async function updatePartner(partnerId: string, _prev: PState, fd: FormData): Promise<PState> {
+  const me = await gate();
+  const name = String(fd.get("name") ?? "").trim();
+  if (!name || name.length > 100) return { error: "銀行の名前を入れてください", at: Date.now() };
+  const note = String(fd.get("note") ?? "").trim().slice(0, 500) || null;
+  const { error } = await createAdminClient().from("partners").update({ name, note }).eq("id", partnerId);
+  if (error) return { error: "保存できませんでした", at: Date.now() };
+  await audit({ actor: me.id, action: "update", targetType: "partner", targetId: partnerId, detail: { name, note } });
+  revalidatePath(`/admin/partners/${partnerId}`);
+  revalidatePath("/admin/partners");
+  return { ok: "直しました", at: Date.now() };
 }
