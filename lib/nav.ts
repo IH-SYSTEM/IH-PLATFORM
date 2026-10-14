@@ -44,6 +44,7 @@ export const NAV: NavSection[] = [
       { href: "/admin/roster", label: "労働者名簿", icon: "book", audience: "admin" },
       { href: "/admin/staff", label: "スタッフ管理", icon: "users", audience: "admin" },
       { href: "/admin/vault", label: "会社の書類", icon: "book", audience: "admin", duties: ["soumu", "keiri_input", "keiri_approve"] },
+      { href: "/admin/partners", label: "取引先（銀行）", icon: "key", audience: "admin", duties: ["soumu", "keiri_input", "keiri_approve"] },
       { href: "/admin/companies", label: "会社マスタ", icon: "store", audience: "admin" },
       { href: "/admin/stores", label: "店舗・部署マスタ", icon: "store", audience: "admin" },
       { href: "/admin/login-status", label: "ログイン状況", icon: "login", audience: "admin" },
