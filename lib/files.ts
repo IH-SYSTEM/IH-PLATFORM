@@ -77,13 +77,14 @@ export type FileRow = {
   ai_summary?: string | null;
   ai_error?: string | null;
   doc_kind?: string | null;
+  owner_partner_id?: string | null;
 };
 
 /** 見てよいか：管理者、または本人向けに公開された本人の書類。会社の書類は経理・総務の担当だけ */
 export function canView(me: CurrentStaff, f: FileRow) {
   if (f.status !== "ready") return false;
   // 会社の書類（保管庫）は、経理・総務の担当と代表だけ
-  if (f.owner_company_id) return canUseVault(me);
+  if (f.owner_company_id || f.owner_partner_id) return canUseVault(me);
   return me.isAdmin || (f.owner_staff_id === me.id && f.visible_to_owner);
 }
 
