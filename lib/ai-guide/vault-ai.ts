@@ -15,9 +15,9 @@ const MODEL = "claude-opus-5-5";
 const MAX_READ_BYTES = 30 * 1024 * 1024; // AI に一度に渡せる大きさの目安
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-type VaultFile = { id: string; path: string; name: string; category: string; content_type: string; size_bytes: number; doc_date: string | null; note: string | null; owner_company_id: string };
+export type VaultFile = { id: string; path: string; name: string; category: string; content_type: string; size_bytes: number; doc_date: string | null; note: string | null; owner_company_id: string };
 
-async function contentBlock(f: VaultFile): Promise<Anthropic.Beta.BetaContentBlockParam | { error: string }> {
+export async function contentBlock(f: VaultFile): Promise<Anthropic.Beta.BetaContentBlockParam | { error: string }> {
   if (f.size_bytes > MAX_READ_BYTES) return { error: "大きすぎて AI が読めません（30MBまで。ページを分けて入れてください）" };
   const isPdf = f.content_type === "application/pdf";
   const isCsv = f.content_type === "text/csv";

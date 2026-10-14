@@ -88,8 +88,8 @@ export function VaultUploader({ companies, categories }: { companies: { id: stri
       }}
       className={`space-y-3 rounded-md border-2 border-dashed bg-white p-5 shadow-sm ${over ? "border-brand bg-brand-soft" : "border-slate-200"}`}
     >
-      <h2 className="text-sm font-semibold text-slate-800">書類を保管する（まとめて入れられます）</h2>
-      <p className="text-xs text-slate-500">今ある書類を、古いものも含めて全部入れてください。AI が中身を読んで、会社・種類・書類の名前・日付を振り分けます。同じ書類の版は「最新」「過去」に並びます</p>
+      <h2 className="text-sm font-semibold text-slate-800">入れる（まとめて入れられます）</h2>
+      <p className="text-xs text-slate-500">何でも、古いものも含めて全部入れてください。表（CSV・Excel）は AI が列の意味を読んでカテゴリを作り、データとして貯めます（エアレジの CSV は売上に取り込めます）。書類（PDF・写真）は会社・種類・名前・日付を振り分け、同じ書類の版は「最新」「過去」に並びます</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1">
           <span className="text-xs font-medium text-slate-600">会社</span>

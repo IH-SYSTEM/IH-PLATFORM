@@ -3,6 +3,7 @@ import { businessDayJST } from "@/lib/business-day";
 import { laborByStoreDay } from "@/lib/labor-cost";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { vaultContext } from "@/lib/ai-guide/vault-ai";
+import { dataCatalogContext } from "@/lib/data-store/maintenance";
 
 /** 壁打ちの決まった前提（毎回同じ・キャッシュが効く部分） */
 export const SPARRING_SYSTEM = `あなたは株式会社一鴻ホールディングスの代表（黒田学さん）の「壁打ち相手」です。経営の考えを一緒に整理し、次の一手を決める手伝いをします。
@@ -15,7 +16,8 @@ export const SPARRING_SYSTEM = `あなたは株式会社一鴻ホールディン
 5. 一度に宿題を積まない。最後は必ず「次の一手」を1つだけ、具体的に（誰が・何を・いつまでに）示す。
 6. 頭の中を外に出す手伝いをする。黒田さんの話が散らかっていたら、要点を短くまとめ直してから考える。必要なら質問を1つだけ返す。
 7. 話し方はふつうの日本語で、結論から。長くなりすぎない。
-8. 「会社の書類から」（定款・決算書などを AI が読んだ要約と、各社の沿革）も前提にする。そこから数字や事実を使うときは、どの書類からか（例：「第12期 決算書より」）を添える。書類にないことは書類にあるように言わない。`;
+8. 「会社の書類から」（定款・決算書などを AI が読んだ要約と、各社の沿革）も前提にする。そこから数字や事実を使うときは、どの書類からか（例：「第12期 決算書より」）を添える。書類にないことは書類にあるように言わない。
+9. 「利用データ保管庫」（AIが表に起こしたデータと決算の数字）も使う。【未確認】の数字は、そう断ってから使う。`;
 
 /** コンセプト帳（DB）と今の数字（店舗別の今月・先月）。毎回変わるので、キャッシュの後ろに置く */
 export async function sparringContext(): Promise<string> {
@@ -56,6 +58,6 @@ export async function sparringContext(): Promise<string> {
   }
   const caveat = demo ? "\n※勤怠に試験用の偽データ（デモ）が入っているため、今の人件費率は実態ではありません。人件費率をもとにした判断はしないでください。" : "";
 
-  const vault = await vaultContext();
-  return `## コンセプト帳（黒田さんが確定した柱。崩さないこと）\n${book}\n\n## 今の数字（IH-PLATFORM、${today} 時点）\n${lines.join("\n") || "（データなし）"}${caveat}\n人件費＝アルバイトは勤怠×時給の実数、正社員は（月給＋固定手当＋会社負担の法定福利費）÷営業日。会社負担の法定福利費を含む。\n\n${vault}`;
+  const [vault, data] = await Promise.all([vaultContext(), dataCatalogContext()]);
+  return `## コンセプト帳（黒田さんが確定した柱。崩さないこと）\n${book}\n\n## 今の数字（IH-PLATFORM、${today} 時点）\n${lines.join("\n") || "（データなし）"}${caveat}\n人件費＝アルバイトは勤怠×時給の実数、正社員は（月給＋固定手当＋会社負担の法定福利費）÷営業日。会社負担の法定福利費を含む。\n\n${vault}\n\n${data}`;
 }

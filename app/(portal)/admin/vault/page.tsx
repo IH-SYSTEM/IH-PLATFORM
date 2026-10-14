@@ -7,6 +7,7 @@ import {
   type FileRow,
 } from "@/lib/files";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { DataPanels } from "./data-panels";
 import {
   FixForm,
   ResummarizeButton,
@@ -14,7 +15,7 @@ import {
   VaultUploader,
 } from "./vault-uploader";
 
-export const metadata = { title: "会社の書類" };
+export const metadata = { title: "データ保管庫" };
 // 書類を入れたあとに AI が読む（返事のあとで動く）ので、長めに待てるようにする
 export const maxDuration = 300;
 
@@ -105,13 +106,18 @@ export default async function VaultPage({
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">会社の書類</h1>
+        <h1 className="text-2xl font-bold text-slate-900">データ保管庫</h1>
         <p className="mt-1 text-sm text-slate-500">
-          定款・決算書・登記簿・契約書など。見られるのは経理・総務の担当と代表だけで、開いた記録は残ります。入れた書類は
-          AI が読んで要約し、会社の沿革をまとめ直して、代表の壁打ちで使います
+          売上・仕入れ・決算書・定款・契約書など、何でも入れてください。AI が中身を読んで振り分け、表のデータは「データ」として貯め、書類は要約して会社の沿革をまとめます。代表の壁打ちで使います。
+          見られるのは経理・総務の担当と代表だけで、開いた記録は残ります
         </p>
       </div>
 
+      <VaultUploader companies={list} categories={categories} />
+
+      <DataPanels />
+
+      <h2 className="pt-2 text-lg font-bold text-slate-800">書類の原本（会社ごと）</h2>
       <nav className="flex flex-wrap gap-1 border-b border-slate-200">
         {list.map((c) => (
           <Link
@@ -123,8 +129,6 @@ export default async function VaultPage({
           </Link>
         ))}
       </nav>
-
-      <VaultUploader companies={list} categories={categories} />
 
       {reading.length > 0 && (
         <p className="rounded-md bg-slate-50 px-4 py-2 text-sm text-slate-600">

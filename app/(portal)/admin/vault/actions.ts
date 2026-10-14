@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
-import { rebuildCompanyHistory, summarizeVaultFile } from "@/lib/ai-guide/vault-ai";
+import { rebuildCompanyHistory } from "@/lib/ai-guide/vault-ai";
+import { ingestFile } from "@/lib/data-store/ingest";
+import { runMaintenance } from "@/lib/data-store/maintenance";
+import { importAirRegiBuffer } from "@/lib/pos/import-airregi";
 import { requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { BUCKET, VAULT_MAX_BYTES, VAULT_TYPES, canUseVault, isVaultCategory, newPath, signedUploadFor } from "@/lib/files";
@@ -71,7 +74,7 @@ export async function finishVaultUpload(fileId: string): Promise<{ ok: true } | 
   await admin.from("files").update({ status: "ready" }).eq("id", fileId);
   await audit({ actor: me.id, action: "upload", targetType: "company_file", targetId: fileId, detail: { company: f.owner_company_id, category: f.category, name: f.name } });
   // 返事のあとで、AI が中身を読んで振り分け・要約し、その会社の沿革をまとめ直す（画面は待たせない）
-  after(() => summarizeVaultFile(fileId));
+  after(() => ingestFile(fileId));
   revalidatePath("/admin/vault");
   return { ok: true };
 }
@@ -99,7 +102,7 @@ export async function resummarizeVaultFile(fileId: string): Promise<{ ok: true }
   const { data: f } = await createAdminClient().from("files").select("owner_company_id").eq("id", fileId).eq("status", "ready").maybeSingle();
   if (!f?.owner_company_id) return { error: "ファイルが見つかりません" };
   await createAdminClient().from("files").update({ ai_summary: null, ai_error: null, ai_summarized_at: null }).eq("id", fileId);
-  after(() => summarizeVaultFile(fileId));
+  after(() => ingestFile(fileId));
   revalidatePath("/admin/vault");
   return { ok: true };
 }
@@ -141,4 +144,64 @@ export async function fixVaultFile(fileId: string, _prev: FixState, fd: FormData
   });
   revalidatePath("/admin/vault");
   return { ok: "直しました", at: Date.now() };
+}
+
+export type ReviewState = { ok?: string; error?: string; at?: number } | undefined;
+
+/** エアレジの CSV を、選んだ店の売上として取り込む（公式の数字に入れる） */
+export async function applyPosDataset(datasetId: string, _prev: ReviewState, fd: FormData): Promise<ReviewState> {
+  const me = await requireAdmin();
+  if (!canUseVault(me)) return { error: DENIED, at: Date.now() };
+  const storeId = String(fd.get("store_id") ?? "");
+  if (!storeId) return { error: "店を選んでください", at: Date.now() };
+  const admin = createAdminClient();
+  const { data: ds } = await admin.from("datasets").select("id, file_id, kind, official_status").eq("id", datasetId).maybeSingle();
+  if (!ds || ds.kind !== "pos_airregi") return { error: "見つかりません", at: Date.now() };
+  const { data: f } = await admin.from("files").select("path, name").eq("id", ds.file_id).single();
+  const { data: blob } = await admin.storage.from(BUCKET).download(f!.path);
+  if (!blob) return { error: "ファイルを読み出せませんでした", at: Date.now() };
+  const r = await importAirRegiBuffer({ storeId, fileName: f!.name, buf: Buffer.from(await blob.arrayBuffer()), importedBy: me.id });
+  if ("error" in r) return { error: r.error, at: Date.now() };
+  await admin.from("datasets").update({ store_id: storeId, status: "ready", review_reason: null, official_status: "applied", reviewed_by: me.id, reviewed_at: new Date().toISOString() }).eq("id", datasetId);
+  await audit({ actor: me.id, action: "create", targetType: "pos_import", targetId: storeId, detail: { dataset: datasetId, message: r.ok } });
+  revalidatePath("/admin/vault");
+  revalidatePath("/admin/sales");
+  return { ok: r.ok, at: Date.now() };
+}
+
+const FIN_KEYS = ["revenue", "gross_profit", "operating_income", "ordinary_income", "net_income", "total_assets", "net_assets", "borrowings", "cash"] as const;
+
+/** AI が読み取った決算の数字を、人が確かめて（直して）公式にする */
+export async function approveFinancials(statementId: string, _prev: ReviewState, fd: FormData): Promise<ReviewState> {
+  const me = await requireAdmin();
+  if (!canUseVault(me)) return { error: DENIED, at: Date.now() };
+  const values: Record<string, number | null> = {};
+  for (const k of FIN_KEYS) {
+    const raw = String(fd.get(k) ?? "").replace(/[,\s円]/g, "");
+    if (raw === "") values[k] = null;
+    else if (/^-?\d+$/.test(raw)) values[k] = Number(raw);
+    else return { error: "数字は円の整数で入れてください", at: Date.now() };
+  }
+  const admin = createAdminClient();
+  const { data: st } = await admin.from("financial_statements").update({ ...values, approved: true, approved_by: me.id, approved_at: new Date().toISOString() }).eq("id", statementId).select("dataset_id").single();
+  if (st?.dataset_id) await admin.from("datasets").update({ status: "ready", review_reason: null, official_status: "applied", reviewed_by: me.id, reviewed_at: new Date().toISOString() }).eq("id", st.dataset_id);
+  await audit({ actor: me.id, action: "update", targetType: "financial_statement", targetId: statementId, detail: { approved: true } });
+  revalidatePath("/admin/vault");
+  return { ok: "決算の数字を確かめました（公式の数字になりました）", at: Date.now() };
+}
+
+/** 公式に入れない（このデータは参考としてだけ残す） */
+export async function rejectOfficial(datasetId: string) {
+  const me = await requireAdmin();
+  if (!canUseVault(me)) throw new Error(DENIED);
+  await createAdminClient().from("datasets").update({ status: "ready", review_reason: null, official_status: "rejected", reviewed_by: me.id, reviewed_at: new Date().toISOString() }).eq("id", datasetId);
+  revalidatePath("/admin/vault");
+}
+
+/** 今すぐ整理する（ふだんは毎月1日の朝に自動） */
+export async function runMaintenanceNow(): Promise<void> {
+  const me = await requireAdmin();
+  if (!canUseVault(me)) throw new Error(DENIED);
+  await runMaintenance();
+  revalidatePath("/admin/vault");
 }
