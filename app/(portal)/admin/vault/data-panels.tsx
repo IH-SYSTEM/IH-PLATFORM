@@ -87,15 +87,18 @@ export async function DataPanels() {
                 </p>
                 <ul className="mt-1 divide-y divide-slate-100 text-sm">
                   {mine.map((s) => (
-                    <li key={s.id} className="flex flex-wrap items-center gap-x-3 py-1.5">
-                      <Link href={`/admin/vault/data/${s.id}`} className="min-w-0 flex-1 truncate text-brand hover:underline">
+                    <li key={s.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-1.5 md:grid-cols-[minmax(0,1fr)_12rem_5rem_6rem]">
+                      <Link href={`/admin/vault/data/${s.id}`} className="min-w-0 truncate text-brand hover:underline" title={s.title}>
                         {s.title}
                       </Link>
                       <span className="text-xs tabular-nums text-slate-500">
-                        {md(s.period_from)}〜{md(s.period_to)}・{s.row_count.toLocaleString()}行
+                        {md(s.period_from)}〜{md(s.period_to)}
                       </span>
-                      {s.status === "needs_review" && <span className="rounded bg-amber-100 px-1.5 text-xs text-amber-800">確かめ待ち</span>}
-                      {s.status === "processing" && <span className="rounded bg-slate-100 px-1.5 text-xs text-slate-500">読んでいます</span>}
+                      <span className="hidden text-right text-xs tabular-nums text-slate-500 md:block">{s.row_count.toLocaleString()}行</span>
+                      <span className="hidden md:block">
+                        {s.status === "needs_review" && <span className="rounded bg-amber-100 px-1.5 text-xs text-amber-800">確かめ待ち</span>}
+                        {s.status === "processing" && <span className="rounded bg-slate-100 px-1.5 text-xs text-slate-500">読んでいます</span>}
+                      </span>
                     </li>
                   ))}
                 </ul>

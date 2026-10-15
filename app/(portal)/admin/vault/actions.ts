@@ -8,7 +8,7 @@ import { runMaintenance } from "@/lib/data-store/maintenance";
 import { importAirRegiBuffer } from "@/lib/pos/import-airregi";
 import { requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
-import { BUCKET, VAULT_MAX_BYTES, VAULT_TYPES, canUseVault, isVaultCategory, newPath, signedUploadFor } from "@/lib/files";
+import { BUCKET, VAULT_MAX_BYTES, VAULT_TYPES, canUseVault, isVaultCategory, newPath, properFileName, signedUploadFor } from "@/lib/files";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const DENIED = "会社の書類は、経理・総務の担当だけが扱えます";
@@ -123,13 +123,18 @@ export async function fixVaultFile(fileId: string, _prev: FixState, fd: FormData
   if (!company) return { error: "会社を選んでください", at: Date.now() };
   if (!isVaultCategory(category)) return { error: "種類を選んでください", at: Date.now() };
   if (docDate && !/^\d{4}-\d{2}-\d{2}$/.test(docDate)) return { error: "日付が正しくありません", at: Date.now() };
+  const docKind = String(fd.get("doc_kind") ?? "").trim().slice(0, 60) || null;
+  const { data: cur } = await admin.from("files").select("name").eq("id", fileId).single();
+  const { data: cname } = await admin.from("companies").select("name").eq("id", company.id).single();
   await admin
     .from("files")
     .update({
       owner_company_id: company.id,
       category,
-      doc_kind: String(fd.get("doc_kind") ?? "").trim().slice(0, 60) || null,
+      doc_kind: docKind,
       doc_date: docDate || null,
+      // 直した内容に合わせて、ファイル名も付け直す（表のデータは今の名前のまま）
+      ...(category === "corp_data" ? {} : { name: properFileName({ original: cur?.name ?? "", docKind, docDate: docDate || null, companyName: cname?.name }) }),
       note: String(fd.get("note") ?? "").trim().slice(0, 500) || null,
       ai_auto_company: false,
       ai_auto_category: false,

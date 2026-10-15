@@ -1,6 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import { BUCKET, VAULT_CATEGORIES } from "@/lib/files";
+import { BUCKET, VAULT_CATEGORIES, properFileName } from "@/lib/files";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -110,6 +110,9 @@ export async function summarizeVaultFile(fileId: string) {
     if (!f.doc_date && out.doc_date && /^\d{4}-\d{2}-\d{2}$/.test(out.doc_date)) update.doc_date = out.doc_date;
     // 会社を判断できなかったときは「振り分け待ち」として、今の会社（仮）のままにする
     if (f.ai_auto_company && !company) update.ai_error = "どの会社の書類か判断できませんでした。「直す」で会社を選んでください";
+    // ファイル名を中身に合わせて付け直す（書類の名前_日付_会社）
+    const owner = (companies ?? []).find((c) => c.id === ((update.owner_company_id as string | undefined) ?? f.owner_company_id));
+    update.name = properFileName({ original: f.name, docKind: (update.doc_kind as string | undefined) ?? f.doc_kind, docDate: (update.doc_date as string | undefined) ?? f.doc_date, companyName: owner?.name });
     await admin.from("files").update(update).eq("id", fileId);
     await afterRead(f.owner_company_id, company?.id);
   } catch (e) {
