@@ -96,10 +96,60 @@ export function UserRowForm({ user, update, reset }: { user: { name: string; ema
 }
 
 type FileOpt = { id: string; label: string; sub: string };
-export function SharesForm({ action, companies, files, sharedFiles, sharedSales }: { action: Act; companies: { id: string; name: string }[]; files: Record<string, FileOpt[]>; sharedFiles: string[]; sharedSales: string[] }) {
+
+/** 会社ごとに書類をチェックで選ぶ（決算書と、そのほかの書類で同じ形） */
+function FilePicker({ companies, files, shared, open }: { companies: { id: string; name: string }[]; files: Record<string, FileOpt[]>; shared: string[]; open?: boolean }) {
+  const any = companies.some((c) => (files[c.id] ?? []).length);
+  if (!any) return <p className="mt-1 text-sm text-slate-400">データ保管庫にまだありません</p>;
+  return (
+    <>
+      {companies.map((c) =>
+        (files[c.id] ?? []).length ? (
+          <details key={c.id} className="mt-2 rounded-md border border-slate-200 p-3" open={open || (files[c.id] ?? []).some((f) => shared.includes(f.id))}>
+            <summary className="cursor-pointer text-sm font-bold text-slate-800">
+              {c.name}（{(files[c.id] ?? []).filter((f) => shared.includes(f.id)).length}/{(files[c.id] ?? []).length}）
+            </summary>
+            <ul className="mt-2 space-y-1">
+              {(files[c.id] ?? []).map((f) => (
+                <li key={f.id}>
+                  <label className="flex items-baseline gap-2 text-sm">
+                    <input type="checkbox" name="file" value={f.id} defaultChecked={shared.includes(f.id)} className="size-4 translate-y-0.5" />
+                    <span className="font-medium text-slate-800">{f.label}</span>
+                    <span className="text-xs text-slate-400">{f.sub}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null,
+      )}
+    </>
+  );
+}
+
+export function SharesForm({
+  action,
+  companies,
+  financials,
+  files,
+  sharedFiles,
+  sharedSales,
+}: {
+  action: Act;
+  companies: { id: string; name: string }[];
+  financials: Record<string, FileOpt[]>;
+  files: Record<string, FileOpt[]>;
+  sharedFiles: string[];
+  sharedSales: string[];
+}) {
   const [state, act, pending] = useActionState(action, undefined);
   return (
-    <form action={act} className="space-y-4">
+    <form action={act} className="space-y-5">
+      <div className="rounded-md border border-brand/30 bg-brand-soft p-3">
+        <p className="text-sm font-bold text-slate-800">決算書</p>
+        <p className="text-xs text-slate-500">データ保管庫の「決算書」から選びます（期の新しい順）</p>
+        <FilePicker companies={companies} files={financials} shared={sharedFiles} open />
+      </div>
       <div>
         <p className="text-sm font-bold text-slate-700">月ごとの売上を見せる会社</p>
         <div className="mt-1 flex flex-wrap gap-3 text-sm">
@@ -112,27 +162,8 @@ export function SharesForm({ action, companies, files, sharedFiles, sharedSales 
         </div>
       </div>
       <div>
-        <p className="text-sm font-bold text-slate-700">見せる書類（会社の書類から選ぶ）</p>
-        {companies.map((c) =>
-          (files[c.id] ?? []).length ? (
-            <details key={c.id} className="mt-2 rounded-md border border-slate-200 p-3" open={(files[c.id] ?? []).some((f) => sharedFiles.includes(f.id))}>
-              <summary className="cursor-pointer text-sm font-bold text-slate-800">
-                {c.name}（{(files[c.id] ?? []).filter((f) => sharedFiles.includes(f.id)).length}/{(files[c.id] ?? []).length}）
-              </summary>
-              <ul className="mt-2 space-y-1">
-                {(files[c.id] ?? []).map((f) => (
-                  <li key={f.id}>
-                    <label className="flex items-baseline gap-2 text-sm">
-                      <input type="checkbox" name="file" value={f.id} defaultChecked={sharedFiles.includes(f.id)} className="size-4 translate-y-0.5" />
-                      <span className="font-medium text-slate-800">{f.label}</span>
-                      <span className="text-xs text-slate-400">{f.sub}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          ) : null,
-        )}
+        <p className="text-sm font-bold text-slate-700">そのほかの書類（定款・登記簿・契約書など）</p>
+        <FilePicker companies={companies} files={files} shared={sharedFiles} />
       </div>
       <button disabled={pending} className="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
         {pending ? "保存しています…" : "見せるものを保存する"}

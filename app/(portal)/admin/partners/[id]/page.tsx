@@ -29,10 +29,12 @@ export default async function PartnerPage({ params }: PageProps<"/admin/partners
     admin.from("partner_access_logs").select("at, user_id, action, target").eq("partner_id", id).order("at", { ascending: false }).limit(100),
   ]);
   const nameOf = new Map((users ?? []).map((u) => [u.id, u.name]));
+  // 決算書は別に並べる（2026-10-15 黒田さん「渡すものとして決算書があるので別に」）
   const byCompany: Record<string, { id: string; label: string; sub: string }[]> = {};
+  const finByCompany: Record<string, { id: string; label: string; sub: string }[]> = {};
   for (const f of files ?? []) {
     const k = f.owner_company_id as string;
-    (byCompany[k] ??= []).push({
+    ((f.category === "corp_financials" ? finByCompany : byCompany)[k] ??= []).push({
       id: f.id,
       label: `${f.doc_kind ?? VAULT_CATEGORIES[f.category as keyof typeof VAULT_CATEGORIES]?.label ?? f.category}${f.doc_date ? `（${ymd(f.doc_date)}）` : ""}`,
       sub: f.name,
@@ -84,6 +86,7 @@ export default async function PartnerPage({ params }: PageProps<"/admin/partners
         <SharesForm
           action={saveShares.bind(null, id)}
           companies={companies ?? []}
+          financials={finByCompany}
           files={byCompany}
           sharedFiles={(shares ?? []).filter((s) => s.kind === "file").map((s) => s.file_id as string)}
           sharedSales={(shares ?? []).filter((s) => s.kind === "sales").map((s) => s.company_id as string)}
