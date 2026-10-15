@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function partnerLogout() {
   await endPartnerSession();
-  redirect("/bank/login");
+  redirect("/exchange/login");
 }
 
 export type BankStart = { fileId: string; path: string; token: string } | { error: string };
@@ -55,6 +55,6 @@ export async function finishBankUpload(fileId: string): Promise<{ ok: true } | {
   await admin.from("files").update({ status: "ready" }).eq("id", fileId);
   await logPartner({ partnerId: me.partnerId, userId: me.id, action: "upload", target: f.name });
   await notifyCeo(`【資料閲覧】${me.partnerName} ${me.name}様から書類が届きました：${f.name}\nIH ポータル → 取引先（銀行）で見られます`);
-  revalidatePath("/bank");
+  revalidatePath("/exchange");
   return { ok: true };
 }

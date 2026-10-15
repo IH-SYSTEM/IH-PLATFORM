@@ -7,7 +7,12 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: { "/admin/reports": ["./assets/fonts/*.ttf"] },
   // 移した画面の前のアドレス（ブックマークや開いたままの画面から来ても迷わないように）
   async redirects() {
-    return [{ source: "/admin/org", destination: "/org", permanent: false }];
+    return [
+      { source: "/admin/org", destination: "/org", permanent: false },
+      // 取引先（銀行）とのデータの受け渡しの入口は /exchange（2026-10-15 /bank から変更）
+      { source: "/bank", destination: "/exchange", permanent: false },
+      { source: "/bank/:path*", destination: "/exchange/:path*", permanent: false },
+    ];
   },
 };
 

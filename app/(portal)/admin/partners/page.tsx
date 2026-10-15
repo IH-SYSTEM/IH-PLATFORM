@@ -26,7 +26,7 @@ export default async function PartnersPage() {
         <h1 className="text-2xl font-bold text-slate-900">取引先（銀行）</h1>
         <p className="mt-1 text-sm text-slate-500">
           銀行の担当者に ID を出して、選んだ書類と月ごとの売上を見てもらいます。担当者の入口は
-          <span className="mx-1 font-mono text-slate-700">portal.ikkou-holdings.co.jp/bank</span>
+          <span className="mx-1 font-mono text-slate-700">portal.ikkou-holdings.co.jp/exchange</span>
           （社内の画面には入れません）。ログインはパスワードとメールの確認コードの2段です
         </p>
       </div>

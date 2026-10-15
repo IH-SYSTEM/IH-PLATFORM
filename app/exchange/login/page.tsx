@@ -5,7 +5,7 @@ import { LoginForm } from "./login-form";
 export const metadata = { title: "ログイン" };
 
 export default async function BankLoginPage() {
-  if (await getPartnerUser()) redirect("/bank");
+  if (await getPartnerUser()) redirect("/exchange");
   return (
     <div className="mx-auto max-w-sm">
       <h1 className="text-xl font-bold text-slate-900">資料閲覧ページ</h1>

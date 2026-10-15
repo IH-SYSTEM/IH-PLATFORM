@@ -108,7 +108,7 @@ export async function finishPartnerLogin(userId: string, code: string): Promise<
   const { data: who } = await admin.from("partner_users").select("name, partners(name)").eq("id", userId).maybeSingle<{ name: string; partners: { name: string } | null }>();
   const { notifyCeo } = await import("@/lib/partner-data");
   await notifyCeo(`【資料閲覧】${who?.partners?.name ?? ""} ${who?.name ?? ""}様がログインしました`);
-  (await cookies()).set(PARTNER_COOKIE, token, { httpOnly: true, secure: true, sameSite: "lax", path: "/bank", maxAge: SESSION_HOURS * 3600 });
+  (await cookies()).set(PARTNER_COOKIE, token, { httpOnly: true, secure: true, sameSite: "lax", path: "/exchange", maxAge: SESSION_HOURS * 3600 });
   return { ok: true };
 }
 
@@ -128,7 +128,7 @@ export async function getPartnerUser(): Promise<PartnerUser | null> {
 
 export async function requirePartner() {
   const u = await getPartnerUser();
-  if (!u) redirect("/bank/login");
+  if (!u) redirect("/exchange/login");
   return u;
 }
 
@@ -138,5 +138,5 @@ export async function endPartnerSession() {
     await createAdminClient().from("partner_sessions").update({ revoked_at: new Date().toISOString() }).eq("id", u.sessionId);
     await logPartner({ partnerId: u.partnerId, userId: u.id, action: "logout" });
   }
-  (await cookies()).delete({ name: PARTNER_COOKIE, path: "/bank" });
+  (await cookies()).delete({ name: PARTNER_COOKIE, path: "/exchange" });
 }

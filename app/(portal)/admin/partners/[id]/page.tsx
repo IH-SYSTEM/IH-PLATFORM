@@ -60,7 +60,7 @@ export default async function PartnerPage({ params }: PageProps<"/admin/partners
 
       <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-800">担当者の ID</h2>
-        <p className="mt-0.5 text-xs text-slate-500">ID はメールアドレス。ログインのたびに、そのメールに確認コードが届きます。入口：portal.ikkou-holdings.co.jp/bank</p>
+        <p className="mt-0.5 text-xs text-slate-500">ID はメールアドレス。ログインのたびに、そのメールに確認コードが届きます。入口：portal.ikkou-holdings.co.jp/exchange</p>
         <ul className="mt-3 divide-y divide-slate-100">
           {(users ?? []).map((u) => (
             <li key={u.id} className="flex flex-wrap items-start justify-between gap-3 py-3">

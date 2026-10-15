@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // /punch/display と /api/punch/display は店舗の iPad 用。ログインの代わりに掲示キーで保護する
 // /punch/start・/punch/confirm はスタッフのスマホ用。ログインの代わりに LINE の本人確認と署名付きの札で保護する
-// /bank は取引先（銀行）用。ID・パスワード・メールの確認コードで、各画面が自分で守る
+// /exchange は取引先（銀行）とのデータの受け渡し用。ID・パスワード・メールの確認コードで、各画面が自分で守る
 const PUBLIC_PATHS = [
   "/login",
   "/auth/",
@@ -16,8 +16,8 @@ const PUBLIC_PATHS = [
   "/api/punch/display/",
   "/punch/start",
   "/punch/confirm",
-  // 取引先（銀行）用の入口。社員のログインとは別の仕組み（lib/partner-auth.ts）で守る
-  "/bank",
+  // 取引先（銀行）とのデータの受け渡しの入口。社員のログインとは別の仕組み（lib/partner-auth.ts）で守る
+  "/exchange",
 ];
 
 // 引っ越しなどで止めるときの「メンテナンス中」画面（環境変数 MAINTENANCE=1 のときだけ）
