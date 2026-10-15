@@ -207,93 +207,68 @@ export default async function VaultPage({
                 {rows.length}件
               </span>
             </h2>
-            <ul className="mt-2 divide-y divide-slate-100 text-sm">
+            {/* 表の形でそろえる：書類の名前（最新・過去）｜日付｜ファイル｜大きさ｜入れた日 */}
+            <div className="mt-2 hidden grid-cols-[minmax(0,14rem)_6.5rem_minmax(0,1fr)_4.5rem_6rem_2.5rem] gap-x-3 border-b border-slate-200 pb-1.5 text-xs text-slate-400 md:grid">
+              <span>書類の名前</span>
+              <span>日付</span>
+              <span>ファイル</span>
+              <span className="text-right">大きさ</span>
+              <span>入れた日</span>
+              <span />
+            </div>
+            <ul className="divide-y divide-slate-100 text-sm">
               {[...rows]
                 // 同じ書類の版を並べる（書類の名前ごと、その中は日付の新しい順）
-                .sort(
-                  (a, b) =>
-                    (a.doc_kind ?? "~").localeCompare(
-                      b.doc_kind ?? "~",
-                      "ja",
-                    ) || (b.doc_date ?? "").localeCompare(a.doc_date ?? ""),
-                )
-                .map((f) => (
-                  <li
-                    key={f.id}
-                    className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2"
-                  >
-                    {f.doc_kind && (
-                      <span className="font-bold text-slate-800">
-                        {f.doc_kind}
-                      </span>
-                    )}
-                    {f.doc_kind && versions(f) > 1 && (
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-xs font-bold ${latestId.get(`${f.category}:${f.doc_kind}`) === f.id ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}
-                      >
-                        {latestId.get(`${f.category}:${f.doc_kind}`) === f.id
-                          ? "最新"
-                          : "過去"}
-                      </span>
-                    )}
-                    {f.doc_date && (
-                      <span className="tabular-nums text-slate-500">
-                        {ymd(f.doc_date)}
-                      </span>
-                    )}
-                    <a
-                      href={`/files/${f.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="min-w-0 flex-1 truncate text-brand hover:underline"
-                    >
-                      {f.name}
-                    </a>
-                    {f.note && (
-                      <span className="text-xs text-slate-600">{f.note}</span>
-                    )}
-                    <span className="text-xs text-slate-400">
-                      {formatBytes(f.size_bytes)}・
-                      {nameOf.get(f.uploaded_by) ?? "—"}・
-                      {new Date(f.created_at).toLocaleDateString("ja-JP", {
-                        timeZone: "Asia/Tokyo",
-                      })}
-                    </span>
-                    <VaultDeleteButton fileId={f.id} name={f.name} />
-                    <div className="w-full">
-                      {f.ai_summary ? (
-                        <details className="text-xs">
-                          <summary className="cursor-pointer text-slate-500">
-                            AI が読んだ要約・振り分けを直す
-                          </summary>
-                          <p className="mt-1 whitespace-pre-wrap rounded bg-slate-50 p-2 text-slate-700">
-                            {f.ai_summary}
+                .sort((a, b) => (a.doc_kind ?? "~").localeCompare(b.doc_kind ?? "~", "ja") || (b.doc_date ?? "").localeCompare(a.doc_date ?? ""))
+                .map((f) => {
+                  const latest = latestId.get(`${f.category}:${f.doc_kind}`) === f.id;
+                  return (
+                    <li key={f.id} className="py-2">
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 md:grid-cols-[minmax(0,14rem)_6.5rem_minmax(0,1fr)_4.5rem_6rem_2.5rem]">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate font-bold text-slate-800">{f.doc_kind ?? "（名前なし）"}</span>
+                          {f.doc_kind && versions(f) > 1 && (
+                            <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${latest ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{latest ? "最新" : "過去"}</span>
+                          )}
+                        </span>
+                        <span className="tabular-nums text-slate-500 md:order-none">{f.doc_date ? ymd(f.doc_date) : "—"}</span>
+                        <a href={`/files/${f.id}`} target="_blank" rel="noreferrer" className="col-span-2 min-w-0 truncate text-brand hover:underline md:col-span-1" title={f.name}>
+                          {f.name}
+                        </a>
+                        <span className="hidden text-right text-xs tabular-nums text-slate-400 md:block">{formatBytes(f.size_bytes)}</span>
+                        <span className="hidden text-xs text-slate-400 md:block" title={nameOf.get(f.uploaded_by) ?? ""}>
+                          {new Date(f.created_at).toLocaleDateString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                        </span>
+                        <span className="hidden text-right md:block">
+                          <VaultDeleteButton fileId={f.id} name={f.name} />
+                        </span>
+                      </div>
+                      {f.note && <p className="mt-0.5 text-xs text-slate-500">{f.note}</p>}
+                      <div className="mt-1">
+                        {f.ai_summary ? (
+                          <details className="text-xs">
+                            <summary className="cursor-pointer text-slate-500">AI が読んだ要約・振り分けを直す</summary>
+                            <p className="mt-1 whitespace-pre-wrap rounded bg-slate-50 p-2 text-slate-700">{f.ai_summary}</p>
+                            <FixForm
+                              file={{ id: f.id, company: f.owner_company_id!, category: f.category, doc_kind: f.doc_kind ?? null, doc_date: f.doc_date ?? null, note: f.note ?? null }}
+                              companies={list}
+                              categories={categories}
+                            />
+                            <div className="mt-1 md:hidden">
+                              <VaultDeleteButton fileId={f.id} name={f.name} />
+                            </div>
+                          </details>
+                        ) : f.ai_error ? (
+                          <p className="text-xs text-amber-700">
+                            {f.ai_error} <ResummarizeButton fileId={f.id} />
                           </p>
-                          <FixForm
-                            file={{
-                              id: f.id,
-                              company: f.owner_company_id!,
-                              category: f.category,
-                              doc_kind: f.doc_kind ?? null,
-                              doc_date: f.doc_date ?? null,
-                              note: f.note ?? null,
-                            }}
-                            companies={list}
-                            categories={categories}
-                          />
-                        </details>
-                      ) : f.ai_error ? (
-                        <p className="text-xs text-amber-700">
-                          {f.ai_error} <ResummarizeButton fileId={f.id} />
-                        </p>
-                      ) : (
-                        <p className="text-xs text-slate-400">
-                          AI が読んでいます（1〜2分。再読み込みで出ます）
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                ))}
+                        ) : (
+                          <p className="text-xs text-slate-400">AI が読んでいます（1〜2分。再読み込みで出ます）</p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
             </ul>
           </section>
         );

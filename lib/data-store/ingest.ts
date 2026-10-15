@@ -1,7 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { contentBlock, summarizeVaultFile, type VaultFile } from "@/lib/ai-guide/vault-ai";
-import { BUCKET, VAULT_CATEGORIES } from "@/lib/files";
+import { BUCKET, VAULT_CATEGORIES, properFileName } from "@/lib/files";
 import { parseAirRegi, parseAirRegiDaily } from "@/lib/pos/airregi";
 import { airRegiKind } from "@/lib/pos/import-airregi";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -139,7 +139,10 @@ async function ingestAirRegi(f: FileRow, datasetId: string, text: string, kind: 
       official_status: "pending",
     })
     .eq("id", datasetId);
-  await admin.from("files").update({ category: "corp_data", doc_kind: "エアレジの売上", ai_summary: description, ai_error: null, ai_summarized_at: new Date().toISOString(), doc_date: p.period_to }).eq("id", f.id);
+  await admin
+    .from("files")
+    .update({ category: "corp_data", doc_kind: "エアレジの売上", name: properFileName({ original: f.name, title }), ai_summary: description, ai_error: null, ai_summarized_at: new Date().toISOString(), doc_date: p.period_to })
+    .eq("id", f.id);
 }
 
 /** そのほかの表：AI が見出しと最初の行を見て、列の意味・カテゴリ・会社・日付の列を決める。全行はプログラムで読む */
@@ -224,6 +227,8 @@ columns は意味のある列すべて（空の列・合計だけの列は除く
     .update({
       category: "corp_data",
       doc_kind: (plan.category || "データ").slice(0, 60),
+      // ファイル名を中身に合わせて付け直す（AI が付けた名前（期間入り）_会社）
+      name: properFileName({ original: f.name, title: plan.title || f.name.replace(/\.[^.]+$/, ""), companyName: (company ?? (companies ?? []).find((c) => c.id === f.owner_company_id))?.name }),
       ai_summary: plan.description ?? null,
       ai_error: null,
       ai_summarized_at: new Date().toISOString(),

@@ -109,3 +109,17 @@ export async function signedDownloadFor(path: string, name: string, seconds = 60
 }
 
 export const formatBytes = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)}MB` : `${Math.max(1, Math.round(n / 1024))}KB`);
+
+/**
+ * 会社の書類・データのファイル名を、中身に合わせて付け直す（2026-10-15 黒田さん「ファイル名は中身を見て適正なものに」）。
+ * 形：「書類の名前_日付_会社」（例：決算書_2025-03-31_一鴻エンタテイメント.pdf）。表のデータは AI が付けた名前（期間入り）_会社。
+ * 拡張子は元のまま。並べたときに、名前→日付の順にそろうようにする
+ */
+export function properFileName(opts: { original: string; docKind?: string | null; docDate?: string | null; title?: string | null; companyName?: string | null }) {
+  const ext = opts.original.includes(".") ? opts.original.slice(opts.original.lastIndexOf(".")) : "";
+  const clean = (s: string) => s.replace(/[\\/:*?"<>|\s]+/g, " ").trim();
+  const company = opts.companyName ? clean(opts.companyName.replace("株式会社", "")) : "";
+  const parts = opts.title ? [clean(opts.title)] : [clean(opts.docKind || "書類"), opts.docDate ?? ""];
+  const base = [...parts, company].filter(Boolean).join("_").slice(0, 120);
+  return `${base || "書類"}${ext}`;
+}
