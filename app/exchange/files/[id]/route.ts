@@ -5,9 +5,9 @@ import { notifyCeo, sharesOf } from "@/lib/partner-data";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // 取引先（銀行）が書類を開く。お渡しした書類か、その銀行から預かった書類だけ。記録を残し、代表に知らせてから、60秒だけ有効なURLへ移す
-export async function GET(req: NextRequest, ctx: RouteContext<"/bank/files/[id]">) {
+export async function GET(req: NextRequest, ctx: RouteContext<"/exchange/files/[id]">) {
   const me = await getPartnerUser();
-  if (!me) return Response.redirect(new URL("/bank/login", req.url), 302);
+  if (!me) return Response.redirect(new URL("/exchange/login", req.url), 302);
   const { id } = await ctx.params;
   const { data: f } = await createAdminClient().from("files").select("id, path, name, status, owner_partner_id").eq("id", id).maybeSingle();
   const { fileIds } = await sharesOf(me.partnerId);

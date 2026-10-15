@@ -106,7 +106,7 @@ export default async function BankHome() {
                 </span>
               )}
               <a
-                href={`/bank/files/${f.id}`}
+                href={`/exchange/files/${f.id}`}
                 target="_blank"
                 rel="noreferrer"
                 className="min-w-0 flex-1 truncate text-brand hover:underline"
@@ -148,7 +148,7 @@ export default async function BankHome() {
                   </span>
                 )}
                 <a
-                  href={`/bank/files/${f.id}`}
+                  href={`/exchange/files/${f.id}`}
                   target="_blank"
                   rel="noreferrer"
                   className="min-w-0 flex-1 truncate text-brand hover:underline"
@@ -245,7 +245,7 @@ export default async function BankHome() {
                 className="flex flex-wrap items-center gap-x-3 py-2"
               >
                 <a
-                  href={`/bank/files/${f.id}`}
+                  href={`/exchange/files/${f.id}`}
                   target="_blank"
                   rel="noreferrer"
                   className="min-w-0 flex-1 truncate text-brand hover:underline"
