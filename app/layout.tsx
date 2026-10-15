@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: "株式会社一鴻ホールディングス グループ従業員向けポータル",
   robots: { index: false, follow: false },
   appleWebApp: { capable: true, title: "IKKOUポータル", statusBarStyle: "default" },
+  // ホーム画面に追加したときの設定（打刻画面は自分の設定で上書きする）
+  manifest: "/manifest.webmanifest",
 };
 
 export const viewport: Viewport = {
