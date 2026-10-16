@@ -47,7 +47,8 @@ async function todayWork(me: CurrentStaff) {
   if (type) {
     const period =
       type === "week"
-        ? partTimeWeeks(today)[0]
+        ? // 提出期限（前々週の日曜）がまだ来ていない、いちばん近い週
+          (partTimeWeeks(today).find((p) => !isPast(p.submit, today)) ?? partTimeWeeks(today)[0])
         : (() => {
             let ym = today.slice(0, 7);
             for (let i = 0; i < 3 && isPast(monthPeriod(ym).submit, today); i++)
