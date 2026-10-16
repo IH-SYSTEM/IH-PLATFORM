@@ -1,3 +1,4 @@
+import { isPaidLeaveRole } from "@/lib/paid-leave";
 import Image from "next/image";
 import Link from "next/link";
 import { cache } from "react";
@@ -18,7 +19,7 @@ const isManagerOf = cache(async (me: CurrentStaff) => (await attendanceScope(me)
 export async function sectionsFor(me: CurrentStaff) {
   const [isManager, modules, org] = await Promise.all([isManagerOf(me), myModules(me), loadOrg()]);
   // シフト希望は、出す雇用区分（アルバイト・正社員・契約社員）だけにメニューを出す
-  return navFor({ isAdmin: me.isAdmin, isManager, modules, level: org.levelOf(me.id), duties: me.duties, canRequestShift: periodTypeFor(me.role) !== null });
+  return navFor({ isAdmin: me.isAdmin, isManager, modules, level: org.levelOf(me.id), duties: me.duties, canRequestShift: periodTypeFor(me.role) !== null, paidLeave: isPaidLeaveRole(me.role) });
 }
 
 /**

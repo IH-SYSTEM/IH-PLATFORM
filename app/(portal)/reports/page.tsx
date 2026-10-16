@@ -1,6 +1,8 @@
 import { requireStaff } from "@/lib/auth";
 import { reportType } from "@/lib/reports/registry";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isPaidLeaveRole } from "@/lib/paid-leave";
+import Link from "next/link";
 import { Toast } from "@/app/toast";
 import { PageHeader } from "@/app/shell/page-header";
 import { StatusBadge } from "./status-badge";
@@ -29,6 +31,19 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
   return (
     <div className="space-y-8">
       <PageHeader title="報告窓口" description="困ったこと・届け・トラブルは、すべてここから本部に送ります。本部が確認し、結果をLINEでお知らせします" />
+
+      {isPaidLeaveRole(me.role) && (
+        <Link
+          href="/me/leave"
+          className="group flex items-center justify-between gap-3 rounded-md border border-line bg-white px-5 py-4 transition hover:border-brand hover:shadow-sm"
+        >
+          <span className="min-w-0">
+            <span className="block text-sm font-bold text-slate-900 group-hover:text-brand">有給休暇の申請</span>
+            <span className="mt-0.5 block text-xs text-slate-500">残りの日数を見て、有給を申請します。店長が承認するとシフトに入ります</span>
+          </span>
+          <span className="shrink-0 rounded-full bg-brand px-3 py-1 text-xs font-bold text-white">申請する</span>
+        </Link>
+      )}
 
       <ReportCatalog />
 

@@ -11,6 +11,7 @@ import { DataPanels } from "./data-panels";
 import {
   FixForm,
   ResummarizeButton,
+  PublicToggle,
   VaultDeleteButton,
   VaultUploader,
 } from "./vault-uploader";
@@ -230,6 +231,9 @@ export default async function VaultPage({
                           {f.doc_kind && versions(f) > 1 && (
                             <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-bold ${latest ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{latest ? "最新" : "過去"}</span>
                           )}
+                          <span className="shrink-0">
+                            <PublicToggle fileId={f.id} on={!!f.public_to_staff} />
+                          </span>
                         </span>
                         <span className="tabular-nums text-slate-500 md:order-none">{f.doc_date ? ymd(f.doc_date) : "—"}</span>
                         <a href={`/files/${f.id}`} target="_blank" rel="noreferrer" className="col-span-2 min-w-0 truncate text-brand hover:underline md:col-span-1" title={f.name}>

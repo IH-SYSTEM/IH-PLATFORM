@@ -79,12 +79,15 @@ export type FileRow = {
   ai_error?: string | null;
   doc_kind?: string | null;
   owner_partner_id?: string | null;
+  public_to_staff?: boolean;
 };
 
 /** 見てよいか：管理者、または本人向けに公開された本人の書類。会社の書類は経理・総務の担当だけ */
 export function canView(me: CurrentStaff, f: FileRow) {
   if (f.status !== "ready") return false;
   // 会社の書類（保管庫）は、経理・総務の担当と代表だけ
+  // ただし「全員に公開」にした会社の規程（就業規則など）は全員が見られる
+  if (f.owner_company_id && f.public_to_staff) return true;
   if (f.owner_company_id || f.owner_partner_id) return canUseVault(me);
   return me.isAdmin || (f.owner_staff_id === me.id && f.visible_to_owner);
 }

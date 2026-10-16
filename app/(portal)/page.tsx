@@ -12,6 +12,7 @@ import {
 } from "@/lib/shift-period";
 import { visibleShifts } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isPaidLeaveRole, leaveSummary } from "@/lib/paid-leave";
 import { HomeView, type Todo } from "@/app/home-view";
 import { Toast } from "@/app/toast";
 
@@ -84,6 +85,19 @@ async function todayWork(me: CurrentStaff) {
         href: "/attendance",
       });
   }
+  if (scope) {
+    let q = admin
+      .from("paid_leave_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    if (!scope.all) q = q.in("store_id", scope.storeIds);
+    const { count } = await q;
+    if (count)
+      todos.push({
+        label: `有給の申請が${count}件あります（承認待ち）`,
+        href: "/leave/review",
+      });
+  }
   if (me.isAdmin) {
     let q = admin
       .from("reports")
@@ -116,8 +130,18 @@ async function todayWork(me: CurrentStaff) {
       : punch.kind === "done"
         ? `退勤済み（${toJSTTimeLabel(punch.checkinTime, today)}〜${toJSTTimeLabel(punch.checkoutTime, today)}）`
         : "まだ出勤していません";
+  // 有給の残り（正社員だけ）
+  const sum = isPaidLeaveRole(self?.role) ? await leaveSummary(me.id) : null;
+  const leave = sum
+    ? {
+        remaining: sum.remaining,
+        pendingDays: sum.pendingDays,
+        taken: sum.obligation ? `${sum.obligation.used}/5日` : null,
+      }
+    : null;
   return {
     shift,
+    leave,
     storeName: store?.name ?? null,
     punchLabel,
     working: punch.kind === "working",

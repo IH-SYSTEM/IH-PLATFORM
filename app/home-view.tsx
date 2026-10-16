@@ -18,6 +18,7 @@ export type HomeWork = {
     planned_end: string | null;
     work_role: string | null;
   } | null;
+  leave: { remaining: number; pendingDays: number; taken: string | null } | null; // 有給（正社員だけ）
   storeName: string | null;
   punchLabel: string;
   working: boolean;
@@ -177,6 +178,19 @@ export function HomeView({
               {work.punchLabel}
             </p>
           </div>
+          {work.leave && (
+            <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-3 text-sm">
+              <Link href="/me/leave" className="min-w-0 flex-1">
+                <span className="text-xs text-slate-500">有給の残り</span>
+                <span className="ml-2 text-lg font-bold tabular-nums text-slate-900">{work.leave.remaining}日</span>
+                {work.leave.taken && <span className="ml-2 text-xs text-slate-500">今年の取得 {work.leave.taken}</span>}
+                {work.leave.pendingDays > 0 && <span className="ml-2 text-xs text-amber-700">申請中 {work.leave.pendingDays}日</span>}
+              </Link>
+              <Link href="/me/leave" className="shrink-0 rounded-full bg-brand px-4 py-1.5 text-xs font-bold text-white">
+                有給申請
+              </Link>
+            </div>
+          )}
           {work.todos.length > 0 && (
             <ul className="divide-y divide-slate-100">
               {work.todos.map((t) => (
