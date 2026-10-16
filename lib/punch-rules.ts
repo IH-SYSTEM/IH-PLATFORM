@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  */
 export const EARLY_MINUTES = 15;
 export const OVERTIME_MINUTES = 15;
-export const OVERTIME_CATEGORIES = ["お客様対応", "片付け・締め作業", "店長の指示", "その他"] as const;
+export const OVERTIME_CATEGORIES = ["お客様対応", "片付け・締め作業", "店長の指示", "打刻を忘れていた", "その他"] as const;
 
 const MIN = 60_000;
 const jstAt = (ymd: string, hhmm: string) => Date.parse(`${ymd}T${hhmm.slice(0, 5)}:00+09:00`);
