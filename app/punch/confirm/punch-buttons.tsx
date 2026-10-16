@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import type { PunchResult } from "./actions";
 
 type Action = (prev: PunchResult, fd: FormData) => Promise<PunchResult>;
@@ -22,6 +22,8 @@ export function PunchButtons({
   notices,
   checklist,
   confirm,
+  shift,
+  overtimeCategories,
 }: {
   statusLabel: string;
   mode: "check_in" | "check_out";
@@ -30,13 +32,29 @@ export function PunchButtons({
   notices: Notice[];
   checklist: { id: string; label: string }[];
   confirm: (noticeId: string) => Promise<{ ok: boolean; error?: string }>;
+  shift: { text: string; noShift: boolean; checkInFrom: string | null; checkInFromText: string | null; overtimeFrom: string | null; shiftEndText: string | null };
+  overtimeCategories: string[];
 }) {
   const [state, formAction, pending] = useActionState(mode === "check_in" ? checkIn : checkOut, undefined);
   const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [confirming, startConfirm] = useTransition();
-  const ready = notices.every((n) => confirmed.has(n.id)) && (mode === "check_in" || checklist.every((c) => checked.has(c.id)));
+  // 時刻で変わるもの（出勤できる時刻・残業の理由が要るか）は、画面を開いたままでも30秒ごとに見直す
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  const tooEarly = mode === "check_in" && !!shift.checkInFrom && now < Date.parse(shift.checkInFrom);
+  const needReason = mode === "check_out" && !!shift.overtimeFrom && now >= Date.parse(shift.overtimeFrom);
+  const [category, setCategory] = useState("");
+  const [reason, setReason] = useState("");
+  const ready =
+    notices.every((n) => confirmed.has(n.id)) &&
+    (mode === "check_in" || checklist.every((c) => checked.has(c.id))) &&
+    !tooEarly &&
+    (!needReason || (!!category && !!reason.trim()));
 
   if (state?.ok) {
     return (
@@ -50,7 +68,27 @@ export function PunchButtons({
 
   return (
     <form action={formAction} className="mt-2 space-y-4 text-left">
-      <p className="pb-2 text-center text-sm text-slate-500">{statusLabel}</p>
+      <p className="text-center text-sm text-slate-500">{statusLabel}</p>
+      <p className="pb-2 text-center text-sm font-bold text-slate-700">{shift.text}</p>
+      {mode === "check_in" && shift.noShift && (
+        <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">シフトがない日の出勤です。出勤すると、店長に確認の連絡が届きます</p>
+      )}
+      {tooEarly && <p className="rounded-md bg-slate-100 px-3 py-2 text-center text-sm font-bold text-slate-700">出勤は {shift.checkInFromText} から押せます</p>}
+      {needReason && (
+        <section className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
+          <p className="text-sm font-bold text-amber-900">シフトの終わり（{shift.shiftEndText}）から15分以上たっています。残業の理由を入れてください</p>
+          <select name="overtime_category" value={category} onChange={(e) => setCategory(e.target.value)} className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-base">
+            <option value="" disabled>
+              理由を選ぶ
+            </option>
+            {overtimeCategories.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+          <textarea name="overtime_reason" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} rows={2} placeholder="くわしく（例：22時半の来店のお客様の対応）" className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base" />
+          <p className="text-xs text-amber-800">店長が承認した分だけが、給与に入ります</p>
+        </section>
+      )}
 
       {notices.length > 0 && (
         <section className="rounded-md border border-amber-300 bg-amber-50 p-3">
@@ -146,7 +184,9 @@ export function PunchButtons({
       >
         {pending ? "記録しています…" : mode === "check_in" ? "出勤する" : "退勤する"}
       </button>
-      {!ready && <p className="text-center text-xs text-slate-500">{mode === "check_in" ? "お知らせを全部確認すると押せます" : "お知らせとチェックリストを済ませると押せます"}</p>}
+      {!ready && !tooEarly && (
+        <p className="text-center text-xs text-slate-500">{mode === "check_in" ? "お知らせを全部確認すると押せます" : needReason ? "お知らせ・チェックリスト・残業の理由を済ませると押せます" : "お知らせとチェックリストを済ませると押せます"}</p>
+      )}
       {state && !state.ok && <p className="text-sm font-bold text-accent">{state.error}</p>}
     </form>
   );

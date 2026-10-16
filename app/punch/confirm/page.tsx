@@ -5,6 +5,7 @@ import { PunchCard } from "../punch-card";
 import { PunchButtons } from "./punch-buttons";
 import { confirmPunchNotice, punch } from "./actions";
 import { checklistFor, pendingNotices } from "@/lib/workboard";
+import { OVERTIME_CATEGORIES, OVERTIME_MINUTES, checkInFrom, hhmmJST, shiftOn } from "@/lib/punch-rules";
 
 export const metadata = { title: "打刻" };
 
@@ -40,10 +41,22 @@ export default async function PunchConfirmPage({ searchParams }: PageProps<"/pun
 
   // ワークボード：この打刻の前に確かめてもらうお知らせと、退勤チェックリスト
   const mode = status.kind === "working" ? "check_out" : "check_in";
-  const [notices, checklist] = await Promise.all([
+  // シフト：出勤はシフト開始の15分前から。退勤はシフトの終わりから15分以上なら残業の理由が要る（2026-10-16）
+  const shiftDate = status.kind === "working" ? ((await admin.from("attendance").select("date").eq("id", status.attendanceId).single()).data?.date ?? businessDayJST()) : businessDayJST();
+  const [notices, checklist, shift] = await Promise.all([
     pendingNotices({ staffId: t.staffId, storeId: tok.store_id, timing: mode, today: businessDayJST() }),
     mode === "check_out" ? checklistFor(tok.store_id) : Promise.resolve([]),
+    shiftOn(t.staffId, shiftDate),
   ]);
+  const from = checkInFrom(shift);
+  const shiftInfo = {
+    text: shift ? `今日のシフト ${shift.startText}〜${shift.endText}` : "今日はシフトがありません",
+    noShift: !shift,
+    checkInFrom: from !== null ? new Date(from).toISOString() : null,
+    checkInFromText: from !== null ? hhmmJST(from) : null,
+    overtimeFrom: shift ? new Date(shift.end + OVERTIME_MINUTES * 60_000).toISOString() : null,
+    shiftEndText: shift?.endText ?? null,
+  };
 
   return (
     <PunchCard store={store?.name} title={`${staff.name}さん`}>
@@ -55,6 +68,8 @@ export default async function PunchConfirmPage({ searchParams }: PageProps<"/pun
         notices={notices.map((n) => ({ id: n.id, title: n.title, body: n.body, importance: n.importance }))}
         checklist={checklist}
         confirm={confirmPunchNotice.bind(null, raw)}
+        shift={shiftInfo}
+        overtimeCategories={[...OVERTIME_CATEGORIES]}
       />
     </PunchCard>
   );

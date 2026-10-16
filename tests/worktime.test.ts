@@ -32,9 +32,22 @@ test("遅刻・早退 — 15分単位で数える", () => {
   assert.equal(r.worked, 270);
 });
 
-test("延長 — シフト終了後も打刻どおり（切り捨て後）払う", () => {
+test("延長 — シフト終了後も打刻どおり（切り捨て後）払う（承認の決まりの前の記録）", () => {
   const r = workDay(day("2026-11-02", "2026-11-02 19:30", "2026-11-03 01:10", { shift: { start: "19:30", end: "00:30" } }));
   assert.equal(r.worked, 330); // 01:00 まで
+});
+
+test("残業の承認 — 承認された分だけ数える。承認前・却下はシフトの終わりまで（2026-10-16）", () => {
+  const base = { shift: { start: "19:30", end: "00:30" } };
+  assert.equal(workDay(day("2026-11-02", "2026-11-02 19:30", "2026-11-03 01:10", { ...base, overtimeApproved: true })).worked, 330); // 01:00 まで
+  assert.equal(workDay(day("2026-11-02", "2026-11-02 19:30", "2026-11-03 01:10", { ...base, overtimeApproved: false })).worked, 300); // 00:30 まで
+  // シフトより早く帰ったときは、承認に関係なく打刻どおり
+  assert.equal(workDay(day("2026-11-02", "2026-11-02 19:30", "2026-11-03 00:10", { ...base, overtimeApproved: false })).worked, 270);
+});
+
+test("シフトなしの出勤 — 却下された日は数えない", () => {
+  assert.equal(workDay(day("2026-11-02", "2026-11-02 19:30", "2026-11-03 00:30", { excluded: true })).worked, 0);
+  assert.equal(workDay(day("2026-11-02", "2026-11-02 19:30", "2026-11-03 00:30", { excluded: false })).worked, 300);
 });
 
 test("深夜 — 22時〜翌5時。休憩は按分して引く", () => {

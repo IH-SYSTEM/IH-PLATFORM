@@ -43,7 +43,7 @@ export async function importAttendance(year: number, month: number, _prev: Impor
   const admin = createAdminClient();
 
   const [{ data: attendance }, { data: shifts }, { data: stores }, { data: records }] = await Promise.all([
-    admin.from("attendance").select("staff_id, store_id, date, checkin_time, checkout_time, break_minutes").gte("date", from).lte("date", end).limit(10000),
+    admin.from("attendance").select("staff_id, store_id, date, checkin_time, checkout_time, break_minutes, noshift_status, overtime_status").gte("date", from).lte("date", end).limit(10000),
     admin.from("shift_schedule").select("staff_id, work_date, shift_type, planned_start, planned_end").gte("work_date", from).lte("work_date", end).limit(10000),
     admin.from("stores").select("id, overtime_rule"),
     admin.from("salary_records").select("id, staff_id, status, employment_type, attendance, payment, deduction").eq("year", year).eq("month", month),
@@ -105,6 +105,9 @@ export async function importAttendance(year: number, month: number, _prev: Impor
           checkout: a.checkout_time,
           breakMinutes: a.break_minutes ?? 0,
           shift: s?.shift_type === "work" && s.planned_start && s.planned_end ? { start: s.planned_start, end: s.planned_end } : null,
+          // シフトの終わりを過ぎた分は、承認された残業だけ。却下されたシフトなしの出勤は数えない（2026-10-16）
+          overtimeApproved: a.overtime_status === "approved",
+          excluded: a.noshift_status === "rejected",
         };
       });
     const sum = workMonth(days, start, end);
