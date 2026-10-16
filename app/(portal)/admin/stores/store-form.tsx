@@ -169,7 +169,7 @@ export function StoreForm({
         </Field>
         <Check name="geofence_enabled" label="QR打刻で位置情報を確認する" defaultChecked={store?.geofence_enabled} />
         <Check name="wifi_enabled" label="WiFi打刻を使う" defaultChecked={store?.wifi_enabled} />
-        <Field label="WiFi打刻の許可IPアドレス" hint="複数ある場合は改行で区切ります" className="sm:col-span-2">
+        <Field label="WiFi打刻の許可IPアドレス" hint="複数ある場合は改行で区切ります。調べ方：店の Wi-Fi につないだ端末で「/admin/stores/ip」を開く" className="sm:col-span-2">
           <textarea name="allowed_ips" rows={2} defaultValue={store?.allowed_ips.join("\n") ?? ""} className={`${input} font-mono`} />
         </Field>
       </Section>
