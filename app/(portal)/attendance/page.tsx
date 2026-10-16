@@ -44,6 +44,8 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
         </div>
       </div>
 
+      <PendingReviews storeIds={view.scope.all ? null : stores.map((s) => s.id)} />
+
       <FilterBar stores={storeOptions} staff={staff.map((s) => ({ value: s.id, label: s.name }))} store={store} month={month} staffId={staffId} />
 
       {staffId && <StaffInfo staffId={staffId} showWage={me.isAdmin} />}
@@ -178,5 +180,49 @@ function Info({ label, value }: { label: string; value: string }) {
       <dt className="text-xs text-slate-400">{label}</dt>
       <dd className="mt-0.5 font-medium text-slate-800">{value}</dd>
     </div>
+  );
+}
+
+/** 承認待ち（シフトなしの出勤・残業）。LINE を見落としても、ここから承認できる */
+async function PendingReviews({ storeIds }: { storeIds: string[] | null }) {
+  const admin = createAdminClient();
+  let q = admin
+    .from("attendance")
+    .select("id, staff_id, store_id, date, noshift_status, overtime_status, overtime_minutes")
+    .or("noshift_status.eq.pending,overtime_status.eq.pending")
+    .order("date")
+    .limit(100);
+  if (storeIds) q = q.in("store_id", storeIds);
+  const { data } = await q;
+  if (!data?.length) return null;
+  const { data: people } = await admin.from("staff").select("id, name").in("id", [...new Set(data.map((d) => d.staff_id))]);
+  const name = new Map((people ?? []).map((p) => [p.id, p.name]));
+  const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
+  return (
+    <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm">
+      <h2 className="font-bold text-amber-900">承認待ち（{data.length}件）</h2>
+      <ul className="mt-2 space-y-1">
+        {data.flatMap((d) => [
+          ...(d.noshift_status === "pending"
+            ? [
+                <li key={`${d.id}n`}>
+                  <Link href={`/attendance/review/${d.id}?k=noshift`} className="text-brand hover:underline">
+                    {md(d.date)} {name.get(d.staff_id)}さん：シフトなしの出勤
+                  </Link>
+                </li>,
+              ]
+            : []),
+          ...(d.overtime_status === "pending"
+            ? [
+                <li key={`${d.id}o`}>
+                  <Link href={`/attendance/review/${d.id}?k=overtime`} className="text-brand hover:underline">
+                    {md(d.date)} {name.get(d.staff_id)}さん：{d.overtime_minutes ?? 0}分の残業
+                  </Link>
+                </li>,
+              ]
+            : []),
+        ])}
+      </ul>
+    </section>
   );
 }

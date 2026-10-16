@@ -24,7 +24,7 @@ export async function laborByStoreDay(from: string, to: string): Promise<Map<str
   const monthFrom = `${from.slice(0, 7)}-01`;
   const monthTo = new Date(Date.UTC(Number(to.slice(0, 4)), Number(to.slice(5, 7)), 0)).toISOString().slice(0, 10);
   const [{ data: attendance }, { data: shifts }, { data: stores }, { data: staff }, { data: history }, { data: salesDays }] = await Promise.all([
-    admin.from("attendance").select("staff_id, store_id, date, checkin_time, checkout_time, break_minutes").gte("date", readFrom).lte("date", to).limit(20000),
+    admin.from("attendance").select("staff_id, store_id, date, checkin_time, checkout_time, break_minutes, noshift_status, overtime_status").gte("date", readFrom).lte("date", to).limit(20000),
     admin.from("shift_schedule").select("staff_id, work_date, shift_type, planned_start, planned_end").gte("work_date", readFrom).lte("work_date", to).limit(20000),
     admin.from("stores").select("id, overtime_rule"),
     admin.from("staff").select("id, role, store_id, retired, payroll_master"),
@@ -82,6 +82,9 @@ export async function laborByStoreDay(from: string, to: string): Promise<Map<str
           checkout: a.checkout_time,
           breakMinutes: a.break_minutes ?? 0,
           shift: s?.shift_type === "work" && s.planned_start && s.planned_end ? { start: s.planned_start, end: s.planned_end } : null,
+          // シフトの終わりを過ぎた分は、承認された残業だけ。却下されたシフトなしの出勤は数えない（2026-10-16）
+          overtimeApproved: a.overtime_status === "approved",
+          excluded: a.noshift_status === "rejected",
         };
       });
       const storeOf = new Map(mine.map((a) => [a.date, a.store_id]));

@@ -3,6 +3,8 @@
 //
 //   丸め      … 15分単位。出勤は切り上げ、退勤は切り捨て
 //   早出      … シフト開始時刻から数える
+//   残業の承認 … シフトの終わりを過ぎた分は、店長が承認したときだけ数える（overtimeApproved=false ならシフトの終わりまで。2026-10-16）
+//   シフトなし … 店長が却下した出勤は数えない（excluded）
 //   休憩      … 本人が入力した実績を引く（深夜と日中に按分）
 //   深夜      … 22:00〜翌5:00（JST）
 //   残業      … weekly_variable（1週間単位の非定型的変形）：その日のシフトの時間（8時間以下なら8時間、上限10時間）を超えた分
@@ -24,6 +26,9 @@ export type DayInput = {
   checkout: string | null;
   breakMinutes: number;
   shift: { start: string; end: string } | null; // 出勤のシフト（'HH:MM'）。休み・未設定なら null
+  // 2026-10-16〜：シフトの終わりを過ぎた分は、店長が承認した残業だけ数える。却下されたシフトなしの出勤は数えない
+  overtimeApproved?: boolean;
+  excluded?: boolean;
 };
 
 export type DayResult = {
@@ -73,7 +78,7 @@ function dailyThreshold(d: DayInput, shiftMinutes: number | null) {
 /** 1日分。週の残業・休日出勤は workWeek で後から足す */
 export function workDay(d: DayInput): DayResult & { dailyOvertime: number } {
   const empty = { date: d.date, open: false, worked: 0, night: 0, overtime: 0, dailyOvertime: 0, holiday: 0, late: 0, earlyLeave: 0 };
-  if (!d.checkin) return empty;
+  if (!d.checkin || d.excluded) return empty;
   if (!d.checkout) return { ...empty, open: true };
   const inMs = Date.parse(d.checkin);
   const outMs = Date.parse(d.checkout);
@@ -89,7 +94,8 @@ export function workDay(d: DayInput): DayResult & { dailyOvertime: number } {
 
   const inUnit = ceilUnit(inMs);
   const payStart = shiftStart !== null ? Math.max(shiftStart, inUnit) : inUnit;
-  const payEnd = floorUnit(outMs);
+  // シフトの終わりを過ぎた分は、承認された残業だけ（承認前・却下はシフトの終わりまで）
+  const payEnd = shiftEnd !== null && d.overtimeApproved === false ? Math.min(floorUnit(outMs), shiftEnd) : floorUnit(outMs);
   if (payEnd <= payStart) return empty;
 
   const gross = minutes(payEnd - payStart);
