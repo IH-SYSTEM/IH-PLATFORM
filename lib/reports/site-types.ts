@@ -199,7 +199,7 @@ export const expenseReport: ReportType = {
   version: 1,
   category: "site",
   title: "経費の報告（レシート）",
-  description: "店で買ったもの・払ったものを、レシートや領収書の写真で本部に送る",
+  description: "レシートを続けて撮って、まとめて本部に送る（金額・勘定科目は AI が読みます）",
   fields: [
     { key: "photo", label: "レシート・領収書", kind: "photo", required: true, hint: "全体がはっきり写るように撮ってください（金額・日付・お店の名前）" },
     { key: "date", label: "買った日", kind: "date" },

@@ -98,6 +98,17 @@ async function todayWork(me: CurrentStaff) {
         href: "/leave/review",
       });
   }
+  if (me.isAdmin && me.duties.some((d) => d === "keiri_input" || d === "keiri_approve")) {
+    const { count } = await admin
+      .from("expenses")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    if (count)
+      todos.push({
+        label: `経費のレシートの確認待ちが${count}件あります`,
+        href: "/admin/expenses/review",
+      });
+  }
   if (me.isAdmin) {
     let q = admin
       .from("reports")
