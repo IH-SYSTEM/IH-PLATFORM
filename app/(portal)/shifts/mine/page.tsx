@@ -4,9 +4,9 @@ import { businessDayJST } from "@/lib/business-day";
 import { mondayOf } from "@/lib/shift-period";
 import { hm, SHIFT_TYPES, visibleShifts } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { MyShiftTabs } from "../my-tabs";
+import { AddEventForm, EventRow } from "./event-forms";
 
-export const metadata = { title: "確定スケジュール" };
+export const metadata = { title: "スケジュール" };
 
 const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 const shiftMonth = (ym: string, n: number) => new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + n, 1)).toISOString().slice(0, 7);
@@ -18,7 +18,7 @@ const minutes = (s: string | null, e: string | null) => {
   return b - a;
 };
 
-// 自分の確定したシフトを、月のカレンダーで見る（店長が週・月を確定したものだけ）
+// 自分のスケジュール：確定したシフト（店長が確定したもの）と、自分で入れた予定を、月のカレンダーで見る
 export default async function MyShiftsPage({ searchParams }: PageProps<"/shifts/mine">) {
   const me = await requireStaff();
   const today = businessDayJST();
@@ -35,6 +35,17 @@ export default async function MyShiftsPage({ searchParams }: PageProps<"/shifts/
   const { data: stores } = shifts.length ? await admin.from("stores").select("id, name").in("id", [...new Set(shifts.map((s) => s.store_id))]) : { data: [] };
   const storeName = new Map((stores ?? []).map((s) => [s.id, s.name]));
   const byDate = new Map(shifts.map((s) => [s.work_date, s]));
+  // 自分で入れた予定（本人だけが見る）
+  const { data: events } = await admin
+    .from("personal_events")
+    .select("id, event_date, start_time, end_time, title, note")
+    .eq("staff_id", me.id)
+    .gte("event_date", calStart)
+    .lte("event_date", calEnd)
+    .order("event_date")
+    .order("start_time", { nullsFirst: true });
+  const eventsOn = (d: string) => (events ?? []).filter((e) => e.event_date === d);
+  const monthEvents = (events ?? []).filter((e) => e.event_date >= first && e.event_date <= last);
   const inMonth = shifts.filter((s) => s.work_date >= first && s.work_date <= last && s.shift_type === "work");
   const total = inMonth.reduce((a, s) => a + minutes(s.planned_start, s.planned_end), 0);
   const weeks: string[][] = [];
@@ -42,8 +53,10 @@ export default async function MyShiftsPage({ searchParams }: PageProps<"/shifts/
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">シフト</h1>
-      <MyShiftTabs active="mine" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">スケジュール</h1>
+        <AddEventForm defaultDate={today.slice(0, 7) === month ? today : first} />
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1">
@@ -90,13 +103,45 @@ export default async function MyShiftsPage({ searchParams }: PageProps<"/shifts/
                     ) : (
                       <p className="mt-0.5 text-[10px] text-slate-500">{SHIFT_TYPES.find((t) => t.key === s.shift_type)?.label}</p>
                     ))}
+                  {eventsOn(d).map((e) => (
+                    <p key={e.id} className="mt-0.5 truncate rounded bg-amber-50 px-1 py-0.5 text-[10px] leading-tight text-amber-900 sm:text-[11px]" title={e.title}>
+                      {e.start_time ? `${e.start_time.slice(0, 5)} ` : ""}
+                      {e.title}
+                    </p>
+                  ))}
                 </div>
               );
             })}
           </div>
         ))}
       </div>
-      <p className="text-xs text-slate-400">アルバイトは店長が承認したシフトがすぐ表示されます。社員は店長が月を確定したあとに表示されます。希望を出すのは「シフト希望」から。</p>
+      <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block size-3 rounded bg-brand-soft" />
+          確定したシフト
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block size-3 rounded bg-amber-50 ring-1 ring-amber-200" />
+          自分の予定（自分だけが見られます）
+        </span>
+      </div>
+
+      <section className="rounded-md border border-line bg-white p-4">
+        <h2 className="text-sm font-bold text-slate-800">
+          {Number(month.slice(5))}月の自分の予定
+          <span className="ml-2 text-xs font-normal text-slate-400">押すと直す・消す</span>
+        </h2>
+        {!monthEvents.length ? (
+          <p className="mt-2 text-sm text-slate-400">まだありません。「＋ 自分の予定を入れる」から入れられます</p>
+        ) : (
+          <div className="mt-1 divide-y divide-slate-100">
+            {monthEvents.map((e) => (
+              <EventRow key={e.id} ev={e} label={`${Number(e.event_date.slice(5, 7))}/${Number(e.event_date.slice(8, 10))}（${"日月火水木金土"[new Date(`${e.event_date}T12:00:00Z`).getUTCDay()]}）`} />
+            ))}
+          </div>
+        )}
+      </section>
+      <p className="text-xs text-slate-400">シフトは、アルバイトは店長が承認するとすぐ、社員は店長が月を確定したあとに表示されます。</p>
     </div>
   );
 }
