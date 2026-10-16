@@ -3,7 +3,7 @@
 import { useActionState, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
-import { deleteVaultFile, finishVaultUpload, fixVaultFile, resummarizeVaultFile, startVaultUpload } from "./actions";
+import { deleteVaultFile, finishVaultUpload, fixVaultFile, resummarizeVaultFile, setPublicToStaff, startVaultUpload } from "./actions";
 
 const BUCKET = "private-files";
 const ACCEPT = [
@@ -214,6 +214,29 @@ export function ResummarizeButton({ fileId }: { fileId: string }) {
       className="ml-1 font-bold text-brand underline disabled:opacity-50"
     >
       読み直す
+    </button>
+  );
+}
+
+/** 全員に公開（就業規則など）。公開中は「書類 › 会社の規程」に出る */
+export function PublicToggle({ fileId, on }: { fileId: string; on: boolean }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() => {
+        if (!on && !window.confirm("この書類を全スタッフに公開しますか？（「書類 › 会社の規程」に出ます）")) return;
+        start(async () => {
+          const r = await setPublicToStaff(fileId, !on);
+          if ("error" in r) window.alert(r.error);
+          router.refresh();
+        });
+      }}
+      className={`rounded px-1.5 py-0.5 text-[11px] font-bold disabled:opacity-50 ${on ? "bg-brand text-white" : "text-slate-400 ring-1 ring-slate-200 hover:text-brand"}`}
+    >
+      {on ? "全員に公開中" : "全員に公開"}
     </button>
   );
 }

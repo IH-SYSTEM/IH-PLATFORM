@@ -210,3 +210,16 @@ export async function runMaintenanceNow(): Promise<void> {
   await runMaintenance();
   revalidatePath("/admin/vault");
 }
+
+/** 就業規則などの会社の規程を、全員がポータルの「書類 › 会社の規程」から見られるようにする（on=false で戻す） */
+export async function setPublicToStaff(fileId: string, on: boolean): Promise<{ ok: true } | { error: string }> {
+  const me = await requireAdmin();
+  if (!canUseVault(me)) return { error: DENIED };
+  const admin = createAdminClient();
+  const { data, error } = await admin.from("files").update({ public_to_staff: on }).eq("id", fileId).not("owner_company_id", "is", null).eq("status", "ready").select("id");
+  if (error || !data?.length) return { error: "変えられませんでした" };
+  await audit({ actor: me.id, action: "update", targetType: "company_file", targetId: fileId, detail: { public_to_staff: on } });
+  revalidatePath("/admin/vault");
+  revalidatePath("/me/documents");
+  return { ok: true };
+}

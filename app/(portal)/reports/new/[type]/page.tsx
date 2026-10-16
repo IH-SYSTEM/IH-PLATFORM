@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
 import { businessDayJST, toJSTTimeString } from "@/lib/business-day";
 import { reportType } from "@/lib/reports/registry";
@@ -13,6 +13,8 @@ export default async function NewReportPage({ params }: PageProps<"/reports/new/
   const { type: key } = await params;
   const type = reportType(decodeURIComponent(key));
   if (!type) notFound();
+  // 経費のレシートは、続けて撮って送る専用の画面へ（2026-10-16）
+  if (type.key === "site.expense") redirect("/expenses");
 
   const admin = createAdminClient();
   const [{ data: stores }, { data: staff }, { data: self }] = await Promise.all([

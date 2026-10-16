@@ -8,10 +8,12 @@ import iconv from "iconv-lite";
  *   会社の口座から振込（請求書）：借方＝勘定科目／貸方＝未払金・補助科目＝お店（取引先）
  *   税区分：10%＝「課税仕入 10%」、8%＝「課税仕入 (軽)8%」、対象外＝「対象外仕入」。貸方は「対象外」
  *   摘要：「勘定科目　お店　（何を買ったか）」（見本の書き方）
+ *   1枚のレシートに勘定科目・税率が混ざるときは、内訳ごとに行を分け、同じ取引No にする（2026-10-16）
  */
 export const MF_HEADER = ["取引No", "取引日", "借方勘定科目", "借方補助科目", "借方部門", "借方取引先", "借方税区分", "借方インボイス", "借方金額(円)", "貸方勘定科目", "貸方補助科目", "貸方部門", "貸方取引先", "貸方税区分", "貸方インボイス", "貸方金額(円)", "摘要", "タグ", "メモ"] as const;
 
 export type MfExpense = {
+  no: number; // 取引No（1枚のレシートの内訳は同じ番号＝1つの取引）
   date: string; // YYYY-MM-DD
   account: string;
   department: string;
@@ -20,19 +22,20 @@ export type MfExpense = {
   amount: number;
   taxRate: number | null;
   payment: "cash" | "transfer";
+  invoice: string | null; // 登録番号（T＋13桁）。メモに残す
 };
 
 const taxLabel = (rate: number | null) => (rate === 8 ? "課税仕入 (軽)8%" : rate === 0 ? "対象外仕入" : "課税仕入 10%");
 const q = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
 
 export function mfRows(list: MfExpense[]): string[][] {
-  return list.map((e, i) => {
+  return list.map((e) => {
     const vendor = (e.vendor ?? "").slice(0, 60);
     const memo = [e.account, vendor, e.item ? `（${e.item}）` : ""].filter(Boolean).join("　").slice(0, 200);
     const credit =
       e.payment === "cash" ? { account: "現金", sub: "売上金", dept: e.department } : { account: "未払金", sub: vendor, dept: e.department };
     return [
-      String(i + 1),
+      String(e.no),
       e.date.replaceAll("-", "/"),
       e.account,
       "",
@@ -50,7 +53,7 @@ export function mfRows(list: MfExpense[]): string[][] {
       String(e.amount),
       memo,
       "",
-      "IHポータル",
+      e.invoice ? `IHポータル ${e.invoice}` : "IHポータル",
     ];
   });
 }

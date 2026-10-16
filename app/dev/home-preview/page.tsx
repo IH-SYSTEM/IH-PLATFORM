@@ -48,6 +48,7 @@ export default async function HomePreview() {
             planned_end: "23:00:00",
             work_role: "ホール",
           },
+          leave: { remaining: 12, pendingDays: 0, taken: "2/5日" },
           storeName: "郷彩 根っこ",
           punchLabel: "勤務中（16:58〜）",
           working: true,
