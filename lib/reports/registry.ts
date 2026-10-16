@@ -10,6 +10,7 @@ import {
   registerReport,
   repairReport,
   suggestionReport,
+  expenseReport,
 } from "./site-types";
 import type { ReportType } from "./types";
 
@@ -25,6 +26,7 @@ export const REPORT_TYPES: ReportType[] = [
   registerReport,
   complaintReport,
   suggestionReport,
+  expenseReport,
   harassmentReport,
 ];
 

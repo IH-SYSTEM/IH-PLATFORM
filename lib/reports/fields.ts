@@ -10,7 +10,7 @@ export type Field =
   | { key: string; label: string; kind: "text"; max: number; optional?: boolean; hint?: string }
   | { key: string; label: string; kind: "longtext"; max: number; optional?: boolean; hint?: string }
   | { key: string; label: string; kind: "amount"; min: number; max: number; hint?: string } // 円。マイナスも可（レジの不足など）
-  | { key: string; label: string; kind: "photo"; hint?: string }; // 写真（任意）。先に保存場所へ上げ、ファイルの番号を送る
+  | { key: string; label: string; kind: "photo"; required?: boolean; hint?: string }; // 写真（ふつうは任意。required なら必須）。先に保存場所へ上げ、ファイルの番号を送る
 
 export type Payload = Record<string, string | number>;
 
@@ -32,6 +32,7 @@ export function parsePayload(fields: readonly Field[], get: (key: string) => str
       continue;
     }
     if (f.kind === "photo") {
+      if (!raw && f.required) return { error: `${f.label}の写真を撮るか選んでください` };
       if (raw && !UUID.test(raw)) return { error: `${f.label}の写真をもう一度選んでください` };
       if (raw) payload[f.key] = raw;
       continue;

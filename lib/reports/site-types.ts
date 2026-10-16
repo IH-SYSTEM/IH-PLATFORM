@@ -192,3 +192,29 @@ export const inquiryRequest: ReportType = {
   summary: (p) => `【${String(p.to ?? "").split("（")[0]}】${p.subject}`,
   apply: async () => ({ recorded: true, notice: "問い合わせに回答しました。くわしくは担当から連絡があります" }),
 };
+
+// 店の経費（2026-10-16 黒田さん：店で買ったものをレシートの写真で本部へ。本部（経理）が目で確かめて承認 → 経費のデータに → マネーフォワード用 CSV へ）
+export const expenseReport: ReportType = {
+  key: "site.expense",
+  version: 1,
+  category: "site",
+  title: "経費の報告（レシート）",
+  description: "店で買ったもの・払ったものを、レシートや領収書の写真で本部に送る",
+  fields: [
+    { key: "photo", label: "レシート・領収書", kind: "photo", required: true, hint: "全体がはっきり写るように撮ってください（金額・日付・お店の名前）" },
+    { key: "date", label: "買った日", kind: "date" },
+    { key: "amount", label: "金額（税込）", kind: "amount", min: 1, max: 10_000_000 },
+    { key: "payment", label: "支払い方法", kind: "select", options: ["店の現金（小口現金・レジ）", "会社の口座から振込（請求書）"] },
+    { key: "item", label: "何を買ったか", kind: "text", max: 100, hint: "例：キッチンペーパー・洗剤、ビールサーバーの部品" },
+    { key: "purpose", label: "何に使ったか", kind: "text", max: 100, hint: "例：店の清掃、サーバーの修理" },
+  ],
+  onSiteOnly: false,
+  approveLabel: "確かめて承認する",
+  // 経理（入力・承認）か代表が承認する
+  duty: () => "keiri_input",
+  summary: (p) => `${Number(p.amount ?? 0).toLocaleString()}円 ${p.item}（${String(p.payment ?? "").split("（")[0]}）`,
+  apply: async (ctx) => {
+    const { recordExpense } = await import("@/lib/expenses");
+    return recordExpense(ctx);
+  },
+};

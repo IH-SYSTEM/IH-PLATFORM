@@ -11,6 +11,8 @@ import { approveReport, rejectReport } from "./actions";
 import { ReviewButtons } from "./review-buttons";
 
 export const metadata = { title: "報告の受付" };
+// 経費の承認では AI がレシートを読むので、長めに待てるようにする
+export const maxDuration = 120;
 
 const TABS = [
   { key: "pending", label: "未処理" },

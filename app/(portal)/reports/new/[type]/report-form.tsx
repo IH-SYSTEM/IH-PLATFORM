@@ -72,7 +72,7 @@ export function ReportForm({
         <div key={f.key} className="block space-y-1">
           <label htmlFor={`f-${f.key}`} className="text-sm font-medium text-slate-700">
             {f.label}
-            {(((f.kind === "text" || f.kind === "longtext" || f.kind === "time") && f.optional) || f.kind === "photo") && (
+            {(((f.kind === "text" || f.kind === "longtext" || f.kind === "time") && f.optional) || (f.kind === "photo" && !f.required)) && (
               <span className="ml-1 text-xs text-slate-400">（任意）</span>
             )}
           </label>
