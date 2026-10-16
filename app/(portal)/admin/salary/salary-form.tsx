@@ -137,11 +137,12 @@ export function SalaryForm({
       absenceDays: a.absenceDays || 0,
       workHours: a.workHours || 0,
       hourlyWage: a.hourlyWage || 0,
-    }, premiumTotal(values));
+    }, premiumTotal(values) - (values.payment.fixedOvertimePay || 0)); // 固定残業手当は基本給の内訳なので、割増に重ねて数えない
     setDraft((d) => {
       const payment = { ...d.payment };
       const attendance = { ...d.attendance };
-      if (master.employmentType === "monthly") payment.baseSalary = String(r.base);
+      // 固定残業手当（基本給の内訳）が入っていれば、その分を基本給から分けたままにする
+      if (master.employmentType === "monthly") payment.baseSalary = String(r.base - Math.min(values.payment.fixedOvertimePay || 0, r.base));
       if (master.employmentType === "daily") payment.dailyWage = String(master.dailyWage ?? 0);
       if (master.employmentType === "hourly") attendance.hourlyWage = String(master.hourlyWage ?? 0);
       if (master.employmentType === "contract") payment.contractAmount = String(r.base);

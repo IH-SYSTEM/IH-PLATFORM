@@ -37,3 +37,15 @@ alter table paid_leave_requests enable row level security;
 
 -- 会社の規程（就業規則など）を、全員がポータルの「書類」から見られるようにする印
 alter table files add column if not exists public_to_staff boolean not null default false;
+
+-- 36協定の見張り（残業 月45時間・年360時間）。同じ段階の LINE を2回送らないための記録
+--   period … 月の段階は 'YYYY-MM'、年度の段階は年度の始まりの月（'YYYY-04'）
+--   level  … m36・m45・y300・y360
+create table if not exists overtime_alerts (
+  staff_id text not null references staff(id) on delete cascade,
+  period text not null check (period ~ '^\d{4}-\d{2}$'),
+  level text not null check (level in ('m36', 'm45', 'y300', 'y360')),
+  sent_at timestamptz not null default now(),
+  primary key (staff_id, period, level)
+);
+alter table overtime_alerts enable row level security;

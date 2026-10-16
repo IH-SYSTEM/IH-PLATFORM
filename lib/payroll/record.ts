@@ -23,6 +23,8 @@ export const ATTENDANCE_TIME_FIELDS = [
 
 // 割増など、勤怠から計算する支給（docs/payroll-rules.md）
 export const PREMIUM_FIELDS = [
+  // 固定残業手当（正社員：基本給のうち30時間分）。基本給から分けて出す。超えた残業は下の時間外手当
+  { key: "fixedOvertimePay", label: "固定残業手当（30時間分）" },
   { key: "overtimePay", label: "時間外手当（残業）" },
   { key: "nightPay", label: "深夜割増" },
   { key: "holidayPay", label: "休日出勤手当" },

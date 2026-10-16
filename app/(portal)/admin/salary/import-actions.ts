@@ -8,6 +8,7 @@ import { monthRange } from "@/lib/business-day";
 import { calculatePayroll, type Master } from "@/lib/payroll/calculator";
 import { normalize, premiumTotal, totals, type EmploymentType, type SalaryValues } from "@/lib/payroll/record";
 import { segments, daysBetween, type WageRow } from "@/lib/payroll/wage-history";
+import { FIXED_OVERTIME_YEN, fixedOvertimePremiums, usesFixedOvertime } from "@/lib/payroll/fixed-overtime";
 import { premiumPay, workMonth, type DayInput, type OvertimeRule } from "@/lib/payroll/worktime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -51,7 +52,7 @@ export async function importAttendance(year: number, month: number, _prev: Impor
   const staffIds = [...new Set([...(attendance ?? []), ...(shifts ?? []).filter((s) => s.work_date >= start)].map((r) => r.staff_id))];
   if (!staffIds.length) return { ok: true, imported: [], skippedConfirmed: [], noMaster: [], openDays: [], at: Date.now() };
   const [{ data: people }, { data: history }] = await Promise.all([
-    admin.from("staff").select("id, name, payroll_master").in("id", staffIds),
+    admin.from("staff").select("id, name, role, payroll_master").in("id", staffIds),
     admin.from("staff_wage_history").select("staff_id, valid_from, valid_to, employment_type, amount").in("staff_id", staffIds).lte("valid_from", end).or(`valid_to.is.null,valid_to.gte.${start}`),
   ]);
 
@@ -119,12 +120,21 @@ export async function importAttendance(year: number, month: number, _prev: Impor
     const parts = segs.length > 1 ? segs : [{ from: start, to: end, row: { amount } as WageRow }];
     const premiums = { overtimePay: 0, nightPay: 0, holidayPay: 0, paidLeavePay: 0 };
     const partMinutes: number[] = [];
+    // 正社員（月給）は基本給のうち 45,000円 が固定残業手当（30時間分）。超えた分だけ時間外手当にする（2026-10-16）
+    const fixedOT = usesFixedOvertime(p.role, type);
+    let fixedPay = 0;
     if (type !== "contract") {
       for (const g of parts) {
         const inPart = sum.days.filter((d) => d.date >= g.from && d.date <= g.to);
         const m = (k: "overtime" | "night" | "holiday") => inPart.reduce((s, d) => s + d[k], 0);
         const leave = monthShifts.filter((s) => s.shift_type === "paid_leave" && s.work_date >= g.from && s.work_date <= g.to).length;
-        const pay = premiumPay(type, g.row.amount, { overtimeMinutes: m("overtime"), nightMinutes: m("night"), holidayMinutes: m("holiday") }, leave);
+        const pay = fixedOT
+          ? (() => {
+              const f = fixedOvertimePremiums(g.row.amount, { overtime: m("overtime"), night: m("night"), holiday: m("holiday") }, parts.length > 1 ? daysBetween(g.from, g.to) / daysBetween(start, end) : 1);
+              fixedPay += f.fixed;
+              return { overtimePay: f.overtimePay, nightPay: f.nightPay, holidayPay: f.holidayPay, paidLeavePay: 0 };
+            })()
+          : premiumPay(type, g.row.amount, { overtimeMinutes: m("overtime"), nightMinutes: m("night"), holidayMinutes: m("holiday") }, leave);
         for (const k of Object.keys(premiums) as (keyof typeof premiums)[]) premiums[k] += pay[k] ?? 0;
         partMinutes.push(inPart.reduce((s, d) => s + d.worked, 0));
       }
@@ -165,7 +175,7 @@ export async function importAttendance(year: number, month: number, _prev: Impor
     const draft: SalaryValues = {
       employmentType: type,
       attendance: attendanceValues,
-      payment: { ...(prev?.payment ?? {}), ...premiums },
+      payment: { ...(prev?.payment ?? {}), ...premiums, fixedOvertimePay: 0 },
       deduction: { ...(prev?.deduction ?? {}) },
     };
     // 給与マスタから基本給・手当・控除を計算する（下書きが既にあれば手当と住民税などはそのまま、社会保険・所得税だけ割増込みで計算し直す）
@@ -174,7 +184,12 @@ export async function importAttendance(year: number, month: number, _prev: Impor
     const hourlyForCalc = totalHours ? ((attendanceValues.hourlyWage ?? 0) * (attendanceValues.workHours ?? 0) + (attendanceValues.hourlyWage2 ?? 0) * (attendanceValues.workHours2 ?? 0)) / totalHours : (master.hourlyWage ?? 0);
     const calc = calculatePayroll({ ...master, hourlyWage: hourlyForCalc }, { workDays: sum.workDays, absenceDays: attendanceValues.absenceDays ?? 0, workHours: totalHours, hourlyWage: hourlyForCalc }, premiumTotal(draft));
     // 基本給・日給・業務委託額は、取り込むたびに給与設定（履歴）から入れ直す
-    if (type === "monthly") draft.payment.baseSalary = calc.base;
+    // 固定残業手当は基本給の中から分けて出す（支給の合計は変わらない。社会保険・所得税は基本給の全額で計算済み）
+    if (type === "monthly") {
+      const fixed = fixedOT ? Math.min(fixedPay || FIXED_OVERTIME_YEN, calc.base) : 0;
+      draft.payment.baseSalary = calc.base - fixed;
+      draft.payment.fixedOvertimePay = fixed;
+    }
     if (type === "daily") draft.payment.dailyWage = master.dailyWage ?? 0;
     if (type === "contract") draft.payment.contractAmount = calc.base;
     if (!prev) {
