@@ -8,7 +8,7 @@ import { saveDefaultTime, submitPartTimeRequests, submitRequests } from "./actio
 import { RequestForm } from "./request-form";
 import { PartTimeForm } from "./parttime-form";
 import { DefaultTime } from "./default-time";
-import { MyShiftTabs } from "../my-tabs";
+import { redirect } from "next/navigation";
 
 export const metadata = { title: "シフト希望" };
 
@@ -21,6 +21,8 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
   const admin = createAdminClient();
   const { data: self } = await admin.from("staff").select("role, store_id, shift_default_start, shift_default_end").eq("id", me.id).single();
   const type = periodTypeFor(self?.role);
+  // シフト希望を出さない雇用区分（役員・業務委託・管理部）はメニューにも出さず、開いてもスケジュールへ
+  if (!type) redirect("/shifts/mine");
   const today = businessDayJST();
 
   const periods = type === "month" ? openMonths(today) : type === "week" ? partTimeWeeks(today) : [];
@@ -40,8 +42,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight text-slate-900">シフト</h1>
-      <MyShiftTabs active="request" />
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900">シフト希望</h1>
 
       <section className="space-y-3">
         <div>

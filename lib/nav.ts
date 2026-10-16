@@ -5,7 +5,8 @@ import type { AppIcon } from "@/lib/apps";
 //   module … モジュール（権限付与で割り当てた人だけに出す。audience より優先）
 //   minLevel … 組織図の段がこれ以上の人だけに出す（4＝部長・経理主任以上）
 //   duties … この担当のどれかを持つ管理者だけに出す
-export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin"; module?: string; minLevel?: number; duties?: string[] };
+//   shiftRequest … シフト希望を出す雇用区分（アルバイト・正社員・契約社員）だけに出す
+export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin"; module?: string; minLevel?: number; duties?: string[]; shiftRequest?: boolean };
 export type NavSection = { title: string; items: NavItem[] };
 
 export const NAV: NavSection[] = [
@@ -13,7 +14,8 @@ export const NAV: NavSection[] = [
     title: "わたし",
     items: [
       { href: "/", label: "ホーム", icon: "home", audience: "all" },
-      { href: "/shifts/mine", label: "シフト", icon: "clock", audience: "all" },
+      { href: "/shifts/request", label: "シフト希望", icon: "clock", audience: "all", shiftRequest: true },
+      { href: "/shifts/mine", label: "スケジュール", icon: "clock", audience: "all" },
       { href: "/me", label: "給与明細", icon: "payslip", audience: "all" },
       { href: "/me/documents", label: "書類", icon: "book", audience: "all" },
       { href: "/reports", label: "報告窓口", icon: "history", audience: "all" },
@@ -55,9 +57,11 @@ export const NAV: NavSection[] = [
 ];
 
 /** その人に見せるメニュー。空になった区分は出さない */
-export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Set<string>; level: number; duties: string[] }): NavSection[] {
+export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Set<string>; level: number; duties: string[]; canRequestShift: boolean }): NavSection[] {
   const ok = (i: NavItem) =>
-    i.duties
+    i.shiftRequest
+      ? opts.canRequestShift
+      : i.duties
       ? opts.isAdmin && i.duties.some((d) => opts.duties.includes(d))
       : i.minLevel
         ? opts.level >= i.minLevel
@@ -69,8 +73,8 @@ export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Se
 
 /** いま開いているページに当たるメニュー（いちばん長く一致するもの） */
 export function activeHref(pathname: string, sections: NavSection[]) {
-  // シフト希望・急募は、メニューの「シフト」（確定スケジュールとタブで切り替え）の中
-  if (pathname.startsWith("/shifts/request") || pathname.startsWith("/shifts/urgent")) pathname = "/shifts/mine";
+  // 急募への応募は、メニューの「シフト希望」の中
+  if (pathname.startsWith("/shifts/urgent")) pathname = "/shifts/request";
   const hrefs = sections.flatMap((s) => s.items.map((i) => i.href));
   return hrefs.filter((h) => (h === "/" ? pathname === "/" : pathname === h || pathname.startsWith(`${h}/`))).sort((a, b) => b.length - a.length)[0] ?? null;
 }

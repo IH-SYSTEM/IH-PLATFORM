@@ -6,6 +6,7 @@ import { attendanceScope } from "@/lib/attendance";
 import { navFor } from "@/lib/nav";
 import { myModules } from "@/lib/modules";
 import { loadOrg } from "@/lib/org";
+import { periodTypeFor } from "@/lib/shift-period";
 import { permissionLabel } from "@/lib/staff";
 import { logout } from "@/app/login/actions";
 import { MobileTabBar } from "@/app/mobile-tab-bar";
@@ -16,7 +17,8 @@ const isManagerOf = cache(async (me: CurrentStaff) => (await attendanceScope(me)
 
 export async function sectionsFor(me: CurrentStaff) {
   const [isManager, modules, org] = await Promise.all([isManagerOf(me), myModules(me), loadOrg()]);
-  return navFor({ isAdmin: me.isAdmin, isManager, modules, level: org.levelOf(me.id), duties: me.duties });
+  // シフト希望は、出す雇用区分（アルバイト・正社員・契約社員）だけにメニューを出す
+  return navFor({ isAdmin: me.isAdmin, isManager, modules, level: org.levelOf(me.id), duties: me.duties, canRequestShift: periodTypeFor(me.role) !== null });
 }
 
 /**
