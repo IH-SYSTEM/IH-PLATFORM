@@ -44,7 +44,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/sale
   const checkedDays = mismatches.length;
   const diffs = mismatches.filter((m) => m.base !== m.other);
   const rows = (days ?? []) as Day[];
-  // 人件費（見込み）：勤怠×その日の時給、月給は暦日で割って所属店へ。今日までの分だけ
+  // 人件費（見込み）：アルバイトは勤怠×その日の時給（深夜・残業込み）、正社員は月給÷その月の出勤日数（シフト）の日当をシフトの日に。今日までの分だけ
   const lastDay = new Date(Date.parse(`${to}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
   const labor = from <= today ? await laborByStoreDay(from, lastDay < today ? lastDay : today) : new Map();
   const rate = (cost: number, sales: number) => (sales > 0 ? `${Math.round((cost / sales) * 1000) / 10}%` : "—");
