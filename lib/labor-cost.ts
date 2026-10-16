@@ -14,7 +14,8 @@ export type LaborDay = { cost: number; workMinutes: number; hasAttendance: boole
 
 /**
  * 店舗別・日別の人件費（見込み）。キーは `${店舗ID}:${日付}`。
- * アルバイト（時給・日給）は勤怠（打刻した店）×その日の金額。正社員（月給）は月給＋固定の手当＋会社負担の法定福利費を、
+ * アルバイト（時給・日給）は勤怠（打刻した店）×その日の金額（深夜・残業の割増を含む）。正社員（月給）は月給＋固定の手当＋会社負担の法定福利費を、
+ * その月の出勤日数（確定したシフト）で割った日当にして、シフトの日にシフトの店へ足す。シフトがまだない月は、
  * 所属店のその月の営業日（売上がある日）の数で割り、営業日ごとに配る。業務委託は委託額を同じように配る。役員は含めない。
  * hasAttendance＝その店のその日に勤怠の記録がある（ない日は人件費率を出さない）
  */
@@ -31,6 +32,10 @@ export async function laborByStoreDay(from: string, to: string): Promise<Map<str
     admin.from("staff_wage_history").select("staff_id, valid_from, valid_to, employment_type, amount").lte("valid_from", to).or(`valid_to.is.null,valid_to.gte.${from}`),
     admin.from("pos_daily").select("store_id, business_date").gte("business_date", monthFrom).lte("business_date", monthTo).limit(20000),
   ]);
+  // 正社員の日当を出すため、その月まるごとのシフト（出勤日数）も読む
+  const { data: monthShifts } = await admin.from("shift_schedule").select("staff_id, store_id, work_date, shift_type").gte("work_date", monthFrom).lte("work_date", monthTo).limit(20000);
+  const attended = new Set((attendance ?? []).map((a) => `${a.staff_id}:${a.date}`));
+  const attendedOn = (staffId: string, date: string) => attended.has(`${staffId}:${date}`);
   // 営業日＝売上がある日。店・月ごとの営業日と、その月の営業日数（途中の月は見込み）
   const openDays = new Set((salesDays ?? []).map((d) => `${d.store_id}:${d.business_date}`));
   const today = new Date(Date.now() + 9 * 3_600_000).toISOString().slice(0, 10);
@@ -94,11 +99,26 @@ export async function laborByStoreDay(from: string, to: string): Promise<Map<str
       }
     }
 
-    // 正社員・業務委託の月額を、所属店の営業日に配る（在籍中・所属店がある人だけ）
-    if (p.retired || !p.store_id) continue;
+    // 正社員（月給）：その月のシフトが確定していれば「月額 ÷ その月の出勤日数（シフト）」を日当にして、シフトの日に、シフトの店へ足す
+    //   （2026-10-16 黒田さん：正社員は月のシフトが確定しているので、出勤日数で割った日当をその日の人件費に）
+    // シフトがまだない月は、今までどおり所属店の営業日（売上がある日）に配る。業務委託も今までどおり
+    if (p.retired) continue;
+    const workShiftsOf = (ym: string) => (monthShifts ?? []).filter((s) => s.staff_id === p.id && s.shift_type === "work" && s.work_date.startsWith(ym));
     for (let d = from; d <= to; d = addDays(d, 1)) {
       const w = wage(d);
       if (!w || (w.type !== "monthly" && w.type !== "contract")) continue;
+      if (w.type === "monthly") {
+        const planned = workShiftsOf(d.slice(0, 7));
+        if (planned.length) {
+          const today_ = planned.find((s) => s.work_date === d);
+          if (!today_) continue; // シフトのない日（休み）には足さない
+          const gross = w.amount + allowances;
+          const monthly = gross + employerWelfare(gross, { ...(master as Master), employmentType: "monthly", baseSalary: w.amount });
+          add(today_.store_id, d, monthly / planned.length, 0, attendedOn(p.id, d));
+          continue;
+        }
+      }
+      if (!p.store_id) continue;
       const hasSales = (salesDays ?? []).some((x) => x.store_id === p.store_id && x.business_date.startsWith(d.slice(0, 7)));
       if (hasSales && !openDays.has(`${p.store_id}:${d}`)) continue; // 休業日には配らない
       const gross = w.amount + (w.type === "monthly" ? allowances : 0);

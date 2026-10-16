@@ -59,5 +59,5 @@ export async function sparringContext(): Promise<string> {
   const caveat = demo ? "\n※勤怠に試験用の偽データ（デモ）が入っているため、今の人件費率は実態ではありません。人件費率をもとにした判断はしないでください。" : "";
 
   const [vault, data] = await Promise.all([vaultContext(), dataCatalogContext()]);
-  return `## コンセプト帳（黒田さんが確定した柱。崩さないこと）\n${book}\n\n## 今の数字（IH-PLATFORM、${today} 時点）\n${lines.join("\n") || "（データなし）"}${caveat}\n人件費＝アルバイトは勤怠×時給の実数、正社員は（月給＋固定手当＋会社負担の法定福利費）÷営業日。会社負担の法定福利費を含む。\n\n${vault}\n\n${data}`;
+  return `## コンセプト帳（黒田さんが確定した柱。崩さないこと）\n${book}\n\n## 今の数字（IH-PLATFORM、${today} 時点）\n${lines.join("\n") || "（データなし）"}${caveat}\n人件費＝アルバイトは打刻×時給の実数（深夜・残業込み）、正社員は（月給＋固定手当＋会社負担の法定福利費）÷その月の出勤日数（シフト）の日当をシフトの日に。会社負担の法定福利費を含む。\n\n${vault}\n\n${data}`;
 }
