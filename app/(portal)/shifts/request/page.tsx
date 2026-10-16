@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { businessDayJST } from "@/lib/business-day";
-import { openMonths, partTimeWeeks, periodTypeFor } from "@/lib/shift-period";
+import { openMonths, partTimeWeeks, periodTypeFor, weekOfMonthLabel } from "@/lib/shift-period";
 import { hm } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { saveDefaultTime, submitPartTimeRequests, submitRequests } from "./actions";
@@ -50,30 +50,65 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
             {type === "month"
               ? "社員は1か月ごとに、前月15日までに提出します"
               : type === "week"
-                ? "入れる日を選んで、時間を入れてください。4週先まで、その週が始まる前日まで出し直せます。シフトは前の週の水曜までに店長が確定します"
+                ? "週を選んで、入れる日と時間を入れてください（4週先まで）"
                 : "あなたの雇用区分はシフト希望の対象外です"}
           </p>
         </div>
+        {period && type === "week" && (
+          // 週の一覧：第◯週・日付・提出期限（日曜）・確定日（水曜）。押すとその週の入力に切り替わる
+          <ul className="space-y-2">
+            {periods.map((x) => {
+              const active = x.start === period.start;
+              const late = today > x.submit;
+              return (
+                <li key={x.start}>
+                  <Link href={`/shifts/request?p=${x.start}`} className={`block rounded-lg border px-4 py-3 ${active ? "border-brand bg-brand-soft" : "border-slate-200 bg-white"}`}>
+                    <p className="flex flex-wrap items-baseline gap-x-3">
+                      <span className={`font-bold ${active ? "text-brand" : "text-slate-900"}`}>{weekOfMonthLabel(x.start)}</span>
+                      <span className="tabular-nums text-slate-700">{x.label}</span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-600">
+                      シフト希望提出期限：
+                      <span className={`font-bold tabular-nums ${late ? "text-slate-400 line-through" : "text-accent"}`}>
+                        {md(x.submit)}（{dow(x.submit)}曜日）
+                      </span>
+                      <span className="ml-3">
+                        シフト確定日：<span className="font-bold tabular-nums">{md(x.decide)}（{dow(x.decide)}曜日）</span>
+                      </span>
+                    </p>
+                    {late && <p className="mt-0.5 text-xs text-amber-700">提出期限を過ぎています。今から出すと、店長の確認待ちになります</p>}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
         {period && (
           <>
-            <div className="flex flex-wrap gap-2">
-              {periods.map((x) => (
-                <Link
-                  key={x.start}
-                  href={`/shifts/request?p=${x.start}`}
-                  className={`rounded-full px-3.5 py-1.5 text-sm font-bold ${x.start === period.start ? "bg-brand text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}
-                >
-                  {x.label}
-                </Link>
-              ))}
-            </div>
+            {type === "month" && (
+              <div className="flex flex-wrap gap-2">
+                {periods.map((x) => (
+                  <Link
+                    key={x.start}
+                    href={`/shifts/request?p=${x.start}`}
+                    className={`rounded-full px-3.5 py-1.5 text-sm font-bold ${x.start === period.start ? "bg-brand text-white" : "bg-white text-slate-600 ring-1 ring-slate-200"}`}
+                  >
+                    {x.label}
+                  </Link>
+                ))}
+              </div>
+            )}
             <p className="text-sm text-slate-600">
-              {type === "week" ? "希望を出せるのは" : "提出期限："}
-              <span className="font-bold text-accent">
-                {md(period.submit)}（{dow(period.submit)}）{type === "week" && "まで"}
-              </span>
-              {type === "week" && <span className="ml-2 text-xs text-slate-500">シフトの確定：{md(period.decide)}（{dow(period.decide)}）24時まで</span>}
-              {submitted ? <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">提出済み（期限まで変更できます）</span> : <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-bold text-accent">未提出</span>}
+              {type === "week" ? (
+                <span className="font-bold text-slate-800">
+                  {weekOfMonthLabel(period.start)}（{period.label}）の希望
+                </span>
+              ) : (
+                <>
+                  提出期限：<span className="font-bold text-accent">{md(period.submit)}（{dow(period.submit)}）</span>
+                </>
+              )}
+              {submitted ? <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">提出済み（変更できます）</span> : <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-xs font-bold text-accent">未提出</span>}
             </p>
             {type === "week" ? (
               <>

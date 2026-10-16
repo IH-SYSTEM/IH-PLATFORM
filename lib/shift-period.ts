@@ -66,14 +66,20 @@ export function monthPeriod(yearMonth: string): Period {
   return { type: "month", start: `${yearMonth}-01`, days: monthDays(yearMonth), ...monthDeadlines(yearMonth), label: `${Number(yearMonth.slice(5, 7))}月` };
 }
 
-/** アルバイトが希望を出せる週：まだ始まっていない週から4週ぶん（2026-10-08 黒田さん決定） */
+/**
+ * アルバイトが希望を出せる週：まだ始まっていない週から4週ぶん（2026-10-08 黒田さん決定）。
+ * 表示する締切は「提出期限＝前々週の日曜」「確定日＝前週の水曜」（2026-10-16 黒田さん：表記を分かりやすく）。
+ * 提出期限を過ぎても、その週が始まる前日までは出せる（店長の画面に「待機」として残る）
+ */
 export function partTimeWeeks(today: string, count = 4): Period[] {
   let monday = mondayOf(today);
   if (at(monday) <= at(today)) monday = addDays(monday, 7);
-  return Array.from({ length: count }, (_, i) => {
-    const p = weekPeriod(addDays(monday, i * 7));
-    return { ...p, submit: addDays(p.start, -1) }; // 提出はその週が始まる前日（日曜）まで
-  });
+  return Array.from({ length: count }, (_, i) => weekPeriod(addDays(monday, i * 7)));
+}
+
+/** 「10月第3週」：その週の月曜が、月の何回目の月曜か */
+export function weekOfMonthLabel(monday: string) {
+  return `${Number(monday.slice(5, 7))}月第${Math.ceil(Number(monday.slice(8, 10)) / 7)}週`;
 }
 
 // 急募の理由。乱用を防ぐため必須
