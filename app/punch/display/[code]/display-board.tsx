@@ -60,30 +60,48 @@ export function DisplayBoard({ code, displayKey }: { code: string; displayKey: s
     };
   }, [load]);
 
-  // iPad の現在地を追い続ける。位置が初めて取れた時点ですぐQRを取りに行く
+  // iPad の現在地を追い続ける。位置が初めて取れた時点ですぐQRを取りに行く。
+  // iPad（特にホーム画面のアイコンから開いたとき）は、画面を押さないと「位置情報を許可しますか？」が出ず、返事もないまま止まることがある。
+  // そのため、数秒たっても位置が取れなければ「位置情報を許可する」ボタンを出し、押したときに改めて位置を聞く（2026-10-16）
+  const [waiting, setWaiting] = useState(false);
+  const onPos = useCallback(
+    (p: GeolocationPosition) => {
+      const first = !position.current;
+      position.current = p.coords;
+      setGeoError(null);
+      setWaiting(false);
+      if (first) load();
+    },
+    [load],
+  );
+  const onErr = useCallback((e: GeolocationPositionError) => {
+    setGeoError(
+      e.code === e.PERMISSION_DENIED
+        ? "位置情報の利用が許可されていないため、QRを表示できません。iPad の「設定 → プライバシーとセキュリティ → 位置情報サービス」をオンにし、「Safari Web サイト」を「使用中のみ許可」（または「次回確認」）にしてから、下のボタンを押してください"
+        : e.code === e.TIMEOUT
+          ? "位置情報の取得に時間がかかっています。Wi-Fi に接続されているか確認して、下のボタンを押してください"
+          : "位置情報を取得できませんでした。Wi-Fi に接続されているか確認して、下のボタンを押してください",
+    );
+  }, []);
+  // 画面を押したときに聞き直す（iPad で許可のメッセージを出すため）
+  const askLocation = () => {
+    setGeoError(null);
+    setWaiting(false);
+    navigator.geolocation?.getCurrentPosition(onPos, onErr, { enableHighAccuracy: false, maximumAge: 60_000, timeout: 15_000 });
+  };
   useEffect(() => {
     if (!navigator.geolocation) {
       const t = setTimeout(() => setGeoError("この端末では位置情報を使えないため、QRを表示できません"), 0);
       return () => clearTimeout(t);
     }
-    const id = navigator.geolocation.watchPosition(
-      (p) => {
-        const first = !position.current;
-        position.current = p.coords;
-        setGeoError(null);
-        if (first) load();
-      },
-      (e) => {
-        setGeoError(
-          e.code === e.PERMISSION_DENIED
-            ? "位置情報の利用が許可されていないため、QRを表示できません。iPad の「設定 → プライバシーとセキュリティ → 位置情報サービス」で、Safari（またはこのアプリ）の位置情報を「使用中のみ許可」にしてから、ページを開き直してください"
-            : "位置情報を取得できませんでした。Wi-Fi に接続されているか確認してください",
-        );
-      },
-      { enableHighAccuracy: true, maximumAge: 30_000, timeout: 20_000 },
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, [load]);
+    // Wi-Fi の iPad は GPS がないので、高精度を求めない（求めると返事が遅い・来ないことがある）
+    const id = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: false, maximumAge: 30_000, timeout: 20_000 });
+    const t = setTimeout(() => !position.current && setWaiting(true), 4000);
+    return () => {
+      navigator.geolocation.clearWatch(id);
+      clearTimeout(t);
+    };
+  }, [onPos, onErr]);
 
   // QRが表示されない・古いままに見えるときに押す。掲示中のQRを失効させて新しいQRを出す
   const refresh = async () => {
@@ -125,8 +143,18 @@ export function DisplayBoard({ code, displayKey }: { code: string; displayKey: s
       </header>
 
       <section className="flex flex-1 flex-col items-center justify-center gap-6 px-8 py-8">
-        {geoError || error ? (
-          <p className="max-w-lg rounded-md bg-white/10 p-6 text-center text-lg font-bold">{geoError ?? error}</p>
+        {geoError || (waiting && !board && !error) ? (
+          <div className="max-w-lg space-y-4 text-center">
+            <p className="rounded-md bg-white/10 p-6 text-lg font-bold">{geoError ?? "お店の中にあるかを確かめるため、この iPad の位置情報を使います。下のボタンを押して「許可」を選んでください"}</p>
+            <button type="button" onClick={askLocation} className="rounded-full bg-white px-10 py-4 text-xl font-bold text-brand active:scale-95">
+              位置情報を許可する
+            </button>
+            <p className="text-sm text-white/60">
+              許可のメッセージが出ないとき：ホーム画面のアイコンではなく Safari でこのページを開いてボタンを押す／「設定 → Safari → 位置情報」を「確認」にする
+            </p>
+          </div>
+        ) : error ? (
+          <p className="max-w-lg rounded-md bg-white/10 p-6 text-center text-lg font-bold">{error}</p>
         ) : board ? (
           <>
             <div
