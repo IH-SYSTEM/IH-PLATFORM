@@ -151,7 +151,56 @@ export default async function ExpensesPage({ searchParams }: PageProps<"/admin/e
           ))}
         </ul>
       </section>
-      <p className="text-xs text-slate-400">マネーフォワード用の CSV の書き出しは、マネーフォワードの見本の CSV に形を合わせてから足します</p>
+      <MfExportPanel month={month} />
     </div>
+  );
+}
+
+/** マネーフォワード用の CSV（会社ごと）。勘定科目が決まっていて、まだ書き出していない経費だけを出す */
+async function MfExportPanel({ month }: { month: string }) {
+  const admin = createAdminClient();
+  const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).toISOString().slice(0, 10);
+  const [{ data: companies }, { data: rows }] = await Promise.all([
+    admin.from("companies").select("id, name").eq("is_active", true).order("sort_order"),
+    admin.from("expenses").select("company_id, account_title, exported_at, amount").gte("expense_date", `${month}-01`).lte("expense_date", last),
+  ]);
+  return (
+    <section className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="font-bold text-slate-800">マネーフォワードに取り込む CSV（{Number(month.slice(5))}月）</h2>
+      <p className="mt-1 text-xs text-slate-500">
+        会社ごとに、マネーフォワードの「仕訳帳」に取り込める形（見本と同じ列・Shift_JIS）で出します。まず「確かめる用」で中身を見て、よければ「書き出して済みにする」を押してください（次からは出ないので、二重に取り込みません）
+      </p>
+      <ul className="mt-3 divide-y divide-slate-100 text-sm">
+        {(companies ?? []).map((c) => {
+          const mine = (rows ?? []).filter((r) => r.company_id === c.id);
+          const ready = mine.filter((r) => r.account_title && !r.exported_at);
+          const missing = mine.filter((r) => !r.account_title && !r.exported_at).length;
+          const done = mine.filter((r) => r.exported_at).length;
+          const href = `/admin/expenses/export?m=${month}&company=${c.id}`;
+          return (
+            <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span>
+                <span className="font-bold text-slate-800">{c.name.replace("株式会社", "")}</span>
+                <span className="ml-2 text-xs text-slate-500">
+                  書き出せる {ready.length}件（{yen(ready.reduce((a, r) => a + r.amount, 0))}）
+                  {missing > 0 && <span className="ml-1 text-amber-700">・勘定科目が未設定 {missing}件（出ません）</span>}
+                  {done > 0 && <span className="ml-1 text-emerald-700">・書き出し済み {done}件</span>}
+                </span>
+              </span>
+              {ready.length > 0 && (
+                <span className="flex gap-2">
+                  <a href={href} className="rounded-md px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300">
+                    確かめる用
+                  </a>
+                  <a href={`${href}&mark=1`} className="rounded-md bg-brand px-3 py-1.5 text-xs font-bold text-white">
+                    書き出して済みにする
+                  </a>
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
