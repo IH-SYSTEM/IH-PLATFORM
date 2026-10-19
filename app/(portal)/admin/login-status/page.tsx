@@ -85,7 +85,7 @@ async function loadLoginStatus() {
   const supabase = await createClient();
   const [{ data: statuses, error }, { data: staff }] = await Promise.all([
     supabase.rpc("staff_login_status"),
-    supabase.from("staff").select("id, name, furigana, retired, stores(name)"),
+    supabase.from("staff").select("id, name, furigana, retired, stores!store_id(name)"),
   ]);
   if (error) throw new Error(error.message);
 

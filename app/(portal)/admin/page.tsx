@@ -16,7 +16,7 @@ const shift = (p: Period, delta: number): Period => {
 async function loadDashboard() {
   const supabase = await createClient();
   const [{ data: staff }, { data: salary }, { data: login }] = await Promise.all([
-    supabase.from("staff").select("id, retired, payroll_master, stores(name)"),
+    supabase.from("staff").select("id, retired, payroll_master, stores!store_id(name)"),
     supabase.from("salary_records").select("staff_id, year, month, status, total_payment"),
     supabase.rpc("staff_login_status"),
   ]);
