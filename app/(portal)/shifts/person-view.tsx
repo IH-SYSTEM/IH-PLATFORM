@@ -22,7 +22,7 @@ type Store = { id: string; name: string; open_time: string | null; close_time: s
 type Person = { id: string; name: string; furigana: string | null; role: string | null };
 
 /** シフト確定の「人ごと」：1人を選んで、その月をカレンダーで見て直す */
-export async function PersonView({ store, sp, today }: { store: Store; sp: Record<string, string | string[] | undefined>; today: string }) {
+export async function PersonView({ store, sp, today, canAddAny = false }: { store: Store; sp: Record<string, string | string[] | undefined>; today: string; canAddAny?: boolean }) {
   const admin = createAdminClient();
   const month = typeof sp.month === "string" && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : today.slice(0, 7);
   const first = `${month}-01`;
@@ -154,6 +154,7 @@ export async function PersonView({ store, sp, today }: { store: Store; sp: Recor
         weeks={weeks}
         roles={store.work_roles ?? []}
         defaults={{ start: store.open_time ?? "19:00", end: store.close_time ?? "00:00" }}
+        canAddAny={canAddAny}
       />
     </>
   );

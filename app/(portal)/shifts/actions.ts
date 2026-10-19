@@ -5,6 +5,7 @@ import { requireStaff } from "@/lib/auth";
 import { attendanceScope, inScope } from "@/lib/attendance";
 import { businessDayJST } from "@/lib/business-day";
 import { isShiftType } from "@/lib/shifts";
+import { pushLine } from "@/lib/line-push";
 import { periodTypeFor } from "@/lib/shift-period";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -41,13 +42,17 @@ export async function saveShift(storeId: string, staffId: string, date: string, 
     return { ok: true, at: Date.now() };
   }
   if (!isShiftType(type)) return fail("種類を選んでください");
-  // アルバイトは、希望（または急募への応募）が出ている日だけシフトに入れられる
-  const [{ data: person }, { data: request }] = await Promise.all([
-    admin.from("staff").select("role").eq("id", staffId).single(),
+  // アルバイトは、希望（または急募への応募）が出ている日だけシフトに入れられる。
+  // ただし、その店のシフト管理者は、今日以降ならいつでも、希望がなくても入れられる（2026-10-19 黒田さん）。そのときは本人に LINE で知らせる
+  const [{ data: person }, { data: request }, { data: storeSm }] = await Promise.all([
+    admin.from("staff").select("role, name, line_user_id").eq("id", staffId).single(),
     admin.from("shift_requests").select("availability").eq("staff_id", staffId).eq("work_date", date).maybeSingle(),
+    admin.from("stores").select("name, shift_manager_staff_id").eq("id", storeId).single(),
   ]);
-  if (periodTypeFor(person?.role) === "week" && type === "work" && (!request || request.availability === "off")) {
-    return fail("この日は希望が出ていないため、シフトに入れられません。人が足りないときは急募で募ってください");
+  const isShiftManager = storeSm?.shift_manager_staff_id === me.id;
+  const noRequest = periodTypeFor(person?.role) === "week" && type === "work" && (!request || request.availability === "off");
+  if (noRequest && !isShiftManager) {
+    return fail("この日は希望が出ていないため、シフトに入れられません。人が足りないときは急募で募るか、シフト管理者に入れてもらってください");
   }
   const start = String(fd.get("start") ?? "");
   const end = String(fd.get("end") ?? "");
@@ -80,6 +85,14 @@ export async function saveShift(storeId: string, staffId: string, date: string, 
   if (error) {
     console.error("saveShift failed", error);
     return fail("保存できませんでした");
+  }
+  // 希望のない日にシフト管理者が入れたときは、本人に知らせる（知らないうちにシフトが入っていた、を防ぐ）
+  if (noRequest) {
+    await pushLine(
+      [person?.line_user_id],
+      `【シフトが入りました】${storeSm?.name ?? ""} ${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}（${"日月火水木金土"[new Date(`${date}T12:00:00Z`).getUTCDay()]}）${start}〜${end}${workRole ? `・${workRole}` : ""}\nシフト管理者の${me.name}さんが入れました。都合が悪いときは、${me.name}さんに伝えてください`,
+      "other",
+    );
   }
   revalidatePath("/shifts");
   return { ok: true, at: Date.now() };
