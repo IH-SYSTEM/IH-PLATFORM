@@ -38,8 +38,11 @@ export function overtimeAt(shift: { end: number } | null, now: number): number |
   return over >= OVERTIME_MINUTES ? over : null;
 }
 
-/** その店で承認する人（店長）：店舗マスタの店長・その店の立場「店長」・組織図のその店の責任者。いなければ総務の担当と代表 */
-export async function approversOf(storeId: string): Promise<{ id: string; line_user_id: string | null }[]> {
+/**
+ * その店で承認する人（店長）：店舗マスタの店長・その店の立場「店長」・組織図のその店の責任者。いなければ総務の担当と代表。
+ * exceptStaffId（申請した本人）は外す。1人だけの部署で本人しか残らないときも、総務の担当と代表に回す（自分の分は承認できないため。2026-10-19）
+ */
+export async function approversOf(storeId: string, exceptStaffId?: string): Promise<{ id: string; line_user_id: string | null }[]> {
   const admin = createAdminClient();
   const [{ data: store }, { data: unit }, { data: storeStaff }] = await Promise.all([
     admin.from("stores").select("manager_staff_ids").eq("id", storeId).single(),
@@ -47,17 +50,19 @@ export async function approversOf(storeId: string): Promise<{ id: string; line_u
     admin.from("staff").select("id").eq("store_id", storeId).eq("permission", "store").eq("retired", false),
   ]);
   let ids = new Set([...(store?.manager_staff_ids ?? []), ...(unit?.head_staff_ids ?? []), ...(storeStaff ?? []).map((s) => s.id)]);
+  if (exceptStaffId) ids.delete(exceptStaffId);
   if (!ids.size) {
     const { data: soumu } = await admin.from("staff_duties").select("staff_id").eq("duty", "soumu");
     ids = new Set([...(soumu ?? []).map((s) => s.staff_id), ...(process.env.CEO_STAFF_ID ? [process.env.CEO_STAFF_ID] : [])]);
+    if (exceptStaffId) ids.delete(exceptStaffId);
   }
   const { data } = await admin.from("staff").select("id, line_user_id").in("id", [...ids]).eq("retired", false);
   return data ?? [];
 }
 
 /** 店長に LINE で「承認しますか？」を送る（押すと承認の画面が開く） */
-export async function notifyReview(opts: { attendanceId: string; kind: "noshift" | "overtime"; storeId: string; staffName: string; detail: string; origin: string }) {
-  const to = await approversOf(opts.storeId);
+export async function notifyReview(opts: { attendanceId: string; kind: "noshift" | "overtime"; storeId: string; staffId: string; staffName: string; detail: string; origin: string }) {
+  const to = await approversOf(opts.storeId, opts.staffId);
   const url = `${opts.origin}/attendance/review/${opts.attendanceId}?k=${opts.kind}`;
   const text =
     opts.kind === "noshift"

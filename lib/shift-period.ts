@@ -8,7 +8,7 @@
 const DAY_MS = 86_400_000;
 const at = (ymd: string) => Date.parse(`${ymd}T12:00:00Z`);
 const ymdOf = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-const addDays = (ymd: string, n: number) => ymdOf(at(ymd) + n * DAY_MS);
+export const addDays = (ymd: string, n: number) => ymdOf(at(ymd) + n * DAY_MS);
 
 /** シフト希望を月単位で出す雇用区分（正社員・契約社員）。役員・業務委託はシフト希望の対象外 */
 export const MONTHLY_ROLES = ["fulltime", "contract"] as const;

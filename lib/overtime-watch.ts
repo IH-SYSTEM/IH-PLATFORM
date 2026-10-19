@@ -62,7 +62,7 @@ export async function watchOvertime({ dry = false } = {}) {
     if (!levels.length) continue;
     out.push({ name: p.name, month: Math.round(month / 6) / 10, year: Math.round(year / 6) / 10, alerts: levels.map((l) => l.text) });
     if (dry) continue;
-    const managers = p.store_id ? await approversOf(p.store_id) : [];
+    const managers = p.store_id ? await approversOf(p.store_id, p.id) : [];
     const to = [...new Set([...managers, ...(hq ?? [])].map((x) => x.line_user_id))];
     await pushLine(
       to,

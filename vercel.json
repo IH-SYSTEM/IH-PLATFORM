@@ -1,7 +1,19 @@
 {
-  "regions": ["syd1"],
+  "regions": [
+    "syd1"
+  ],
   "crons": [
-    { "path": "/api/cron/pos-sync", "schedule": "0 21 * * *" },
-    { "path": "/api/cron/labor-report", "schedule": "0 23 * * *" }
+    {
+      "path": "/api/cron/pos-sync",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/labor-report",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/shift-notices",
+      "schedule": "0 3 * * *"
+    }
   ]
 }

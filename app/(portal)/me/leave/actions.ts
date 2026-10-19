@@ -62,7 +62,7 @@ export async function requestLeave(_prev: LeaveState, form: FormData): Promise<L
   if (error || !row) return fail("申請できませんでした");
   await audit({ actor: me.id, action: "create", targetType: "paid_leave_request", targetId: row.id, detail: { start, end, days, late } });
   const h = await headers();
-  await notifyLeaveRequest({ requestId: row.id, storeId: self.store_id, staffName: me.name, start, end, days, late, origin: `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}` });
+  await notifyLeaveRequest({ requestId: row.id, storeId: self.store_id, staffId: me.id, staffName: me.name, start, end, days, late, origin: `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}` });
   revalidatePath("/me/leave");
   revalidatePath("/");
   return { ok: late ? "申請しました（期限を過ぎているため、店長の判断になります）" : "申請しました。店長が確認すると LINE でお知らせします", at: Date.now() };
