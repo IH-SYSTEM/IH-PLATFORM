@@ -86,6 +86,21 @@ async function todayWork(me: CurrentStaff) {
       });
   }
   if (scope) {
+    let fq = admin
+      .from("reports")
+      .select("id", { count: "exact", head: true })
+      .in("type", ["attendance.fix_self", "attendance.fix_other"])
+      .eq("status", "pending")
+      .neq("subject_staff_id", me.id);
+    if (!scope.all) fq = fq.in("store_id", scope.storeIds);
+    const { count: fixCount } = await fq;
+    if (fixCount)
+      todos.push({
+        label: `打刻の修正依頼が${fixCount}件あります（承認待ち）`,
+        href: "/attendance",
+      });
+  }
+  if (scope) {
     let q = admin
       .from("paid_leave_requests")
       .select("id", { count: "exact", head: true })
