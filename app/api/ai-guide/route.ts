@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   // 権限：本部＝管理者、店長＝店舗マスタの店長または権限「店長」（勤怠を見られる範囲がある人）、それ以外は一般スタッフ
   const level: GuideLevel = me.isAdmin ? "admin" : (await attendanceScope(me)) ? "manager" : "staff";
   if (mode === "guide") {
-    const { data: self } = await createAdminClient().from("staff").select("store_id, stores(name)").eq("id", me.id).single();
+    const { data: self } = await createAdminClient().from("staff").select("store_id, stores!store_id(name)").eq("id", me.id).single();
     const store = (self?.stores as unknown as { name: string } | null)?.name ?? "未設定";
     variable = `## いま質問している人\n名前：${me.name}／雇用区分：${ROLE_LABELS[me.role ?? ""] ?? "未設定"}／所属：${store}`;
   } else {
