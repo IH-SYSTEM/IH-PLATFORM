@@ -50,8 +50,8 @@ export const mdW = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 
 export const rangeText = (s: string, e: string) => (s === e ? mdW(s) : `${mdW(s)}〜${mdW(e)}`);
 
 /** 申請が来たら店長に LINE（押すと承認の画面） */
-export async function notifyLeaveRequest(opts: { requestId: string; storeId: string; staffName: string; start: string; end: string; days: number; late: boolean; origin: string }) {
-  const to = await approversOf(opts.storeId);
+export async function notifyLeaveRequest(opts: { requestId: string; storeId: string; staffId: string; staffName: string; start: string; end: string; days: number; late: boolean; origin: string }) {
+  const to = await approversOf(opts.storeId, opts.staffId);
   await pushLine(
     to.map((p) => p.line_user_id),
     `【有給の申請】${opts.staffName}さん\n${rangeText(opts.start, opts.end)}（${opts.days}日）${opts.late ? "\n※申請の期限を過ぎています" : ""}\n承認しますか？\n${opts.origin}/leave/review/${opts.requestId}`,

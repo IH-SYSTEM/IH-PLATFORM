@@ -3,12 +3,12 @@ import { toJSTDateString } from "@/lib/business-day";
 import { pushLine } from "@/lib/line-push";
 import { agreementYearStart, overtimeLevels } from "@/lib/payroll/fixed-overtime";
 import { workMonth, type DayInput, type OvertimeRule } from "@/lib/payroll/worktime";
-import { approversOf } from "@/lib/punch-rules";
+import { shiftManagersOf } from "@/lib/punch-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * 36協定の見張り（毎朝の cron から）。残業（日8時間・週40時間を超えた分。法定休日の勤務は除く）が
- * 月36時間・45時間、年度300時間・360時間を超えたら、その人の店の店長と、総務の担当・代表に LINE。同じ段階は1回だけ知らせる。
+ * 月36時間・45時間、年度300時間・360時間を超えたら、その人の店のシフト管理者と、総務の担当・代表に LINE。同じ段階は1回だけ知らせる。
  * 承認前の残業も数える（あとで承認されるかもしれないので、早めに知らせる）。却下された分は数えない
  */
 const WATCH_ROLES = ["fulltime", "contract", "parttime", "admin"]; // 雇われている人（役員・業務委託は対象外）
@@ -62,7 +62,7 @@ export async function watchOvertime({ dry = false } = {}) {
     if (!levels.length) continue;
     out.push({ name: p.name, month: Math.round(month / 6) / 10, year: Math.round(year / 6) / 10, alerts: levels.map((l) => l.text) });
     if (dry) continue;
-    const managers = p.store_id ? await approversOf(p.store_id) : [];
+    const managers = p.store_id ? await shiftManagersOf(p.store_id, p.id) : [];
     const to = [...new Set([...managers, ...(hq ?? [])].map((x) => x.line_user_id))];
     await pushLine(
       to,

@@ -14,11 +14,13 @@ export type AttendanceScope = { all: boolean; storeIds: string[] };
 export const attendanceScope = cache(async function attendanceScope(me: CurrentStaff): Promise<AttendanceScope | null> {
   if (me.isAdmin) return { all: true, storeIds: [] };
   const admin = createAdminClient();
-  const [{ data: managed }, { data: self }] = await Promise.all([
+  const [{ data: managed }, { data: shiftManaged }, { data: self }] = await Promise.all([
     admin.from("stores").select("id").contains("manager_staff_ids", [me.id]),
+    // シフト管理者に選ばれた店も、店長と同じように見られる（2026-10-19）
+    admin.from("stores").select("id").eq("shift_manager_staff_id", me.id),
     admin.from("staff").select("store_id").eq("id", me.id).single(),
   ]);
-  const ids = new Set((managed ?? []).map((s) => s.id));
+  const ids = new Set([...(managed ?? []), ...(shiftManaged ?? [])].map((s) => s.id));
   if (me.permission === "store" && self?.store_id) ids.add(self.store_id);
   return ids.size ? { all: false, storeIds: [...ids] } : null;
 });

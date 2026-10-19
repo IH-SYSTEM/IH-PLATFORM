@@ -58,6 +58,13 @@ export async function saveStore(storeId: string | null, _prev: StoreSaveState, f
     if ((same ?? []).some((s) => s.id !== storeId)) throw new InputError("同じ名前の店舗がすでにあります");
 
     const managerIds = fd.getAll("manager_staff_ids").map(String);
+    // シフト管理者（使っている店は必須。2026-10-19）
+    const shiftManager = text("shift_manager_staff_id");
+    if (storeId && fd.get("is_active") === "on" && !shiftManager) throw new InputError("シフト管理者を選んでください");
+    if (shiftManager) {
+      const { data: sm } = await supabase.from("staff").select("id").eq("id", shiftManager).eq("retired", false).maybeSingle();
+      if (!sm) throw new InputError("シフト管理者に選んだスタッフが見つかりません");
+    }
 
     // 店舗コードは打刻QRのURLと打刻の記録に残るので、一度決めたら変えない（未設定のときだけ受け付ける）
     const code = text("code")?.toUpperCase() ?? null;
@@ -89,6 +96,7 @@ export async function saveStore(storeId: string | null, _prev: StoreSaveState, f
       wifi_enabled: fd.get("wifi_enabled") === "on",
       allowed_ips: allowedIps,
       manager_staff_ids: managerIds,
+      ...(storeId ? { shift_manager_staff_id: shiftManager } : {}),
       is_active: fd.get("is_active") === "on",
       updated_by: me.id,
     };

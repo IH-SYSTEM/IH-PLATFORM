@@ -15,7 +15,7 @@ export default async function StoreNewPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-bold text-slate-900">店舗を登録</h1>
       </div>
-      <StoreForm store={null} staff={[]} companies={companies ?? []} action={saveStore.bind(null, null)} createdNotice={false} />
+      <StoreForm store={null} staff={[]} allStaff={[]} companies={companies ?? []} action={saveStore.bind(null, null)} createdNotice={false} />
     </div>
   );
 }

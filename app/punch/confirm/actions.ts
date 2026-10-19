@@ -62,7 +62,7 @@ export async function punch(ticket: string, action: PunchAction, _prev: PunchRes
     if (!shift) {
       const { data: me } = await admin.from("staff").select("name").eq("id", t.staffId).single();
       const { data: store } = await admin.from("stores").select("name").eq("id", used.store_id).single();
-      await notifyReview({ attendanceId: row.id, kind: "noshift", storeId: used.store_id, staffName: me?.name ?? "", detail: `${store?.name ?? ""} ${hhmmJST(now.getTime())} 出勤`, origin: await originOf() });
+      await notifyReview({ attendanceId: row.id, kind: "noshift", storeId: used.store_id, staffId: t.staffId, staffName: me?.name ?? "", detail: `${store?.name ?? ""} ${hhmmJST(now.getTime())} 出勤`, origin: await originOf() });
     }
     return { ok: true, action, at: now.toISOString() };
   }
@@ -111,6 +111,7 @@ export async function punch(ticket: string, action: PunchAction, _prev: PunchRes
       attendanceId: status.attendanceId,
       kind: "overtime",
       storeId: att.store_id,
+      staffId: t.staffId,
       staffName: me?.name ?? "",
       detail: `${overNow}分の残業です（シフト〜${shift!.endText}・退勤 ${hhmmJST(now.getTime())}）\n理由：${category}／${reason.slice(0, 100)}`,
       origin: await originOf(),
