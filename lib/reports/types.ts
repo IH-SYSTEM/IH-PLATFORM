@@ -5,7 +5,7 @@ export type CategoryKey = "attendance" | "request" | "site" | "harassment";
 
 // 報告窓口のカテゴリ。新しい種類の報告は、まずどのカテゴリに入るかを決める
 export const CATEGORIES: Record<CategoryKey, { label: string; description: string }> = {
-  attendance: { label: "勤怠", description: "携帯を忘れた・打刻を押し忘れたときの出勤・退勤" },
+  attendance: { label: "勤怠", description: "打刻の押し忘れ・時刻の間違いを直してもらう（自分の分も、ほかの人の分も）" },
   request: { label: "申請・届け", description: "欠勤・遅刻・早退の届け、証明書の発行依頼" },
   site: { label: "現場からの報告", description: "事故・ヒヤリハット、設備の故障、レジの差異、クレーム、改善の提案" },
   harassment: { label: "相談窓口", description: "ハラスメントなどの相談。本部のごく限られた人だけが読みます" },
@@ -35,6 +35,12 @@ export type ReportType = {
   fields: readonly Field[];
   /** 対象スタッフの入力欄。報告者本人を選べないようにする（証人が本人以外であること） */
   subjectField?: string;
+  /** 対象は報告した本人（自分の打刻の修正依頼など）。subjectField とは一緒に使わない */
+  selfSubject?: boolean;
+  /** 承認するのは、その店のシフト管理者（LINE で承認の画面を送る）。本部の受付でも処理できる（2026-10-19） */
+  shiftManagerReview?: boolean;
+  /** 報告窓口の一覧に出さない（前のやり方の種類。残っている報告を処理するために定義だけ残す） */
+  hidden?: boolean;
   /** 店舗の打刻範囲内でだけ受け付ける（報告者がその場にいたことの担保） */
   onSiteOnly: boolean;
   /** 本部の画面で報告者の名前を出さない（目安箱で「匿名」を選んだときなど。記録には残る） */

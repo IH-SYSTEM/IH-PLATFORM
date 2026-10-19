@@ -18,7 +18,7 @@ export function ReportCatalog() {
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       {ORDER.map((cat) => {
-        const types = REPORT_TYPES.filter((t) => t.category === cat);
+        const types = REPORT_TYPES.filter((t) => t.category === cat && !t.hidden);
         if (!types.length) return null;
         const tone = TONE[cat];
         return (

@@ -197,16 +197,27 @@ async function PendingReviews({ storeIds }: { storeIds: string[] | null }) {
     .order("date")
     .limit(100);
   if (storeIds) q = q.in("store_id", storeIds);
-  const { data } = await q;
-  if (!data?.length) return null;
-  const { data: people } = await admin.from("staff").select("id, name").in("id", [...new Set(data.map((d) => d.staff_id))]);
+  // 打刻の修正依頼（報告窓口から。2026-10-19）
+  let fq = admin.from("reports").select("id, store_id, reporter_id, subject_staff_id, payload").in("type", ["attendance.fix_self", "attendance.fix_other"]).eq("status", "pending").order("created_at").limit(100);
+  if (storeIds) fq = fq.in("store_id", storeIds);
+  const [{ data }, { data: fixes }] = await Promise.all([q, fq]);
+  if (!data?.length && !fixes?.length) return null;
+  const ids = [...new Set([...(data ?? []).map((d) => d.staff_id), ...(fixes ?? []).map((f) => f.subject_staff_id ?? f.reporter_id)])];
+  const { data: people } = await admin.from("staff").select("id, name").in("id", ids);
   const name = new Map((people ?? []).map((p) => [p.id, p.name]));
   const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
   return (
     <section className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm">
-      <h2 className="font-bold text-amber-900">承認待ち（{data.length}件）</h2>
+      <h2 className="font-bold text-amber-900">承認待ち</h2>
       <ul className="mt-2 space-y-1">
-        {data.flatMap((d) => [
+        {(fixes ?? []).map((f) => (
+          <li key={f.id}>
+            <Link href={`/attendance/fix/${f.id}`} className="text-brand hover:underline">
+              {md(String((f.payload as Record<string, unknown>).date ?? ""))} {name.get(f.subject_staff_id ?? f.reporter_id)}さん：打刻の修正依頼
+            </Link>
+          </li>
+        ))}
+        {(data ?? []).flatMap((d) => [
           ...(d.noshift_status === "pending"
             ? [
                 <li key={`${d.id}n`}>

@@ -1,7 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { requireStaff } from "@/lib/auth";
+import { pushLine } from "@/lib/line-push";
+import { shiftManagersOf } from "@/lib/punch-rules";
 import { distanceMeters, DEFAULT_DISPLAY_RADIUS_M } from "@/lib/punch";
 import { parsePayload } from "@/lib/reports/fields";
 import { reportType } from "@/lib/reports/registry";
@@ -38,6 +41,7 @@ export async function submitReport(typeKey: string, _prev: SubmitState, fd: Form
   if (!store?.is_active) return fail("店舗を選んでください");
 
   let subjectId: string | null = null;
+  if (type.selfSubject) subjectId = me.id;
   if (type.subjectField) {
     subjectId = String(payload[type.subjectField]);
     if (subjectId === me.id) return fail("自分自身の報告はできません。その場にいるほかのスタッフに報告してもらってください");
@@ -59,7 +63,7 @@ export async function submitReport(typeKey: string, _prev: SubmitState, fd: Form
     if (distance > radius) return fail(`店舗から約${distance}m離れています。この報告は、店舗の${radius}m以内でだけ送れます`);
   }
 
-  const { error } = await admin.from("reports").insert({
+  const { data: created, error } = await admin.from("reports").insert({
     type: type.key,
     type_version: type.version,
     category: type.category,
@@ -69,10 +73,22 @@ export async function submitReport(typeKey: string, _prev: SubmitState, fd: Form
     payload,
     on_site: distance === null ? null : distance <= radius,
     distance_m: distance,
-  });
-  if (error) {
+  }).select("id").single();
+  if (error || !created) {
     console.error("submitReport failed", error);
     return fail("送信できませんでした。時間をおいてもう一度お試しください");
+  }
+  // シフト管理者が承認する種類（打刻の修正依頼）は、シフト管理者に LINE で承認の画面を送る。本人の分は本人以外へ
+  if (type.shiftManagerReview) {
+    const h = await headers();
+    const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
+    const to = await shiftManagersOf(store.id, subjectId ?? me.id);
+    const { data: subj } = subjectId ? await admin.from("staff").select("name").eq("id", subjectId).single() : { data: null };
+    await pushLine(
+      to.filter((t) => t.id !== me.id).map((t) => t.line_user_id),
+      `【打刻の修正依頼】${type.summary(payload, { subject: subj?.name })}\n依頼：${me.name}さん\n承認しますか？\n${origin}/attendance/fix/${created.id}`,
+      "report",
+    );
   }
   redirect("/reports?sent=1");
 }
