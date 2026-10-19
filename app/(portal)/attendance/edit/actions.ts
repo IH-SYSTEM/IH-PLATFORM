@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth";
-import { hasDuty, noDutyMessage } from "@/lib/duties";
+import { requireStaff } from "@/lib/auth";
+import { attendanceEditScope, editDenied } from "@/lib/attendance";
 import { findAttendance, pick, recordEdit, SNAPSHOT_COLUMNS, type AttendanceSnapshot } from "@/lib/attendance-write";
 import { jstCheckoutToISO, jstDateTimeToISO } from "@/lib/business-day";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -15,12 +15,14 @@ const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * 本部の打刻修正。出勤・退勤・休憩を直し、理由と変更前後を履歴に残す。
+ * 打刻修正（総務の担当・シフト管理者）。出勤・退勤・休憩を直し、理由と変更前後を履歴に残す。
+ * シフト管理者は、自分が管理する店の、自分以外の記録だけ（期限なし、いつでも）
  * 退勤の「00:30」は、出勤より前なら翌日として保存する（jstCheckoutToISO を必ず通す）
  */
 export async function saveAttendance(attendanceId: string | null, _prev: EditState, fd: FormData): Promise<EditState> {
-  const me = await requireAdmin();
-  if (!hasDuty(me, "soumu")) return { error: noDutyMessage("soumu"), at: Date.now() };
+  const me = await requireStaff();
+  const scope = await attendanceEditScope(me);
+  if (!scope) return { error: "勤怠を直せるのは、総務の担当とシフト管理者だけです", at: Date.now() };
   const admin = createAdminClient();
   const fail = (error: string) => ({ error, at: Date.now() });
   const get = (k: string) => String(fd.get(k) ?? "").trim();
@@ -52,6 +54,8 @@ export async function saveAttendance(attendanceId: string | null, _prev: EditSta
     if (!staffId || !storeId || !DATE.test(date)) return fail("スタッフ・店舗・勤務日を選んでください");
     if (await findAttendance(admin, staffId, date)) return fail("この日の記録はすでにあります。一覧から［修正］で直してください");
   }
+  const denied = editDenied(scope, storeId, staffId);
+  if (denied) return fail(denied);
 
   const checkin = jstDateTimeToISO(date, inTime);
   const checkout = outTime ? jstCheckoutToISO(date, outTime, checkin) : null;
@@ -72,7 +76,7 @@ export async function saveAttendance(attendanceId: string | null, _prev: EditSta
     action: attendanceId ? "update" : "create",
     before: pick(before),
     after,
-    reason: `本部修正：${reason}`,
+    reason: `${scope.all ? "本部修正" : "シフト管理者修正"}：${reason}`,
     note,
     editedBy: me.id,
   });
@@ -81,13 +85,15 @@ export async function saveAttendance(attendanceId: string | null, _prev: EditSta
 }
 
 export async function deleteAttendance(attendanceId: string, _prev: EditState, fd: FormData): Promise<EditState> {
-  const me = await requireAdmin();
-  if (!hasDuty(me, "soumu")) return { error: noDutyMessage("soumu"), at: Date.now() };
+  const me = await requireStaff();
+  const scope = await attendanceEditScope(me);
   const admin = createAdminClient();
   const reason = String(fd.get("reason") ?? "");
   if (!(EDIT_REASONS as readonly string[]).includes(reason)) return { error: "理由を選んでから削除してください", at: Date.now() };
   const { data: before } = await admin.from("attendance").select(SNAPSHOT_COLUMNS).eq("id", attendanceId).maybeSingle<AttendanceSnapshot>();
   if (!before) return { error: "記録が見つかりません", at: Date.now() };
+  const denied = editDenied(scope, before.store_id, before.staff_id);
+  if (denied) return { error: denied, at: Date.now() };
   // 先に履歴を残してから消す（消した記録の中身が履歴に残る）
   await recordEdit(admin, {
     attendanceId: null,
@@ -96,7 +102,7 @@ export async function deleteAttendance(attendanceId: string, _prev: EditState, f
     action: "delete",
     before: pick(before),
     after: null,
-    reason: `本部修正：${reason}`,
+    reason: `${scope!.all ? "本部修正" : "シフト管理者修正"}：${reason}`,
     note: String(fd.get("note") ?? "").slice(0, 200) || null,
     editedBy: me.id,
   });

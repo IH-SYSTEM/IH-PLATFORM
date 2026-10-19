@@ -27,6 +27,26 @@ export const attendanceScope = cache(async function attendanceScope(me: CurrentS
 
 export const inScope = (scope: AttendanceScope, storeId: string | null) => scope.all || (!!storeId && scope.storeIds.includes(storeId));
 
+/**
+ * 勤怠を手で入れる・直す・消すことができる範囲（2026-10-19 黒田さん：シフト管理者はいつでも勤怠を入力できる）。
+ *   総務の担当（と代表）… 全店舗
+ *   シフト管理者       … シフト管理者に選ばれた店だけ。自分の記録は直せない（ほかのシフト管理者・本部に頼む）
+ */
+export type EditScope = { all: boolean; storeIds: string[]; selfId: string };
+export const attendanceEditScope = cache(async function attendanceEditScope(me: CurrentStaff): Promise<EditScope | null> {
+  if (me.isAdmin && me.duties.includes("soumu")) return { all: true, storeIds: [], selfId: me.id };
+  const { data } = await createAdminClient().from("stores").select("id").eq("shift_manager_staff_id", me.id);
+  return data?.length ? { all: false, storeIds: data.map((s) => s.id), selfId: me.id } : null;
+});
+/** その記録（店・スタッフ）を手で直せるか。null なら直せる、文字なら直せない理由 */
+export function editDenied(scope: EditScope | null, storeId: string | null, staffId: string): string | null {
+  if (!scope) return "勤怠を直せるのは、総務の担当とシフト管理者だけです";
+  if (scope.all) return null;
+  if (!storeId || !scope.storeIds.includes(storeId)) return "シフト管理者になっている店の勤怠だけ直せます";
+  if (staffId === scope.selfId) return "自分の勤怠は直せません。本部（総務）に頼んでください";
+  return null;
+}
+
 export type AttendanceRow = {
   id: string;
   staff_id: string;

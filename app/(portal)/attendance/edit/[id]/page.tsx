@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
+import { attendanceEditScope, editDenied } from "@/lib/attendance";
 import { businessDayJST, toJSTTimeLabel, toJSTTimeString } from "@/lib/business-day";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteAttendance, saveAttendance } from "../actions";
@@ -15,9 +16,11 @@ const when = (iso: string) =>
 // 入力欄に入れる 'HH:MM'。打刻がなければ空（表示用の「—」を入れると保存できなくなる）
 const timeValue = (iso: string | null) => (iso ? toJSTTimeString(iso) : "");
 
-// 本部の打刻修正。id が "new" なら、打刻のない日の記録を追加する
+// 打刻修正（総務の担当・シフト管理者）。id が "new" なら、打刻のない日の記録を追加する
 export default async function AttendanceEditPage({ params, searchParams }: PageProps<"/attendance/edit/[id]">) {
-  const me = await requireAdmin();
+  const me = await requireStaff();
+  const scope = await attendanceEditScope(me);
+  if (!scope) return <p className="text-sm text-slate-600">勤怠を直せるのは、総務の担当とシフト管理者だけです</p>;
   const { id } = await params;
   const sp = await searchParams;
   const admin = createAdminClient();
@@ -27,10 +30,14 @@ export default async function AttendanceEditPage({ params, searchParams }: PageP
     ? { data: null }
     : await admin.from("attendance").select("id, staff_id, store_id, date, checkin_time, checkout_time, break_minutes, source").eq("id", id).maybeSingle();
   if (!isNew && !row) notFound();
+  const denied = row ? editDenied(scope, row.store_id, row.staff_id) : null;
+  if (denied) return <p className="text-sm text-slate-600">{denied}</p>;
 
   const [{ data: stores }, { data: staff }, { data: edits }] = await Promise.all([
-    admin.from("stores").select("id, name").eq("is_active", true).order("sort_order", { nullsFirst: false }),
-    admin.from("staff").select("id, name, furigana").eq("retired", false).order("furigana"),
+    scope.all
+      ? admin.from("stores").select("id, name").eq("is_active", true).order("sort_order", { nullsFirst: false })
+      : admin.from("stores").select("id, name").in("id", scope.storeIds).order("sort_order", { nullsFirst: false }),
+    admin.from("staff").select("id, name, furigana, store_id").eq("retired", false).order("furigana"),
     row
       ? admin.from("attendance_edits").select("action, reason, note, before, after, edited_by, edited_at").eq("staff_id", row.staff_id).eq("date", row.date).order("edited_at", { ascending: false })
       : Promise.resolve({ data: [] as { action: string; reason: string; note: string | null; edited_by: string; edited_at: string }[] }),
@@ -66,7 +73,11 @@ export default async function AttendanceEditPage({ params, searchParams }: PageP
       <EditForm
         isNew={isNew}
         reasons={EDIT_REASONS}
-        staff={(staff ?? []).map((s) => ({ value: s.id, label: s.name }))}
+        // シフト管理者は、自分以外。管理する店の人を先に（ほかの店からのヘルプも選べる）
+        staff={(staff ?? [])
+          .filter((s) => scope.all || s.id !== me.id)
+          .sort((a, b) => Number(scope.storeIds.includes(b.store_id ?? "")) - Number(scope.storeIds.includes(a.store_id ?? "")))
+          .map((s) => ({ value: s.id, label: s.name }))}
         stores={(stores ?? []).map((s) => ({ value: s.id, label: s.name }))}
         initial={{
           staff: str(sp.staff),
