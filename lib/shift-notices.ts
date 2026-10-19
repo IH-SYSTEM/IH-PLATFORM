@@ -121,8 +121,8 @@ export async function buildShiftNotices(today = toJSTDateString(new Date()), ori
 }
 
 /** 12時の cron から。dry なら送らずに中身だけ返す */
-export async function sendShiftNotices({ dry = false, origin, date }: { dry?: boolean; origin?: string; date?: string } = {}) {
-  const notices = await buildShiftNotices(date, origin);
+export async function sendShiftNotices({ dry = false, origin, date, kinds }: { dry?: boolean; origin?: string; date?: string; kinds?: string[] } = {}) {
+  const notices = (await buildShiftNotices(date, origin)).filter((n) => !kinds?.length || kinds.includes(n.kind));
   if (dry || !notices.length) return notices.map((n) => ({ ...n, sent: false }));
   const { data: people } = await createAdminClient().from("staff").select("id, line_user_id").in("id", [...new Set(notices.map((n) => n.to))]);
   const line = new Map((people ?? []).map((p) => [p.id, p.line_user_id]));
