@@ -58,6 +58,11 @@ export async function saveStore(storeId: string | null, _prev: StoreSaveState, f
     if ((same ?? []).some((s) => s.id !== storeId)) throw new InputError("同じ名前の店舗がすでにあります");
 
     const managerIds = fd.getAll("manager_staff_ids").map(String);
+    // 営業日：毎週の店休日・臨時の店休日・正社員の希望休の上限（2026-10-19）
+    const closedWeekdays = [...new Set(fd.getAll("closed_weekdays").map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort();
+    const closedDates = [...new Set(String(fd.get("closed_dates") ?? "").split(/[\r\n,、\s]+/).map((v) => v.trim()).filter(Boolean))].sort();
+    const badDate = closedDates.find((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(Date.parse(d)));
+    if (badDate) throw new InputError(`臨時の店休日「${badDate}」は「2026-12-31」の形で入れてください`);
     // シフト管理者（使っている店は必須。2026-10-19）
     const shiftManager = text("shift_manager_staff_id");
     if (storeId && fd.get("is_active") === "on" && !shiftManager) throw new InputError("シフト管理者を選んでください");
@@ -86,6 +91,9 @@ export async function saveStore(storeId: string | null, _prev: StoreSaveState, f
       open_time: time("open_time", "開店時刻"),
       close_time: time("close_time", "閉店時刻"),
       monthly_holidays: num("monthly_holidays", "月の公休日数", { max: 31 }),
+      closed_weekdays: closedWeekdays,
+      closed_dates: closedDates,
+      requested_off_limit: num("requested_off_limit", "正社員の希望休", { max: 31 }),
       default_paid_leave: num("default_paid_leave", "有給休暇の初期日数", { max: 40 }),
       target_labor_cost_rate: percent("target_labor_cost_rate", "目標人件費率"),
       rosai_rate: percent("rosai_rate", "労災保険料率"),

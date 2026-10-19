@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { businessDayJST } from "@/lib/business-day";
-import { openMonths, partTimeWeeks, periodTypeFor, weekOfMonthLabel } from "@/lib/shift-period";
+import { isStoreClosed, openMonths, partTimeWeeks, periodTypeFor, weekOfMonthLabel } from "@/lib/shift-period";
 import { hm } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { saveDefaultTime, submitPartTimeRequests, submitRequests } from "./actions";
-import { RequestForm } from "./request-form";
+import { saveDefaultTime, submitOffRequests, submitPartTimeRequests } from "./actions";
+import { OffRequestForm } from "./off-form";
 import { PartTimeForm } from "./parttime-form";
 import { DefaultTime } from "./default-time";
 import { redirect } from "next/navigation";
@@ -27,7 +27,25 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
 
   const periods = type === "month" ? openMonths(today) : type === "week" ? partTimeWeeks(today) : [];
   // 「いつもの時間」：本人の設定 → 所属店舗の営業時間 → 19:00〜24:00 の順
-  const { data: myStore } = self?.store_id ? await admin.from("stores").select("open_time, close_time").eq("id", self.store_id).maybeSingle() : { data: null };
+  const { data: myStore } = self?.store_id
+    ? await admin.from("stores").select("open_time, close_time, closed_weekdays, closed_dates, requested_off_limit").eq("id", self.store_id).maybeSingle()
+    : { data: null };
+  // 1人だけの部署（シフトの対象が自分だけ）は、希望を出さずに自分でシフトを入れて確定する（2026-10-19）
+  const { data: mates } = self?.store_id ? await admin.from("staff").select("role").eq("store_id", self.store_id).eq("retired", false) : { data: [] };
+  const solo = (mates ?? []).filter((m) => periodTypeFor(m.role)).length <= 1;
+  if (solo)
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">シフト希望</h1>
+        <p className="rounded-md border border-line bg-white p-5 text-sm leading-relaxed text-slate-700">
+          あなたの部署はシフトの対象があなた1人なので、希望は出さずに、ご自身でシフトを入れて確定してください。
+          {type === "month" ? "前の月の25日まで" : "前の週の水曜日まで"}に確定すると、スケジュールに出ます。
+        </p>
+        <Link href="/shifts" className="block rounded-lg bg-brand py-3 text-center font-bold text-white">
+          シフト確定の画面へ
+        </Link>
+      </div>
+    );
   const defaults = {
     start: hm(self?.shift_default_start) || myStore?.open_time || "19:00",
     end: hm(self?.shift_default_end) || myStore?.close_time || "00:00",
@@ -48,7 +66,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
         <div>
           <p className="text-xs text-slate-500">
             {type === "month"
-              ? "社員は1か月ごとに、前月15日までに提出します"
+              ? `社員は1か月ごとに、休みの希望を出します（前の月の20日まで。3か月先まで出せます）。店休日は自動で休み、それ以外に希望休を${myStore?.requested_off_limit ?? "何"}日まで選べます。それより多く休むときは有給で申請します`
               : type === "week"
                 ? "週を選んで、入れる日と時間を入れてください（4週先まで）"
                 : "あなたの雇用区分はシフト希望の対象外です"}
@@ -126,11 +144,17 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
                 />
               </>
             ) : (
-              <RequestForm
+              <OffRequestForm
                 key={period.start}
-                days={period.days.map((d) => ({ date: d, label: `${md(d)}（${dow(d)}）`, weekend: ["土", "日"].includes(dow(d)) }))}
-                initial={Object.fromEntries((existing ?? []).map((r) => [r.work_date, { a: r.availability, s: hm(r.preferred_start), e: hm(r.preferred_end) }]))}
-                action={submitRequests.bind(null, period.start)}
+                days={period.days.map((d) => ({
+                  date: d,
+                  label: `${md(d)}（${dow(d)}）`,
+                  weekend: ["土", "日"].includes(dow(d)),
+                  closed: isStoreClosed(d, myStore?.closed_weekdays ?? [], myStore?.closed_dates ?? []),
+                }))}
+                initial={(existing ?? []).filter((r) => r.availability === "off").map((r) => r.work_date)}
+                limit={myStore?.requested_off_limit ?? null}
+                action={submitOffRequests.bind(null, period.start)}
               />
             )}
           </>

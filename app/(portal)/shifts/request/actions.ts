@@ -3,57 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth";
 import { businessDayJST } from "@/lib/business-day";
-import { isPast, monthPeriod, partTimeWeeks, periodTypeFor, weekPeriod } from "@/lib/shift-period";
+import { isPast, isStoreClosed, monthPeriod, partTimeWeeks, periodTypeFor, weekPeriod } from "@/lib/shift-period";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type RequestState = { ok?: boolean; error?: string; at?: number } | undefined;
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-/** シフト希望の提出。期間の全日について ○／◇（時間）／× を受け取り、提出の記録も残す */
-export async function submitRequests(periodStart: string, _prev: RequestState, fd: FormData): Promise<RequestState> {
-  const me = await requireStaff();
-  const fail = (error: string) => ({ error, at: Date.now() });
-  const admin = createAdminClient();
-  const { data: self } = await admin.from("staff").select("role").eq("id", me.id).single();
-  const type = periodTypeFor(self?.role);
-  if (!type) return fail("シフト希望の対象外です");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(periodStart)) return fail("期間が正しくありません");
-
-  const period = type === "month" ? monthPeriod(periodStart.slice(0, 7)) : weekPeriod(periodStart);
-  if (period.start !== periodStart) return fail("期間が正しくありません");
-  if (isPast(period.submit, businessDayJST())) return fail(`提出期限（${period.submit}）を過ぎています。変更は店長に相談してください`);
-
-  const rows = [];
-  for (const date of period.days) {
-    const v = String(fd.get(`a:${date}`) ?? "");
-    if (v !== "all" && v !== "partial" && v !== "off") return fail(`${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))} の希望を選んでください`);
-    const start = String(fd.get(`s:${date}`) ?? "");
-    const end = String(fd.get(`e:${date}`) ?? "");
-    if (v === "partial" && (!TIME.test(start) || !TIME.test(end))) {
-      return fail(`${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))} の時間を「19:00」の形式で入れてください`);
-    }
-    rows.push({
-      staff_id: me.id,
-      work_date: date,
-      availability: v,
-      preferred_start: v === "partial" ? start : null,
-      preferred_end: v === "partial" ? end : null,
-      updated_at: new Date().toISOString(),
-    });
-  }
-
-  const { error } = await admin.from("shift_requests").upsert(rows, { onConflict: "staff_id,work_date" });
-  if (error) {
-    console.error("submitRequests failed", error);
-    return fail("保存できませんでした。時間をおいてもう一度お試しください");
-  }
-  await admin
-    .from("shift_request_submissions")
-    .upsert({ staff_id: me.id, period_type: type, period_start: period.start, submitted_at: new Date().toISOString() }, { onConflict: "staff_id,period_type,period_start" });
-  revalidatePath("/shifts/request");
-  return { ok: true, at: Date.now() };
-}
 
 /** 本人の「いつもの時間」を保存する（希望を出すときの初期値） */
 export async function saveDefaultTime(_prev: RequestState, fd: FormData): Promise<RequestState> {
@@ -103,6 +58,45 @@ export async function submitPartTimeRequests(periodStart: string, _prev: Request
   await admin
     .from("shift_request_submissions")
     .upsert({ staff_id: me.id, period_type: "week", period_start: period.start, submitted_at: now }, { onConflict: "staff_id,period_type,period_start" });
+  revalidatePath("/shifts/request");
+  revalidatePath("/shifts");
+  return { ok: true, at: Date.now() };
+}
+
+/**
+ * 正社員の希望：休みの希望を出す（2026-10-19 黒田さん）。店休日は自動で休み、それ以外に「希望休」を上限まで選ぶ。
+ * 上限より多く休むときは有給で申請する。選ばなかった日は「出勤できる」として残す
+ */
+export async function submitOffRequests(periodStart: string, _prev: RequestState, fd: FormData): Promise<RequestState> {
+  const me = await requireStaff();
+  const fail = (error: string) => ({ error, at: Date.now() });
+  const admin = createAdminClient();
+  const { data: self } = await admin.from("staff").select("role, store_id").eq("id", me.id).single();
+  if (periodTypeFor(self?.role) !== "month") return fail("シフト希望の対象外です");
+  const period = monthPeriod(periodStart.slice(0, 7));
+  if (period.start !== periodStart) return fail("期間が正しくありません");
+  if (isPast(period.submit, businessDayJST())) return fail(`提出期限（${period.submit}）を過ぎています。変更はシフト管理者に相談してください`);
+  const { data: store } = self?.store_id ? await admin.from("stores").select("closed_weekdays, closed_dates, requested_off_limit").eq("id", self.store_id).maybeSingle() : { data: null };
+  const closed = (d: string) => isStoreClosed(d, store?.closed_weekdays ?? [], store?.closed_dates ?? []);
+  const off = new Set(fd.getAll("off").map(String).filter((d) => period.days.includes(d) && !closed(d)));
+  const limit = store?.requested_off_limit;
+  if (limit !== null && limit !== undefined && off.size > limit) return fail(`希望休は${limit}日までです。それより多く休むときは、有給で申請してください`);
+  const now = new Date().toISOString();
+  const rows = period.days.map((d) => ({
+    staff_id: me.id,
+    work_date: d,
+    availability: closed(d) || off.has(d) ? "off" : "all",
+    preferred_start: null,
+    preferred_end: null,
+    note: closed(d) ? "店休日" : off.has(d) ? "希望休" : null,
+    updated_at: now,
+  }));
+  const { error } = await admin.from("shift_requests").upsert(rows, { onConflict: "staff_id,work_date" });
+  if (error) {
+    console.error("submitOffRequests failed", error);
+    return fail("保存できませんでした。時間をおいてもう一度お試しください");
+  }
+  await admin.from("shift_request_submissions").upsert({ staff_id: me.id, period_type: "month", period_start: period.start, submitted_at: now }, { onConflict: "staff_id,period_type,period_start" });
   revalidatePath("/shifts/request");
   revalidatePath("/shifts");
   return { ok: true, at: Date.now() };

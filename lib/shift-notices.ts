@@ -9,11 +9,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * シフトの LINE を自動で送る（毎日12時。2026-10-19 黒田さん決定）。
  * 組織図の部署ごとに、シフトの対象（アルバイト・正社員・契約社員）を数えて、文言を変える。
  *   複数の部署
- *     スタッフ … 提出期限の前日に「明日が提出期限」。まだ出していない人だけ
- *     シフト管理者 … 確定日に「今日は確定日。まだ出していない人：◯◯」（店舗マスタのシフト管理者。未設定なら店長・責任者）
+ *     アルバイト … 毎週月曜に全員へ「希望を入れてください」（4週先までの週と、それぞれの締切）。締切の日曜に、まだの人へ「今日が締切」
+ *     正社員     … 毎月15日に全員へ「翌月の休みの希望を20日までに」（店休日＋希望休◯日・それ以上は有給）。19日に、まだの人へ「明日20日が締切」
+ *     シフト管理者 … 確定日（アルバイト＝水曜・正社員＝25日）に「今日は確定日。まだ出していない人：◯◯」（未設定なら店長・責任者）
  *   1人の部署（自分でシフトを入れる）
- *     本人     … 確定日の前日に「ご自身のシフトを確定日までに入力して確定」。提出期限の LINE は送らない
- *   アルバイト＝週ごと（提出期限＝前々週の日曜・確定日＝前週の水曜）、正社員・契約社員＝月ごと（提出期限＝前の月の15日・確定日＝前の月の20日）
+ *     本人 … 確定日の前日に「ご自身のシフトを確定日までに入力して確定」。案内・締切の LINE は送らない
+ *   アルバイト＝週ごと（提出期限＝前々週の日曜・確定日＝前週の水曜）、正社員・契約社員＝月ごと（提出期限＝前の月の20日・確定日＝前の月の25日）
  */
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}（${"日月火水木金土"[new Date(`${d}T12:00:00Z`).getUTCDay()]}）`;
 const periodName = (p: Period) => (p.type === "week" ? `${weekOfMonthLabel(p.start)}（${p.label}）` : `${p.label}`);
@@ -25,7 +26,7 @@ function periodsAround(today: string): Period[] {
   return [...partTimeWeeks(addDays(today, -7), 6), monthPeriod(nextMonth(ym)), monthPeriod(nextMonth(nextMonth(ym)))];
 }
 
-export type ShiftNotice = { to: string; unit: string; kind: "submit" | "decide" | "solo"; text: string };
+export type ShiftNotice = { to: string; unit: string; kind: "announce" | "submit" | "decide" | "solo"; text: string };
 
 export async function buildShiftNotices(today = toJSTDateString(new Date()), origin = "https://portal.ikkou-holdings.co.jp"): Promise<ShiftNotice[]> {
   const admin = createAdminClient();
@@ -33,7 +34,9 @@ export async function buildShiftNotices(today = toJSTDateString(new Date()), ori
     admin.from("org_units").select("id, name, store_id, head_staff_ids").eq("kind", "unit").not("store_id", "is", null).order("sort_order"),
     admin.from("staff").select("id, name, role, store_id, permission, line_user_id").eq("retired", false),
   ]);
-  const { data: managed } = await admin.from("stores").select("id, manager_staff_ids");
+  const { data: managed } = await admin.from("stores").select("id, manager_staff_ids, requested_off_limit");
+  const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
+  const dom = Number(today.slice(8, 10));
   const periods = periodsAround(today);
   const starts = [...new Set(periods.map((p) => p.start))];
   const { data: subs } = await admin.from("shift_request_submissions").select("staff_id, period_type, period_start").in("period_start", starts);
@@ -49,6 +52,28 @@ export async function buildShiftNotices(today = toJSTDateString(new Date()), ori
     for (const type of ["week", "month"] as PeriodType[]) {
       const inType = members.filter((m) => periodTypeFor(m.role) === type);
       if (!inType.length) continue;
+      // 案内（複数の部署だけ）：アルバイトは毎週月曜、正社員は毎月15日に、全員へ
+      if (!solo && type === "week" && dow === 1) {
+        const weeks = partTimeWeeks(today);
+        for (const m of inType)
+          out.push({
+            to: m.id,
+            unit: u.name,
+            kind: "announce",
+            text: `【シフト希望】シフト希望を入れてください（4週先まで入れられます）\n${weeks.map((w) => `・${periodName(w)} 締切 ${md(w.submit)}`).join("\n")}\n${origin}/shifts/request`,
+          });
+      }
+      if (!solo && type === "month" && dom === 15) {
+        const next = monthPeriod(nextMonth(today.slice(0, 7)));
+        const limit = (managed ?? []).find((s) => s.id === u.store_id)?.requested_off_limit;
+        for (const m of inType)
+          out.push({
+            to: m.id,
+            unit: u.name,
+            kind: "announce",
+            text: `【休みの希望】${next.label}の休みの希望を、${md(next.submit)} までに入れてください（先の月も入れられます）\n店休日は自動で休みです。${limit !== null && limit !== undefined ? `希望休は${limit}日まで、` : ""}それより多く休むときは有給で申請してください\n${origin}/shifts/request`,
+          });
+      }
       for (const p of periods.filter((x) => x.type === type)) {
         if (solo) {
           // 1人の部署：確定日の前日に、本人へ
@@ -63,10 +88,19 @@ export async function buildShiftNotices(today = toJSTDateString(new Date()), ori
           });
           continue;
         }
-        // 複数の部署：提出期限の前日に、まだ出していない人へ
-        if (today === addDays(p.submit, -1)) {
+        // 複数の部署：締切の念押し。アルバイトは締切の日曜に「今日が締切」、正社員は締切の前日（19日）に「明日が締切」。まだ出していない人だけ
+        const remind = type === "week" ? today === p.submit : today === addDays(p.submit, -1);
+        if (remind) {
           for (const m of inType.filter((x) => !submitted.has(`${x.id}:${type}:${p.start}`)))
-            out.push({ to: m.id, unit: u.name, kind: "submit", text: `【シフト希望】${periodName(p)}の希望の提出期限は、明日 ${md(p.submit)} です。まだの方は出してください\n${origin}/shifts/request` });
+            out.push({
+              to: m.id,
+              unit: u.name,
+              kind: "submit",
+              text:
+                type === "week"
+                  ? `【シフト希望】今日 ${md(p.submit)} が、${periodName(p)}のシフト希望の締切です。まだの方は今日中に出してください\n${origin}/shifts/request`
+                  : `【休みの希望】明日 ${md(p.submit)} が、${p.label}の休みの希望の締切です。まだの方は明日までに入れてください\n${origin}/shifts/request`,
+            });
         }
         // 複数の部署：確定日に、店長へ
         if (today === p.decide) {
