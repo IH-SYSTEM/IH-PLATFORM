@@ -12,9 +12,9 @@ test("週の締切 — 提出は8日前の日曜、確定は5日前の水曜", (
   assert.deepEqual(weekDeadlines("2026-11-02"), { submit: "2026-10-25", decide: "2026-10-28" });
 });
 
-test("月の締切 — 前月15日に提出、前月20日に確定。1月分は前年12月", () => {
-  assert.deepEqual(monthDeadlines("2026-11"), { submit: "2026-10-15", decide: "2026-10-20" });
-  assert.deepEqual(monthDeadlines("2027-01"), { submit: "2026-12-15", decide: "2026-12-20" });
+test("月の締切 — 前月20日に提出、前月25日に確定。1月分は前年12月", () => {
+  assert.deepEqual(monthDeadlines("2026-11"), { submit: "2026-10-20", decide: "2026-10-25" });
+  assert.deepEqual(monthDeadlines("2027-01"), { submit: "2026-12-20", decide: "2026-12-25" });
 });
 
 test("出せる週 — 提出期限の当日まではその週、翌日から次の週", () => {
@@ -23,10 +23,11 @@ test("出せる週 — 提出期限の当日まではその週、翌日から次
   assert.equal(openWeeks("2026-10-08").length, 4);
 });
 
-test("出せる月 — 15日までは翌月、16日からは翌々月", () => {
-  assert.equal(openMonths("2026-10-15")[0].start, "2026-11-01");
-  assert.equal(openMonths("2026-10-16")[0].start, "2026-12-01");
-  assert.equal(openMonths("2026-12-20")[0].start, "2027-02-01");
+test("出せる月 — 20日までは翌月、21日からは翌々月。3か月先まで", () => {
+  assert.equal(openMonths("2026-10-20")[0].start, "2026-11-01");
+  assert.equal(openMonths("2026-10-21")[0].start, "2026-12-01");
+  assert.equal(openMonths("2026-12-21")[0].start, "2027-02-01");
+  assert.equal(openMonths("2026-10-19").length, 3);
 });
 
 test("締切 — 当日はまだ出せる", () => {

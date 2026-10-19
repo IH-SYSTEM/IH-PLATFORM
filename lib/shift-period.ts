@@ -3,7 +3,7 @@
 //
 //   アルバイト … 週単位（月曜始まり）。4週先まで、その週が始まる前日まで出せる。確定＝前週の水曜24時まで
 //               （確定のあとに出した希望も消さず、店長の画面に「待機」として残す）
-//   社員       … 月単位。提出＝前月15日、確定＝前月20日
+//   社員       … 月単位。休みの希望を出す。提出＝前月20日、確定＝前月25日（2026-10-19）
 
 const DAY_MS = 86_400_000;
 const at = (ymd: string) => Date.parse(`${ymd}T12:00:00Z`);
@@ -45,7 +45,8 @@ export function weekDeadlines(monday: string) {
 export function monthDeadlines(yearMonth: string) {
   const [y, m] = yearMonth.split("-").map(Number);
   const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
-  return { submit: `${prev}-15`, decide: `${prev}-20` };
+  // 2026-10-19 黒田さん：前の月の20日が締切（15日に案内・19日に念押し）、25日が確定日
+  return { submit: `${prev}-20`, decide: `${prev}-25` };
 }
 
 export const nextMonth = (yearMonth: string) => {
@@ -100,7 +101,7 @@ export function openWeeks(today: string, count = 4): Period[] {
 }
 
 /** いま希望を出せる月（提出期限をまだ過ぎていない月から count か月ぶん） */
-export function openMonths(today: string, count = 2): Period[] {
+export function openMonths(today: string, count = 3): Period[] {
   let ym = today.slice(0, 7);
   while (at(today) > at(monthDeadlines(ym).submit)) ym = nextMonth(ym);
   const out: Period[] = [];
@@ -113,3 +114,8 @@ export const isPast = (deadline: string, today: string) => at(today) > at(deadli
 
 /** 'HH:MM' の開始・終了。終了が開始以下なら日をまたぐ（19:30〜00:30） */
 export const crossesMidnight = (start: string, end: string) => end <= start;
+
+/** 店休日か（毎週の店休日 0=日〜6=土、臨時の店休日）。2026-10-19 */
+export function isStoreClosed(date: string, closedWeekdays: readonly number[] = [], closedDates: readonly string[] = []) {
+  return closedDates.includes(date) || closedWeekdays.includes(new Date(at(date)).getUTCDay());
+}

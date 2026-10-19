@@ -20,6 +20,9 @@ export type StoreRecord = {
   open_time: string | null;
   close_time: string | null;
   monthly_holidays: number | null;
+  closed_weekdays: number[];
+  closed_dates: string[];
+  requested_off_limit: number | null;
   default_paid_leave: number | null;
   target_labor_cost_rate: number | null;
   rosai_rate: number | null;
@@ -121,6 +124,23 @@ export function StoreForm({
         </Field>
         <Field label="有給休暇の初期日数">
           <input name="default_paid_leave" inputMode="numeric" defaultValue={store?.default_paid_leave ?? ""} className={input} />
+        </Field>
+        <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+          <p className="text-xs font-medium text-slate-600">毎週の店休日</p>
+          <div className="flex flex-wrap gap-2">
+            {"日月火水木金土".split("").map((d, i) => (
+              <label key={d} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm">
+                <input type="checkbox" name="closed_weekdays" value={i} defaultChecked={store?.closed_weekdays?.includes(i)} className="size-4" />
+                {d}曜
+              </label>
+            ))}
+          </div>
+        </div>
+        <Field label="臨時の店休日" hint="年末年始・お盆など。1行に1日（例 2026-12-31）" className="sm:col-span-2">
+          <textarea name="closed_dates" rows={3} defaultValue={(store?.closed_dates ?? []).join("\n")} className={`${input} font-mono`} />
+        </Field>
+        <Field label="正社員の希望休（日／月）" hint="店休日は数えません。空なら上限なし。これより多く休むときは有給で申請します">
+          <input name="requested_off_limit" inputMode="numeric" defaultValue={store?.requested_off_limit ?? ""} className={input} />
         </Field>
       </Section>
 
