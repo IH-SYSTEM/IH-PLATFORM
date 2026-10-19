@@ -60,9 +60,24 @@ export async function approversOf(storeId: string, exceptStaffId?: string): Prom
   return data ?? [];
 }
 
-/** 店長に LINE で「承認しますか？」を送る（押すと承認の画面が開く） */
+/**
+ * シフトの LINE を送る相手：店舗マスタの「シフト管理者」（2026-10-19）。
+ * 未設定、またはシフト管理者本人の申請のときは approversOf（店長・責任者 → 総務・代表）
+ */
+export async function shiftManagersOf(storeId: string, exceptStaffId?: string): Promise<{ id: string; line_user_id: string | null }[]> {
+  const admin = createAdminClient();
+  const { data: store } = await admin.from("stores").select("shift_manager_staff_id").eq("id", storeId).single();
+  const sm = store?.shift_manager_staff_id;
+  if (sm && sm !== exceptStaffId) {
+    const { data } = await admin.from("staff").select("id, line_user_id").eq("id", sm).eq("retired", false);
+    if (data?.length) return data;
+  }
+  return approversOf(storeId, exceptStaffId);
+}
+
+/** シフト管理者に LINE で「承認しますか？」を送る（押すと承認の画面が開く） */
 export async function notifyReview(opts: { attendanceId: string; kind: "noshift" | "overtime"; storeId: string; staffId: string; staffName: string; detail: string; origin: string }) {
-  const to = await approversOf(opts.storeId, opts.staffId);
+  const to = await shiftManagersOf(opts.storeId, opts.staffId);
   const url = `${opts.origin}/attendance/review/${opts.attendanceId}?k=${opts.kind}`;
   const text =
     opts.kind === "noshift"

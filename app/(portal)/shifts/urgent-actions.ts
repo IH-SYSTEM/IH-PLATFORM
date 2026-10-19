@@ -6,6 +6,7 @@ import { requireStaff } from "@/lib/auth";
 import { attendanceScope, inScope } from "@/lib/attendance";
 import { audit } from "@/lib/audit";
 import { businessDayJST } from "@/lib/business-day";
+import { shiftManagersOf } from "@/lib/punch-rules";
 import { pushLine } from "@/lib/line-push";
 import { canCallUrgent, periodTypeFor, URGENT_REASONS } from "@/lib/shift-period";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -98,11 +99,9 @@ export async function respondUrgent(callId: string, _prev: UrgentState, fd: Form
   );
   if (error) return fail("応募できませんでした。時間をおいてもう一度お試しください");
 
-  // 店長（店舗マスタの店長）に知らせる
-  const { data: store } = await admin.from("stores").select("name, manager_staff_ids").eq("id", call.store_id).single();
-  const managers = store?.manager_staff_ids?.length
-    ? (await admin.from("staff").select("line_user_id").in("id", store.manager_staff_ids).eq("retired", false)).data ?? []
-    : [];
+  // シフト管理者に知らせる（未設定なら店長・責任者。2026-10-19）
+  const { data: store } = await admin.from("stores").select("name").eq("id", call.store_id).single();
+  const managers = await shiftManagersOf(call.store_id, me.id);
   await pushLine(
     managers.map((m) => m.line_user_id),
     `【急募に応募】${me.name}さん\n${store?.name ?? ""} ${md(call.work_date)} ${start}〜${end}\nシフト確定の画面で確定してください`,

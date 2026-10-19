@@ -1,7 +1,7 @@
 import "server-only";
 import { toJSTDateString } from "@/lib/business-day";
 import { pushLine } from "@/lib/line-push";
-import { approversOf } from "@/lib/punch-rules";
+import { shiftManagersOf } from "@/lib/punch-rules";
 import { addDays, monthPeriod, nextMonth, partTimeWeeks, periodTypeFor, weekOfMonthLabel, type Period, type PeriodType } from "@/lib/shift-period";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -10,7 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * 組織図の部署ごとに、シフトの対象（アルバイト・正社員・契約社員）を数えて、文言を変える。
  *   複数の部署
  *     スタッフ … 提出期限の前日に「明日が提出期限」。まだ出していない人だけ
- *     店長     … 確定日に「今日は確定日。まだ出していない人：◯◯」
+ *     シフト管理者 … 確定日に「今日は確定日。まだ出していない人：◯◯」（店舗マスタのシフト管理者。未設定なら店長・責任者）
  *   1人の部署（自分でシフトを入れる）
  *     本人     … 確定日の前日に「ご自身のシフトを確定日までに入力して確定」。提出期限の LINE は送らない
  *   アルバイト＝週ごと（提出期限＝前々週の日曜・確定日＝前週の水曜）、正社員・契約社員＝月ごと（提出期限＝前の月の15日・確定日＝前の月の20日）
@@ -71,7 +71,7 @@ export async function buildShiftNotices(today = toJSTDateString(new Date()), ori
         // 複数の部署：確定日に、店長へ
         if (today === p.decide) {
           const missing = inType.filter((x) => !submitted.has(`${x.id}:${type}:${p.start}`));
-          const managers = (await approversOf(u.store_id!)).map((a) => a.id);
+          const managers = (await shiftManagersOf(u.store_id!)).map((a) => a.id);
           for (const id of managers)
             out.push({
               to: id,

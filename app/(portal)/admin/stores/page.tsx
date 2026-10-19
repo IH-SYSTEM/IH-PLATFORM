@@ -11,7 +11,7 @@ export default async function StoresPage() {
   const [{ data: stores }, { data: staff }, { data: displayKeys }] = await Promise.all([
     supabase
       .from("stores")
-      .select("id, name, code, address, open_time, close_time, target_labor_cost_rate, manager_staff_ids, is_active, sort_order, lat, lng")
+      .select("id, name, code, address, open_time, close_time, target_labor_cost_rate, manager_staff_ids, shift_manager_staff_id, is_active, sort_order, lat, lng")
       .order("sort_order", { nullsFirst: false })
       .order("name"),
     supabase.from("staff").select("id, name, store_id").eq("retired", false),
@@ -40,6 +40,12 @@ export default async function StoresPage() {
         </Link>
       </div>
 
+      {active.some((s) => !s.shift_manager_staff_id) && (
+        <p className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+          シフト管理者が未設定の店があります：{active.filter((s) => !s.shift_manager_staff_id).map((s) => s.name).join("・")}（店を押して設定してください。未設定の間は、店長・責任者に届きます）
+        </p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {active.map((s) => (
           <Link
@@ -57,6 +63,9 @@ export default async function StoresPage() {
               </span>
             </div>
             <p className="mt-1 line-clamp-1 text-xs text-slate-500">{s.address ?? "住所未登録"}</p>
+            <p className={`mt-2 text-xs ${s.shift_manager_staff_id ? "text-slate-600" : "font-bold text-amber-700"}`}>
+              シフト管理者：{s.shift_manager_staff_id ? (nameById.get(s.shift_manager_staff_id) ?? "—") : "未設定"}
+            </p>
             <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-xs">
               <div>
                 <dt className="text-slate-400">営業時間</dt>

@@ -14,11 +14,12 @@ export default async function StoreEditPage({ params, searchParams }: PageProps<
   const { id } = await params;
   const { created } = await searchParams;
   const supabase = await createClient();
-  const [{ data: store }, { data: staff }, { data: displayKey }, { data: companies }] = await Promise.all([
+  const [{ data: store }, { data: staff }, { data: displayKey }, { data: companies }, { data: everyone }] = await Promise.all([
     supabase.from("stores").select("*").eq("id", id).maybeSingle<StoreRecord>(),
     supabase.from("staff").select("id, name, role").eq("store_id", id).eq("retired", false).order("furigana"),
     supabase.from("store_display_keys").select("display_key, issued_at").eq("store_id", id).maybeSingle(),
     supabase.from("companies").select("id, name").eq("is_active", true).order("sort_order"),
+    supabase.from("staff").select("id, name, store_id").eq("retired", false).order("furigana"),
   ]);
   if (!store) notFound();
 
@@ -46,7 +47,7 @@ export default async function StoreEditPage({ params, searchParams }: PageProps<
         action={issueDisplayKey.bind(null, store.id)}
       />
 
-      <StoreForm store={store} staff={staff ?? []} companies={companies ?? []} action={saveStore.bind(null, store.id)} createdNotice={created === "1"}>
+      <StoreForm allStaff={(everyone ?? []).sort((a, b) => Number(b.store_id === id) - Number(a.store_id === id))} store={store} staff={staff ?? []} companies={companies ?? []} action={saveStore.bind(null, store.id)} createdNotice={created === "1"}>
         <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-800">所属スタッフ（{staff?.length ?? 0}名）</h2>
         {staff && staff.length > 0 ? (

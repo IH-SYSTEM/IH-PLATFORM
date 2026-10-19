@@ -30,6 +30,7 @@ export type StoreRecord = {
   wifi_enabled: boolean;
   allowed_ips: string[];
   manager_staff_ids: string[];
+  shift_manager_staff_id: string | null;
   is_active: boolean;
 };
 
@@ -38,6 +39,7 @@ const pct = (v: number | null) => (v === null ? "" : String(Math.round(v * 10000
 export function StoreForm({
   store,
   staff,
+  allStaff,
   companies,
   action,
   createdNotice,
@@ -45,6 +47,7 @@ export function StoreForm({
 }: {
   store: StoreRecord | null;
   staff: { id: string; name: string }[];
+  allStaff: { id: string; name: string; store_id: string | null }[]; // シフト管理者の候補（この店の人を先に）
   companies: { id: string; name: string }[];
   action: (prev: StoreSaveState, fd: FormData) => Promise<StoreSaveState>;
   createdNotice: boolean;
@@ -129,6 +132,25 @@ export function StoreForm({
           <input name="rosai_rate" inputMode="decimal" defaultValue={pct(store?.rosai_rate ?? null)} className={input} />
         </Field>
       </Section>
+
+      {store && (
+        <section className={`rounded-md border bg-white p-5 shadow-sm ${store.is_active && !store.shift_manager_staff_id ? "border-amber-400" : "border-slate-200"}`}>
+          <h2 className="text-sm font-semibold text-slate-800">シフト管理者（必須）</h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            この店のシフトを確定し、シフトなしの出勤・残業を承認する人です。シフトの確定日の LINE・承認の LINE・急募への応募の LINE は、この人に届きます。店長でなくてもかまいません（ほかの店の人も選べます）
+          </p>
+          <select name="shift_manager_staff_id" defaultValue={store.shift_manager_staff_id ?? ""} required={store.is_active} className={`${input} mt-3 max-w-sm`}>
+            <option value="">選んでください</option>
+            {allStaff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+                {s.store_id === store.id ? "" : "（ほかの店・部署）"}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-xs text-slate-400">シフト管理者本人の分（自分のシフトなしの出勤・残業）は、店長・責任者か、総務・代表に届きます</p>
+        </section>
+      )}
 
       {store && staff.length > 0 && (
         <section className="rounded-md border border-slate-200 bg-white p-5 shadow-sm">
