@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
-import { summarize } from "@/lib/attendance";
+import { attendanceEditScope, editDenied, summarize } from "@/lib/attendance";
 import { formatMinutes, toJSTTimeLabel } from "@/lib/business-day";
 import { jpDate, roleLabel, yen } from "@/lib/format";
 import { EMPLOYMENT_TYPES } from "@/lib/staff";
@@ -19,6 +19,8 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
   const sp = await searchParams;
   const view = await resolveView(me, sp);
   if (!view) redirect("/");
+  // 手で入れる・直すことができるか（総務の担当・シフト管理者。2026-10-19）
+  const editScope = await attendanceEditScope(me);
   const { stores, store, month, staff, staffId, rows } = view;
   const total = summarize(rows);
   const storeOptions = [...(view.scope.all ? [{ value: "all", label: "全店舗" }] : []), ...stores.map((s) => ({ value: s.id, label: s.name }))];
@@ -30,7 +32,7 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">勤怠</h1>
         <div className="flex gap-2">
-          {me.isAdmin && (
+          {editScope && (
             <Link
               href={`/attendance/edit/new?${new URLSearchParams({ ...(store !== "all" ? { store } : {}), ...(staffId ? { staff: staffId } : {}) })}`}
               className="rounded-lg bg-brand px-3 py-2 text-sm font-bold text-white hover:bg-brand-2"
@@ -72,7 +74,7 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
                 <th className="px-3 py-2 text-right font-medium">退勤</th>
                 <th className="px-3 py-2 text-right font-medium">休憩</th>
                 <th className="px-3 py-2 text-right font-medium">実働</th>
-                {me.isAdmin && <th className="px-3 py-2" />}
+                {editScope && <th className="px-3 py-2" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 tabular-nums">
@@ -108,11 +110,13 @@ export default async function AttendancePage({ searchParams }: PageProps<"/atten
                   </td>
                   <td className="px-3 py-2.5 text-right text-slate-500">{r.checkout_time ? `${r.break_minutes}分` : "—"}</td>
                   <td className="px-3 py-2.5 text-right font-medium text-slate-900">{formatMinutes(r.worked)}</td>
-                  {me.isAdmin && (
+                  {editScope && (
                     <td className="px-3 py-2.5 text-right">
-                      <Link href={`/attendance/edit/${r.id}`} className="text-xs font-bold text-brand hover:underline">
-                        修正
-                      </Link>
+                      {!editDenied(editScope, r.store_id, r.staff_id) && (
+                        <Link href={`/attendance/edit/${r.id}`} className="text-xs font-bold text-brand hover:underline">
+                          修正
+                        </Link>
+                      )}
                     </td>
                   )}
                 </tr>
