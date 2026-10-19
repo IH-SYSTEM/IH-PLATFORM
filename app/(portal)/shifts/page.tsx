@@ -25,7 +25,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
   const admin = createAdminClient();
   const today = businessDayJST();
 
-  let storesQuery = admin.from("stores").select("id, name, open_time, close_time, work_roles").eq("is_active", true).order("sort_order", { nullsFirst: false });
+  let storesQuery = admin.from("stores").select("id, name, open_time, close_time, work_roles, shift_manager_staff_id").eq("is_active", true).order("sort_order", { nullsFirst: false });
   if (!scope.all) storesQuery = storesQuery.in("id", scope.storeIds);
   const { data: stores } = await storesQuery;
   const store = (stores ?? []).find((s) => s.id === sp.store) ?? (stores ?? [])[0];
@@ -60,7 +60,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
         <div className="flex flex-wrap items-center gap-3">
           <StorePicker stores={(stores ?? []).map((s) => ({ value: s.id, label: s.name }))} value={store.id} params={{ view: "person" }} />
         </div>
-        <PersonView store={store} sp={sp} today={today} />
+        <PersonView store={store} sp={sp} today={today} canAddAny={store.shift_manager_staff_id === me.id} />
       </div>
     );
   }
@@ -180,6 +180,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
         rows={rows}
         roles={store.work_roles ?? []}
         defaults={{ start: store.open_time ?? "19:00", end: store.close_time ?? "00:00" }}
+        canAddAny={store.shift_manager_staff_id === me.id}
       />
 
       {me.isAdmin && (

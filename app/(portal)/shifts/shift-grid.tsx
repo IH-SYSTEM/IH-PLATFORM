@@ -37,6 +37,7 @@ export function ShiftGrid({
   rows,
   roles,
   defaults,
+  canAddAny = false,
 }: {
   storeId: string;
   days: string[];
@@ -46,6 +47,7 @@ export function ShiftGrid({
   rows: GridRow[];
   roles: string[];
   defaults: { start: string; end: string };
+  canAddAny?: boolean; // シフト管理者：アルバイトの希望がない日にも入れられる（2026-10-19）
 }) {
   const [editing, setEditing] = useState<{ row: GridRow; cell: Cell } | null>(null);
   const [urgent, setUrgent] = useState<string | null>(null);
@@ -87,7 +89,7 @@ export function ShiftGrid({
                 </td>
                 {row.cells.map((c) => {
                   const hasRequest = Boolean(c.request && c.request.a !== "off");
-                  const editable = !c.locked && !c.shift?.otherStore && (!row.partTime || hasRequest || Boolean(c.shift));
+                  const editable = !c.locked && !c.shift?.otherStore && (!row.partTime || hasRequest || Boolean(c.shift) || canAddAny);
                   const waiting = row.partTime && hasRequest && !c.shift && !c.request?.rejected;
                   // アルバイトの未確定の希望は、表の中で時間を直して承認・却下する
                   if (row.partTime && hasRequest && !c.shift && !c.locked) {

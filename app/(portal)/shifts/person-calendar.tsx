@@ -17,6 +17,7 @@ export function PersonCalendar({
   weeks,
   roles,
   defaults,
+  canAddAny = false,
 }: {
   storeId: string;
   row: GridRow;
@@ -24,6 +25,7 @@ export function PersonCalendar({
   weeks: (WeekStatus & { cells: (Cell | null)[] })[];
   roles: string[];
   defaults: { start: string; end: string };
+  canAddAny?: boolean; // シフト管理者：アルバイトの希望がない日にも入れられる（2026-10-19）
 }) {
   const [editing, setEditing] = useState<Cell | null>(null);
   return (
@@ -57,7 +59,7 @@ export function PersonCalendar({
                 {w.cells.map((c, i) => {
                   if (!c) return <td key={i} className="bg-slate-50/60" />;
                   const hasRequest = Boolean(c.request && c.request.a !== "off");
-                  const editable = !c.locked && !c.shift?.otherStore && (!row.partTime || hasRequest || Boolean(c.shift));
+                  const editable = !c.locked && !c.shift?.otherStore && (!row.partTime || hasRequest || Boolean(c.shift) || canAddAny);
                   const waiting = row.partTime && hasRequest && !c.shift && !c.request?.rejected;
                   const day = dow(c.date);
                   if (row.partTime && hasRequest && !c.shift && !c.locked) {
