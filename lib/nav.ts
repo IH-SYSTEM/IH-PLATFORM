@@ -7,7 +7,8 @@ import type { AppIcon } from "@/lib/apps";
 //   duties … この担当のどれかを持つ管理者だけに出す
 //   shiftRequest … シフト希望を出す雇用区分（アルバイト・正社員・契約社員）だけに出す
 //   paidLeave … 有給の申請の対象（正社員）だけに出す
-export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin"; module?: string; minLevel?: number; duties?: string[]; shiftRequest?: boolean; paidLeave?: boolean };
+//   inventory … 棚卸しシステムを使える人だけに出す（本部の経理・総務と代表、オープンした店の店長）
+export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin"; module?: string; minLevel?: number; duties?: string[]; shiftRequest?: boolean; paidLeave?: boolean; inventory?: boolean };
 export type NavSection = { title: string; items: NavItem[] };
 
 export const NAV: NavSection[] = [
@@ -33,6 +34,14 @@ export const NAV: NavSection[] = [
       { href: "/attendance", label: "勤怠", icon: "chart", audience: "manager" },
       { href: "/leave/review", label: "有給の承認", icon: "clock", audience: "manager" },
       { href: "/workboard", label: "ワークボード", icon: "book", audience: "all", module: "workboard" },
+    ],
+  },
+  {
+    title: "棚卸しシステム",
+    items: [
+      { href: "/inventory", label: "棚卸し・原価", icon: "chart", audience: "all", inventory: true },
+      { href: "/inventory/slips", label: "納品伝票", icon: "history", audience: "admin", duties: ["keiri_input", "keiri_approve"] },
+      { href: "/inventory/items", label: "品目", icon: "book", audience: "all", inventory: true },
     ],
   },
   {
@@ -63,9 +72,11 @@ export const NAV: NavSection[] = [
 ];
 
 /** その人に見せるメニュー。空になった区分は出さない */
-export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Set<string>; level: number; duties: string[]; canRequestShift: boolean; paidLeave: boolean }): NavSection[] {
+export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Set<string>; level: number; duties: string[]; canRequestShift: boolean; paidLeave: boolean; inventory: boolean }): NavSection[] {
   const ok = (i: NavItem) =>
-    i.paidLeave
+    i.inventory
+      ? opts.inventory
+      : i.paidLeave
       ? opts.paidLeave
       : i.shiftRequest
       ? opts.canRequestShift
