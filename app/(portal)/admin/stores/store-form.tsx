@@ -25,6 +25,8 @@ export type StoreRecord = {
   requested_off_limit: number | null;
   default_paid_leave: number | null;
   target_labor_cost_rate: number | null;
+  target_food_cost_rate: number | null;
+  inventory_enabled: boolean;
   rosai_rate: number | null;
   scheduled_clock_out: string | null;
   notification_delay_min: number | null;
@@ -148,6 +150,10 @@ export function StoreForm({
         <Field label="目標人件費率（%）">
           <input name="target_labor_cost_rate" inputMode="decimal" defaultValue={pct(store?.target_labor_cost_rate ?? null)} className={input} />
         </Field>
+        <Field label="目標原価率（%）" hint="棚卸しシステムの原価率の目安。超えると赤く出ます">
+          <input name="target_food_cost_rate" inputMode="decimal" defaultValue={pct(store?.target_food_cost_rate ?? null)} className={input} />
+        </Field>
+        {store && <Check name="inventory_enabled" label="棚卸しシステムを使う（店長に出す）" defaultChecked={store.inventory_enabled} />}
         <Field label="労災保険料率（%）" hint="例：0.3">
           <input name="rosai_rate" inputMode="decimal" defaultValue={pct(store?.rosai_rate ?? null)} className={input} />
         </Field>
