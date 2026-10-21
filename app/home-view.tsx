@@ -57,7 +57,7 @@ function Section({
   );
 }
 
-function NoticeList({ items }: { items: Announcement[] }) {
+function NoticeList({ items, newIds }: { items: Announcement[]; newIds?: Set<string> }) {
   return (
     <ul className="divide-y divide-slate-100 overflow-hidden rounded-md border border-line bg-white">
       {items.map((a) => (
@@ -68,6 +68,11 @@ function NoticeList({ items }: { items: Announcement[] }) {
                 {day(a.published_at)}
               </span>
               <span className="min-w-0 flex-1 text-sm font-bold text-slate-900">
+                {newIds?.has(a.id) && (
+                  <span className="mr-1.5 rounded bg-accent px-1.5 py-0.5 text-[10px] text-white">
+                    NEW
+                  </span>
+                )}
                 {a.pinned && (
                   <span className="mr-1.5 rounded bg-accent-soft px-1.5 py-0.5 text-[10px] text-accent">
                     重要
@@ -142,6 +147,7 @@ export function HomeView({
   work,
   notices,
   system,
+  systemNew = [],
   news,
 }: {
   name: string;
@@ -149,6 +155,7 @@ export function HomeView({
   work: HomeWork;
   notices: Announcement[];
   system: Announcement[];
+  systemNew?: string[]; // まだ見ていないシステムの更新（NEW の印）
   news: Announcement[];
 }) {
   return (
@@ -238,8 +245,8 @@ export function HomeView({
       <Section title="会社からのお知らせ" empty={!notices.length}>
         <NoticeList items={notices} />
       </Section>
-      <Section title="システムの更新" empty={!system.length}>
-        <NoticeList items={system} />
+      <Section title={systemNew.length ? `システムの更新（新しい更新 ${systemNew.length}件）` : "システムの更新"} empty={!system.length}>
+        <NoticeList items={system} newIds={new Set(systemNew)} />
       </Section>
       <Section title="全国ニュース" empty={!news.length}>
         <NewsList items={news} />
