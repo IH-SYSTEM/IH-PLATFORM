@@ -12,6 +12,8 @@ import {
 } from "@/lib/shift-period";
 import { visibleShifts } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { after } from "next/server";
+import { refreshNews } from "@/lib/news";
 import { isPaidLeaveRole, leaveSummary } from "@/lib/paid-leave";
 import { HomeView, type Todo } from "@/app/home-view";
 import { Toast } from "@/app/toast";
@@ -184,8 +186,10 @@ export default async function PortalHome({ searchParams }: PageProps<"/">) {
     todayWork(me),
     announcementsFor(me.id, "notice", 5),
     announcementsFor(me.id, "system", 3),
-    announcementsFor(me.id, "news", 5),
+    announcementsFor(me.id, "news", 6),
   ]);
+  // 全国ニュースは、ホームを開いたときに裏で取りに行く（1時間に1回まで）
+  after(() => refreshNews().catch((e) => console.error("refreshNews failed", e)));
   const today = new Intl.DateTimeFormat("ja-JP", {
     timeZone: "Asia/Tokyo",
     month: "long",

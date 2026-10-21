@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { buildCeoSummary, buildLaborReports } from "@/lib/labor-report";
 import { pushLine } from "@/lib/line-push";
 import { watchOvertime } from "@/lib/overtime-watch";
+import { refreshNews } from "@/lib/news";
 
 export const maxDuration = 60;
 
@@ -28,5 +29,7 @@ export async function GET(request: NextRequest) {
   results.push({ store: "全店まとめ（代表）", ...ceoSent, ...(dry ? { text: ceo.text } : {}) });
   // 36協定（残業 月45時間・年360時間）に近づいた人を、店長と総務・代表に知らせる
   const overtime = onlyCeo ? [] : await watchOvertime({ dry }).catch((e) => [{ error: String(e) }]);
-  return NextResponse.json({ results, overtime });
+  // 全国ニュース（ホームを開いた人がいなくても、朝に一度そろえる）
+  const news = dry ? null : await refreshNews({ force: true }).catch((e) => ({ error: String(e) }));
+  return NextResponse.json({ results, overtime, news });
 }
