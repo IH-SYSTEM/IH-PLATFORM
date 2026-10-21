@@ -188,6 +188,14 @@ export default async function PortalHome({ searchParams }: PageProps<"/">) {
     announcementsFor(me.id, "system", 3),
     announcementsFor(me.id, "news", 6),
   ]);
+  // システムの更新：前に見たときより新しいものに NEW の印。表示したら「見た」にする（2回目からは消える）
+  const admin = createAdminClient();
+  const { data: seen } = await admin.from("staff").select("system_seen_at").eq("id", me.id).single();
+  const systemNew = system.filter((a) => !seen?.system_seen_at || a.published_at > seen.system_seen_at).map((a) => a.id);
+  if (systemNew.length && !me.viewAs)
+    after(async () => {
+      await admin.from("staff").update({ system_seen_at: new Date().toISOString() }).eq("id", me.id);
+    });
   // 全国ニュースは、ホームを開いたときに裏で取りに行く（1時間に1回まで）
   after(() => refreshNews().catch((e) => console.error("refreshNews failed", e)));
   const today = new Intl.DateTimeFormat("ja-JP", {
@@ -205,6 +213,7 @@ export default async function PortalHome({ searchParams }: PageProps<"/">) {
         work={work}
         notices={notices}
         system={system}
+        systemNew={systemNew}
         news={news}
       />
       {line === "linked" && <Toast message="LINEと連携しました" />}
