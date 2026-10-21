@@ -18,7 +18,8 @@ const TONE: Record<LeaveStatus, string> = {
 export default async function MyLeavePage() {
   const me = await requireStaff();
   const admin = createAdminClient();
-  const { data: self } = await admin.from("staff").select("role").eq("id", me.id).single();
+  const { data: dbSelf } = await admin.from("staff").select("role").eq("id", me.id).single();
+  const self = me.viewAs && dbSelf ? { ...dbSelf, role: me.role } : dbSelf;
   if (!isPaidLeaveRole(self?.role))
     return (
       <div className="space-y-4">
