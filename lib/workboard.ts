@@ -1,6 +1,6 @@
 import "server-only";
 import type { CurrentStaff } from "@/lib/auth";
-import { loadOrg } from "@/lib/org";
+import { loadOrg, myLevel, myScope } from "@/lib/org";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -106,8 +106,9 @@ export async function checklistFor(storeId: string | null): Promise<{ id: string
 
 /** ワークボードで扱える範囲（組織図の配下の店。社長・部長・経理主任は全社）と、自分の段 */
 export async function workboardStores(me: CurrentStaff): Promise<{ all: boolean; storeIds: string[]; level: number }> {
-  const org = await loadOrg();
-  return { ...org.scopeOf(me.id), level: org.levelOf(me.id) };
+  // 代表の表示の切り替え中は、切り替えた立場の範囲と段
+  const [scope, level] = await Promise.all([myScope(me), myLevel(me)]);
+  return { ...scope, level };
 }
 
 /** お知らせを見せる相手（在籍のスタッフ）。確認状況の「まだの人」を出すのに使う。出した人より下の段だけ */

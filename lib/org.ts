@@ -63,3 +63,16 @@ export const loadOrg = cache(async function loadOrg() {
 
   return { units: u, staff: staff ?? [], levelOf, scopeOf, canReach, storesUnder };
 });
+
+/** 自分の段。代表の「表示の切り替え」中は、切り替えた立場の段（アルバイト1・正社員2・店長3）で扱う（2026-10-21） */
+export const VIEW_LEVEL: Record<string, number> = { parttime: 1, fulltime: 2, manager: 3 };
+export async function myLevel(me: { id: string; viewAs?: string | null }) {
+  if (me.viewAs) return VIEW_LEVEL[me.viewAs] ?? 1;
+  return (await loadOrg()).levelOf(me.id);
+}
+
+/** 自分の配下の範囲。切り替え中は、選んだ店だけ（店長）か、なし */
+export async function myScope(me: { id: string; viewAs?: string | null; viewStoreId?: string | null }) {
+  if (me.viewAs) return me.viewAs === "manager" && me.viewStoreId ? { all: false, storeIds: [me.viewStoreId] } : { all: false, storeIds: [] };
+  return (await loadOrg()).scopeOf(me.id);
+}

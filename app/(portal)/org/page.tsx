@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireStaff } from "@/lib/auth";
 import { canAssign } from "@/lib/duties";
-import { loadOrg, type OrgUnit } from "@/lib/org";
+import { loadOrg, type OrgUnit, myLevel } from "@/lib/org";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { saveHeads, saveTitle } from "./actions";
 import { HeadsForm, TitleForm } from "./forms";
@@ -18,7 +18,7 @@ const short = (name: string) => name.replace(/[\s　]+/g, " ");
 export default async function OrgPage() {
   const me = await requireStaff();
   const org = await loadOrg();
-  if (org.levelOf(me.id) < 4) redirect("/");
+  if ((await myLevel(me)) < 4) redirect("/");
   const editable = me.isAdmin && canAssign(me);
   const { data: stores } = await createAdminClient().from("stores").select("id, name");
   const storeName = new Map((stores ?? []).map((s) => [s.id, s.name]));
