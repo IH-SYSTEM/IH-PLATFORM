@@ -18,7 +18,7 @@ async function offDays(staffId: string, start: string, end: string) {
   return new Set((data ?? []).map((r) => r.work_date));
 }
 
-/** 有給の申請（正社員だけ）。期限を過ぎていても出せるが「期限後」として店長に出る */
+/** 有給の申請（正社員だけ）。期限（1日＝2週間前、連続2〜4日＝1か月前、5日以上＝2か月前）を過ぎたものは受け付けない */
 export async function requestLeave(_prev: LeaveState, form: FormData): Promise<LeaveState> {
   const me = await requireStaff();
   const admin = createAdminClient();
@@ -53,7 +53,10 @@ export async function requestLeave(_prev: LeaveState, form: FormData): Promise<L
   if (sum && days > sum.remaining - sum.pendingDays) return fail(`残りの有給（${sum.remaining - sum.pendingDays}日）を超えています`);
 
   // 期限：連続する日数（公休をはさんでも、はじめから終わりまでの日数）で決める
-  const late = today > requestDeadline(start, span);
+  // 期限を過ぎた申請は受け付けない（2026-10-21 黒田さん：カレンダーで押すと「期限外です」と出す）。急ぎは店長に相談
+  const due = requestDeadline(start, span);
+  if (today > due) return fail(`期限外です。${span}日間の有給は ${Number(due.slice(5, 7))}/${Number(due.slice(8, 10))} までに申請する決まりです。店長に相談してください`);
+  const late = false;
   const { data: row, error } = await admin
     .from("paid_leave_requests")
     .insert({ staff_id: me.id, store_id: self.store_id, start_date: start, end_date: end, days, reason: reason || null, late })

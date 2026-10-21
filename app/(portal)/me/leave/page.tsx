@@ -78,7 +78,7 @@ export default async function MyLeavePage() {
 
       <section className="space-y-3 rounded-md border border-line bg-white p-5">
         <h2 className="text-base font-bold text-slate-900">有給を申請する</h2>
-        <p className="text-xs text-slate-500">申請の期限：1日 … 2週間前／連続2〜4日 … 1か月前／連続5日以上 … 2か月前</p>
+        <p className="text-xs text-slate-500">申請の期限：1日 … 2週間前／連続2〜4日 … 1か月前／連続5日以上 … 2か月前。期限を過ぎた日は「期限外」と出て選べません</p>
         <LeaveRequestForm today={today} minDate={addDays(today, 1)} />
       </section>
 
