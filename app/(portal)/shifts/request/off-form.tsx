@@ -40,7 +40,8 @@ export function OffRequestForm({ days, initial, limit, busyAllowed, action }: { 
         </span>
       </p>
       <p className="text-xs text-slate-500">
-        日を押すと「調整OK」（予約しだいで出勤になることがある）、もう一度押すと「動かせない」、もう一度で取り消し。
+        1回押すと<span className="mx-0.5 rounded bg-brand px-1 font-bold text-white">紺：調整OK</span>（予約しだいで出勤になることがある）、2回で
+        <span className="mx-0.5 rounded bg-accent px-1 font-bold text-white">赤：動かせない</span>、3回で取り消し。
         {!busyAllowed && "「繁忙」の日は出勤が必須なので選べません。"}
       </p>
       <div className="grid grid-cols-7 gap-1 text-center text-xs">
@@ -65,9 +66,9 @@ export function OffRequestForm({ days, initial, limit, busyAllowed, action }: { 
                 d.closed
                   ? "border-slate-200 bg-slate-100 text-slate-400"
                   : f === "fixed"
-                    ? "border-brand bg-brand text-white"
+                    ? "border-accent bg-accent text-white"
                     : f === "flexible"
-                      ? "border-brand bg-brand-soft text-brand"
+                      ? "border-brand bg-brand text-white"
                       : d.busy && !busyAllowed
                         ? "border-amber-200 bg-amber-50 text-amber-700"
                         : "border-slate-200 bg-white text-slate-800 disabled:opacity-40"
