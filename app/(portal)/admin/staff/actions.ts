@@ -148,6 +148,7 @@ export async function saveStaff(staffId: string | null, _prev: SaveState, fd: Fo
       basic_pension_no: text("basic_pension_no"),
       welfare_pension_no: text("welfare_pension_no"),
       line_added: checked("line_added"),
+      busy_off_allowed: checked("busy_off_allowed"),
       retired,
       retirement_date: retired ? date("retirement_date", "退職日") : null,
       retirement_reason: retired ? text("retirement_reason") : null,

@@ -112,6 +112,10 @@ export function StaffForm({ staff, stores, companies, action, createdNotice, rea
           <input type="checkbox" name="line_added" defaultChecked={staff?.line_added ?? false} className="size-4 rounded border-slate-300" />
           公式LINE 登録済み
         </label>
+        <label className="flex items-center gap-2 self-end pb-2 text-sm text-slate-700 sm:col-span-2">
+          <input type="checkbox" name="busy_off_allowed" defaultChecked={staff?.busy_off_allowed ?? false} className="size-4 rounded border-slate-300" />
+          繁忙日も希望休を出せる（その分、基本給が低い雇用形態）
+        </label>
       </Section>
 
       <Section title="連絡先">

@@ -28,6 +28,8 @@ export type StoreRecord = {
   target_food_cost_rate: number | null;
   inventory_enabled: boolean;
   fulltime_weekly: boolean;
+  busy_weekdays: number[];
+  busy_dates: string[];
   rosai_rate: number | null;
   scheduled_clock_out: string | null;
   notification_delay_min: number | null;
@@ -139,6 +141,20 @@ export function StoreForm({
             ))}
           </div>
         </div>
+        <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+          <p className="text-xs font-medium text-slate-600">毎週の繁忙日（正社員は出勤が必須。希望休を出せない）</p>
+          <div className="flex flex-wrap gap-2">
+            {"日月火水木金土".split("").map((d, i) => (
+              <label key={d} className="flex items-center gap-1.5 rounded-lg border border-amber-200 px-3 py-1.5 text-sm">
+                <input type="checkbox" name="busy_weekdays" value={i} defaultChecked={store?.busy_weekdays?.includes(i)} className="size-4" />
+                {d}曜
+              </label>
+            ))}
+          </div>
+        </div>
+        <Field label="特定の繁忙日" hint="年末・連休など。1行に1日（例 2026-12-30）" className="sm:col-span-2">
+          <textarea name="busy_dates" rows={2} defaultValue={(store?.busy_dates ?? []).join("\n")} className={`${input} font-mono`} />
+        </Field>
         <Field label="臨時の店休日" hint="年末年始・お盆など。1行に1日（例 2026-12-31）" className="sm:col-span-2">
           <textarea name="closed_dates" rows={3} defaultValue={(store?.closed_dates ?? []).join("\n")} className={`${input} font-mono`} />
         </Field>
