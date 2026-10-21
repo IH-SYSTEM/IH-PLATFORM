@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import type { CurrentStaff } from "@/lib/auth";
-import { loadOrg } from "@/lib/org";
+import { loadOrg, VIEW_LEVEL } from "@/lib/org";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -34,7 +34,7 @@ function autoReason(grants: Grant[], module: string, p: Person, level: number): 
 }
 
 /** ある人の、機能ごとの状態（自動で付くか・人ごとの設定・最終的に使えるか） */
-export async function moduleStatesFor(p: Person): Promise<Record<string, ModuleState>> {
+export async function moduleStatesFor(p: Person, levelOverride?: number): Promise<Record<string, ModuleState>> {
   const admin = createAdminClient();
   const [{ data: modules }, { data: grants }, { data: overrides }, org] = await Promise.all([
     admin.from("modules").select("key"),
@@ -42,7 +42,7 @@ export async function moduleStatesFor(p: Person): Promise<Record<string, ModuleS
     admin.from("staff_module_overrides").select("module, allowed").eq("staff_id", p.id),
     loadOrg(),
   ]);
-  const level = org.levelOf(p.id);
+  const level = levelOverride ?? org.levelOf(p.id);
   return Object.fromEntries(
     (modules ?? []).map((m) => {
       const reason = autoReason(grants ?? [], m.key, p, level);
@@ -54,7 +54,8 @@ export async function moduleStatesFor(p: Person): Promise<Record<string, ModuleS
 
 /** その人が使えるモジュールの一覧（1回の表示の中では1回だけ読む）。人ごとの設定があればそれを優先 */
 export const myModules = cache(async function myModules(me: CurrentStaff): Promise<Set<ModuleKey>> {
-  const states = await moduleStatesFor({ id: me.id, permission: me.permission, duties: me.duties });
+  // 代表の表示の切り替え中は、切り替えた立場の段で決める（人ごとの設定は使わない）
+  const states = await moduleStatesFor({ id: me.viewAs ? `view:${me.viewAs}` : me.id, permission: me.permission, duties: me.duties }, me.viewAs ? VIEW_LEVEL[me.viewAs] : undefined);
   return new Set(Object.entries(states).filter(([, v]) => v.on).map(([k]) => k as ModuleKey));
 });
 
