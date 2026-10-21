@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { businessDayJST } from "@/lib/business-day";
-import { isStoreClosed, offLimitFor, openMonths, partTimeWeeks, periodTypeFor, weekOfMonthLabel } from "@/lib/shift-period";
+import { isBusyDay, isStoreClosed, offLimitFor, openMonths, partTimeWeeks, periodTypeFor, weekOfMonthLabel } from "@/lib/shift-period";
 import { hm } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { saveDefaultTime, submitOffRequests, submitPartTimeRequests } from "./actions";
@@ -19,7 +19,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
   const me = await requireStaff();
   const { p } = await searchParams;
   const admin = createAdminClient();
-  const { data: dbSelf } = await admin.from("staff").select("role, store_id, shift_default_start, shift_default_end").eq("id", me.id).single();
+  const { data: dbSelf } = await admin.from("staff").select("role, store_id, shift_default_start, shift_default_end, busy_off_allowed").eq("id", me.id).single();
   const self = me.viewAs && dbSelf ? { ...dbSelf, role: me.role, store_id: me.viewStoreId ?? dbSelf.store_id } : dbSelf;
   const type = periodTypeFor(self?.role);
   // シフト希望を出さない雇用区分（役員・業務委託・管理部）はメニューにも出さず、開いてもスケジュールへ
@@ -29,7 +29,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
   const periods = type === "month" ? openMonths(today) : type === "week" ? partTimeWeeks(today) : [];
   // 「いつもの時間」：本人の設定 → 所属店舗の営業時間 → 19:00〜24:00 の順
   const { data: myStore } = self?.store_id
-    ? await admin.from("stores").select("open_time, close_time, closed_weekdays, closed_dates, requested_off_limit, monthly_holidays").eq("id", self.store_id).maybeSingle()
+    ? await admin.from("stores").select("open_time, close_time, closed_weekdays, closed_dates, requested_off_limit, monthly_holidays, busy_weekdays, busy_dates").eq("id", self.store_id).maybeSingle()
     : { data: null };
   // 1人だけの部署（シフトの対象が自分だけ）は、希望を出さずに自分でシフトを入れて確定する（2026-10-19）
   const { data: mates } = self?.store_id ? await admin.from("staff").select("role").eq("store_id", self.store_id).eq("retired", false) : { data: [] };
@@ -54,7 +54,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
   const period = periods.find((x) => x.start === p) ?? periods[0];
   const [{ data: existing }, { data: submitted }] = period
     ? await Promise.all([
-        admin.from("shift_requests").select("work_date, availability, preferred_start, preferred_end, source").eq("staff_id", me.id).in("work_date", period.days),
+        admin.from("shift_requests").select("work_date, availability, preferred_start, preferred_end, source, note, firmness").eq("staff_id", me.id).in("work_date", period.days),
         admin.from("shift_request_submissions").select("submitted_at").eq("staff_id", me.id).eq("period_type", period.type).eq("period_start", period.start).maybeSingle(),
       ])
     : [{ data: [] }, { data: null }];
@@ -152,8 +152,12 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
                   label: `${md(d)}（${dow(d)}）`,
                   weekend: ["土", "日"].includes(dow(d)),
                   closed: isStoreClosed(d, myStore?.closed_weekdays ?? [], myStore?.closed_dates ?? []),
+                  busy: isBusyDay(d, myStore?.busy_weekdays ?? [], myStore?.busy_dates ?? []),
                 }))}
-                initial={(existing ?? []).filter((r) => r.availability === "off").map((r) => r.work_date)}
+                initial={Object.fromEntries(
+                  (existing ?? []).filter((r) => r.availability === "off" && r.note !== "店休日").map((r) => [r.work_date, r.firmness === "fixed" ? "fixed" : "flexible"] as const),
+                )}
+                busyAllowed={!!self?.busy_off_allowed}
                 limit={myStore ? offLimitFor(period.days, myStore) : null}
                 action={submitOffRequests.bind(null, period.start)}
               />

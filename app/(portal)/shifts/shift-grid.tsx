@@ -7,7 +7,7 @@ import { InlineApprove, RejectedMark } from "./inline-approve";
 
 export type Cell = {
   date: string;
-  request: { a: string; s: string; e: string; urgent?: boolean; rejected?: boolean } | null;
+  request: { a: string; s: string; e: string; urgent?: boolean; rejected?: boolean; firm?: string | null; note?: string | null } | null;
   shift: { type: string; s: string; e: string; role: string | null; otherStore: boolean } | null;
   locked: boolean;
 };
@@ -20,6 +20,10 @@ export function RequestMark({ r, partTime }: { r: Cell["request"]; partTime?: bo
   if (!r) return <span className="text-slate-300">{partTime ? "希望なし" : "未提出"}</span>;
   if (r.urgent) return <span className="font-bold text-accent">急募 {r.s}〜{r.e}</span>;
   if (r.a === "all") return <span className="text-emerald-700">○</span>;
+  // 正社員の休みの希望は2段階（動かせない／調整OK）。店休日は「店休」
+  if (r.a === "off" && r.note === "店休日") return <span className="text-slate-400">店休</span>;
+  if (r.a === "off" && r.firm === "fixed") return <span className="font-bold text-accent">休（動かせない）</span>;
+  if (r.a === "off" && r.firm === "flexible") return <span className="text-amber-700">休（調整OK）</span>;
   if (r.a === "off") return <span className="text-slate-400">×</span>;
   return (
     <span className="text-brand">

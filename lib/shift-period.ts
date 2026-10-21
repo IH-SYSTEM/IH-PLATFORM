@@ -129,3 +129,8 @@ export function offLimitFor(days: string[], store: { closed_weekdays?: number[] 
   if (store.monthly_holidays !== null && store.monthly_holidays !== undefined) return Math.max(0, store.monthly_holidays - closed);
   return store.requested_off_limit ?? null;
 }
+
+/** 繁忙日か（毎週の繁忙の曜日 0=日〜6=土、特定の繁忙日）。正社員は出勤が必須（2026-10-21） */
+export function isBusyDay(date: string, busyWeekdays: readonly number[] = [], busyDates: readonly string[] = []) {
+  return busyDates.includes(date) || busyWeekdays.includes(new Date(at(date)).getUTCDay());
+}
