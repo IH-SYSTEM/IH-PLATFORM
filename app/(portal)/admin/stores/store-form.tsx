@@ -27,6 +27,7 @@ export type StoreRecord = {
   target_labor_cost_rate: number | null;
   target_food_cost_rate: number | null;
   inventory_enabled: boolean;
+  fulltime_weekly: boolean;
   rosai_rate: number | null;
   scheduled_clock_out: string | null;
   notification_delay_min: number | null;
@@ -141,6 +142,11 @@ export function StoreForm({
         <Field label="臨時の店休日" hint="年末年始・お盆など。1行に1日（例 2026-12-31）" className="sm:col-span-2">
           <textarea name="closed_dates" rows={3} defaultValue={(store?.closed_dates ?? []).join("\n")} className={`${input} font-mono`} />
         </Field>
+        {store && (
+          <div className="sm:col-span-2 lg:col-span-3">
+            <Check name="fulltime_weekly" label="社員のシフトを週ごとに確定する（予約に合わせて入れ替える店。毎週水曜に確定し、社員に1週間の勤務をLINEで知らせる）" defaultChecked={store.fulltime_weekly} />
+          </div>
+        )}
         <Field label="正社員の希望休（日／月）" hint="店休日は数えません。空なら上限なし。これより多く休むときは有給で申請します">
           <input name="requested_off_limit" inputMode="numeric" defaultValue={store?.requested_off_limit ?? ""} className={input} />
         </Field>
