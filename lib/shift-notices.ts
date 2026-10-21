@@ -2,7 +2,7 @@ import "server-only";
 import { toJSTDateString } from "@/lib/business-day";
 import { pushLine } from "@/lib/line-push";
 import { shiftManagersOf } from "@/lib/punch-rules";
-import { addDays, monthPeriod, nextMonth, partTimeWeeks, periodTypeFor, weekOfMonthLabel, type Period, type PeriodType } from "@/lib/shift-period";
+import { addDays, monthPeriod, nextMonth, offLimitFor, partTimeWeeks, periodTypeFor, weekOfMonthLabel, type Period, type PeriodType } from "@/lib/shift-period";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -34,7 +34,7 @@ export async function buildShiftNotices(today = toJSTDateString(new Date()), ori
     admin.from("org_units").select("id, name, store_id, head_staff_ids").eq("kind", "unit").not("store_id", "is", null).order("sort_order"),
     admin.from("staff").select("id, name, role, store_id, permission, line_user_id").eq("retired", false),
   ]);
-  const { data: managed } = await admin.from("stores").select("id, manager_staff_ids, requested_off_limit, fulltime_weekly");
+  const { data: managed } = await admin.from("stores").select("id, manager_staff_ids, requested_off_limit, fulltime_weekly, monthly_holidays, closed_weekdays, closed_dates");
   const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
   const dom = Number(today.slice(8, 10));
   const periods = periodsAround(today);
@@ -65,13 +65,14 @@ export async function buildShiftNotices(today = toJSTDateString(new Date()), ori
       }
       if (!solo && type === "month" && dom === 15) {
         const next = monthPeriod(nextMonth(today.slice(0, 7)));
-        const limit = (managed ?? []).find((s) => s.id === u.store_id)?.requested_off_limit;
+        const st = (managed ?? []).find((s) => s.id === u.store_id);
+        const limit = st ? offLimitFor(next.days, st) : null;
         for (const m of inType)
           out.push({
             to: m.id,
             unit: u.name,
             kind: "announce",
-            text: `【休みの希望】${next.label}の休みの希望を、${md(next.submit)} までに入れてください（先の月も入れられます）\n店休日は自動で休みです。${limit !== null && limit !== undefined ? `希望休は${limit}日まで、` : ""}それより多く休むときは有給で申請してください\n${origin}/shifts/request`,
+            text: `【休みの希望】${next.label}の休みの希望を、${md(next.submit)} までに入れてください（先の月も入れられます）\n店休日は自動で休みです。${limit !== null ? `${next.label}の希望休は${limit}日まで${st?.monthly_holidays ? `（店休日と合わせて${st.monthly_holidays}日）` : ""}、` : ""}それより多く休むときは有給で申請してください\n${origin}/shifts/request`,
           });
       }
       for (const p of periods.filter((x) => x.type === type)) {

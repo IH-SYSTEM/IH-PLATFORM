@@ -68,3 +68,13 @@ test("急募 — 今日から3日後まで", () => {
   assert.equal(canCallUrgent("2026-10-12", "2026-10-08"), false);
   assert.equal(canCallUrgent("2026-10-07", "2026-10-08"), false);
 });
+
+test("希望休の日数 — 月の休み6日から店休日を引く（店休日5日なら1日）", async () => {
+  const { offLimitFor, monthDays } = await import("../lib/shift-period.ts");
+  const nov = monthDays("2026-11");
+  // 2026年11月の月曜は 2・9・16・23・30 の5回
+  assert.equal(offLimitFor(nov, { closed_weekdays: [1], monthly_holidays: 6 }), 1);
+  assert.equal(offLimitFor(nov, { closed_weekdays: [], closed_dates: ["2026-11-03"], monthly_holidays: 6 }), 5);
+  assert.equal(offLimitFor(nov, { closed_weekdays: [1, 2], monthly_holidays: 6 }), 0);
+  assert.equal(offLimitFor(nov, { requested_off_limit: 2 }), 2);
+});
