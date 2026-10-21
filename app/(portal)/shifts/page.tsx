@@ -6,6 +6,7 @@ import { businessDayJST } from "@/lib/business-day";
 import { canCallUrgent, isPast, mondayOf, monthDeadlines, periodTypeFor, URGENT_REASONS, weekDeadlines, weekDays } from "@/lib/shift-period";
 import { hm } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requiredBreak } from "@/lib/payroll/worktime";
 import { ShiftGrid, type GridRow } from "./shift-grid";
 import { DecideButton } from "./decide-button";
 import { StorePicker } from "./store-picker";
@@ -249,22 +250,29 @@ async function WeekCheck({ storeId, days, people, monthlyHolidays }: { storeId: 
   const list = people.map((p) => {
     const mine = (rows ?? []).filter((r) => r.staff_id === p.id);
     const week = mine.filter((r) => days.includes(r.work_date) && r.shift_type === "work");
-    const total = week.reduce((a, r) => a + minutes(r.planned_start, r.planned_end), 0);
-    const long = week.filter((r) => minutes(r.planned_start, r.planned_end) > 600).map((r) => r.work_date);
+    const worked = (r: { planned_start: string | null; planned_end: string | null }) => {
+      const span = minutes(r.planned_start, r.planned_end);
+      return span - requiredBreak(span);
+    };
+    const total = week.reduce((a, r) => a + worked(r), 0);
+    const long = week.filter((r) => worked(r) > 600).map((r) => r.work_date);
     const off = mine.filter((r) => r.work_date.startsWith(month) && r.shift_type === "off").length;
-    return { ...p, total, long, off };
+    // 今月の残業の見込み：1日8時間を超える分の合計（固定残業は30時間分）
+    const overtime = mine.filter((r) => r.work_date.startsWith(month) && r.shift_type === "work").reduce((a, r) => a + Math.max(0, worked(r) - 480), 0);
+    return { ...p, total, long, off, overtime };
   });
   const h = (m: number) => `${Math.floor(m / 60)}時間${m % 60 ? `${m % 60}分` : ""}`;
   return (
     <section className="rounded-md border border-line bg-white p-4 text-sm">
       <p className="font-bold text-slate-800">社員のこの週（予約に合わせた入れ替えの確認）</p>
-      <p className="text-xs text-slate-500">勤務時間はシフトの予定（休憩込み）。週40時間・1日10時間まで、月の公休の数は変えない</p>
+      <p className="text-xs text-slate-500">勤務時間はシフトの予定（休憩を除く）。1日10時間まで、月の公休の数は変えない。残業の見込みは1日8時間を超える分で、固定残業は30時間分</p>
       <ul className="mt-2 divide-y divide-slate-100">
         {list.map((p) => (
           <li key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
             <span className="w-28 font-bold text-slate-800">{p.name}</span>
             <span className={p.total > 40 * 60 ? "font-bold text-accent" : "text-slate-700"}>今週 {h(p.total)}</span>
             {p.long.length > 0 && <span className="font-bold text-accent">10時間超：{p.long.map((d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`).join("・")}</span>}
+            <span className={p.overtime > 30 * 60 ? "font-bold text-accent" : "text-slate-500"}>今月の残業見込み {h(p.overtime)} / 30時間</span>
             <span className={monthlyHolidays !== null && p.off < monthlyHolidays ? "text-amber-700" : "text-slate-500"}>
               {Number(month.slice(5))}月の公休 {p.off}
               {monthlyHolidays !== null ? ` / ${monthlyHolidays}日` : "日"}

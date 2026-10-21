@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth";
 import { businessDayJST } from "@/lib/business-day";
-import { isStoreClosed, openMonths, partTimeWeeks, periodTypeFor, weekOfMonthLabel } from "@/lib/shift-period";
+import { isStoreClosed, offLimitFor, openMonths, partTimeWeeks, periodTypeFor, weekOfMonthLabel } from "@/lib/shift-period";
 import { hm } from "@/lib/shifts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { saveDefaultTime, submitOffRequests, submitPartTimeRequests } from "./actions";
@@ -29,7 +29,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
   const periods = type === "month" ? openMonths(today) : type === "week" ? partTimeWeeks(today) : [];
   // 「いつもの時間」：本人の設定 → 所属店舗の営業時間 → 19:00〜24:00 の順
   const { data: myStore } = self?.store_id
-    ? await admin.from("stores").select("open_time, close_time, closed_weekdays, closed_dates, requested_off_limit").eq("id", self.store_id).maybeSingle()
+    ? await admin.from("stores").select("open_time, close_time, closed_weekdays, closed_dates, requested_off_limit, monthly_holidays").eq("id", self.store_id).maybeSingle()
     : { data: null };
   // 1人だけの部署（シフトの対象が自分だけ）は、希望を出さずに自分でシフトを入れて確定する（2026-10-19）
   const { data: mates } = self?.store_id ? await admin.from("staff").select("role").eq("store_id", self.store_id).eq("retired", false) : { data: [] };
@@ -67,7 +67,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
         <div>
           <p className="text-xs text-slate-500">
             {type === "month"
-              ? `社員は1か月ごとに、休みの希望を出します（前の月の20日まで。3か月先まで出せます）。店休日は自動で休み、それ以外に希望休を${myStore?.requested_off_limit ?? "何"}日まで選べます。それより多く休むときは有給で申請します`
+              ? `社員は1か月ごとに、休みの希望を出します（前の月の20日まで。3か月先まで出せます）。${myStore?.monthly_holidays ? `月の休みは${myStore.monthly_holidays}日で、` : ""}店休日は自動で休み、残りを希望休として選べます（店休日が多い月は希望休が減ります）。それより多く休むときは有給で申請します`
               : type === "week"
                 ? "週を選んで、入れる日と時間を入れてください（4週先まで）"
                 : "あなたの雇用区分はシフト希望の対象外です"}
@@ -154,7 +154,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
                   closed: isStoreClosed(d, myStore?.closed_weekdays ?? [], myStore?.closed_dates ?? []),
                 }))}
                 initial={(existing ?? []).filter((r) => r.availability === "off").map((r) => r.work_date)}
-                limit={myStore?.requested_off_limit ?? null}
+                limit={myStore ? offLimitFor(period.days, myStore) : null}
                 action={submitOffRequests.bind(null, period.start)}
               />
             )}

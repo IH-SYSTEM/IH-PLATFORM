@@ -119,3 +119,13 @@ export const crossesMidnight = (start: string, end: string) => end <= start;
 export function isStoreClosed(date: string, closedWeekdays: readonly number[] = [], closedDates: readonly string[] = []) {
   return closedDates.includes(date) || closedWeekdays.includes(new Date(at(date)).getUTCDay());
 }
+
+/**
+ * 正社員がその月に出せる希望休の日数（2026-10-21 黒田さん）。月の休みは店休日と合わせて「月の公休日数」（ふつう6日）。
+ * 店休日が5日ある月は希望休1日。足りない分は有給で申請する。月の公休日数が未設定なら、店の「希望休の上限」
+ */
+export function offLimitFor(days: string[], store: { closed_weekdays?: number[] | null; closed_dates?: string[] | null; monthly_holidays?: number | null; requested_off_limit?: number | null }) {
+  const closed = days.filter((d) => isStoreClosed(d, store.closed_weekdays ?? [], store.closed_dates ?? [])).length;
+  if (store.monthly_holidays !== null && store.monthly_holidays !== undefined) return Math.max(0, store.monthly_holidays - closed);
+  return store.requested_off_limit ?? null;
+}

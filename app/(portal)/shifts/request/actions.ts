@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth";
 import { businessDayJST } from "@/lib/business-day";
-import { isPast, isStoreClosed, monthPeriod, partTimeWeeks, periodTypeFor, weekPeriod } from "@/lib/shift-period";
+import { isPast, isStoreClosed, monthPeriod, offLimitFor, partTimeWeeks, periodTypeFor, weekPeriod } from "@/lib/shift-period";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type RequestState = { ok?: boolean; error?: string; at?: number } | undefined;
@@ -76,11 +76,12 @@ export async function submitOffRequests(periodStart: string, _prev: RequestState
   const period = monthPeriod(periodStart.slice(0, 7));
   if (period.start !== periodStart) return fail("期間が正しくありません");
   if (isPast(period.submit, businessDayJST())) return fail(`提出期限（${period.submit}）を過ぎています。変更はシフト管理者に相談してください`);
-  const { data: store } = self?.store_id ? await admin.from("stores").select("closed_weekdays, closed_dates, requested_off_limit").eq("id", self.store_id).maybeSingle() : { data: null };
+  const { data: store } = self?.store_id ? await admin.from("stores").select("closed_weekdays, closed_dates, requested_off_limit, monthly_holidays").eq("id", self.store_id).maybeSingle() : { data: null };
   const closed = (d: string) => isStoreClosed(d, store?.closed_weekdays ?? [], store?.closed_dates ?? []);
   const off = new Set(fd.getAll("off").map(String).filter((d) => period.days.includes(d) && !closed(d)));
-  const limit = store?.requested_off_limit;
-  if (limit !== null && limit !== undefined && off.size > limit) return fail(`希望休は${limit}日までです。それより多く休むときは、有給で申請してください`);
+  // 月の休み（ふつう6日）＝店休日＋希望休。店休日が多い月は希望休が減る
+  const limit = store ? offLimitFor(period.days, store) : null;
+  if (limit !== null && off.size > limit) return fail(`この月の希望休は${limit}日までです（店休日と合わせて${store?.monthly_holidays ?? ""}日）。それより多く休むときは、有給で申請してください`);
   const now = new Date().toISOString();
   const rows = period.days.map((d) => ({
     staff_id: me.id,

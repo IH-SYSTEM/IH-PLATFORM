@@ -6,6 +6,7 @@ import { attendanceScope, inScope } from "@/lib/attendance";
 import { businessDayJST } from "@/lib/business-day";
 import { isShiftType } from "@/lib/shifts";
 import { pushLine } from "@/lib/line-push";
+import { requiredBreak } from "@/lib/payroll/worktime";
 import { mondayOf, periodTypeFor, weekDays } from "@/lib/shift-period";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -88,6 +89,15 @@ export async function saveShift(storeId: string, staffId: string, date: string, 
   const workRole = String(fd.get("role") ?? "").trim() || null;
   if (type === "work" && roles.length && (!workRole || !roles.includes(workRole))) return fail("役割を選んでください");
   if (type === "work" && start === end) return fail("開始と終了が同じ時刻です");
+  // 1日に働く長さは最大10時間（休憩を除く。2026-10-21 黒田さん）。長い日は前半・後半のシフトに分けて調整する
+  if (type === "work") {
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    let span = eh * 60 + em - (sh * 60 + sm);
+    if (span <= 0) span += 24 * 60;
+    const worked = span - requiredBreak(span);
+    if (worked > 600) return fail(`1日に働けるのは10時間までです（この時間だと休憩を除いて${Math.floor(worked / 60)}時間${worked % 60 ? `${worked % 60}分` : ""}）。前半・後半に分けてください`);
+  }
 
   // 同じ日に他の店舗でシフトがある人は上書きしない（掛け持ちの取り違えを防ぐ）
   const { data: other } = await admin.from("shift_schedule").select("store_id").eq("staff_id", staffId).eq("work_date", date).maybeSingle();
