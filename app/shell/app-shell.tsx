@@ -13,6 +13,9 @@ import { permissionLabel } from "@/lib/staff";
 import { logout } from "@/app/login/actions";
 import { MobileTabBar } from "@/app/mobile-tab-bar";
 import { SidebarNav } from "./sidebar-nav";
+import { ViewSwitch } from "./view-switch";
+import { VIEW_LABELS } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // 1回の表示の中で何度呼んでも、店長かどうかの確認は1回だけ
 const isManagerOf = cache(async (me: CurrentStaff) => (await attendanceScope(me)) !== null);
@@ -30,6 +33,9 @@ export async function sectionsFor(me: CurrentStaff) {
 export async function AppShell({ staff, children }: { staff: CurrentStaff; children: React.ReactNode }) {
   const sections = await sectionsFor(staff);
   const initial = staff.name.trim().charAt(0);
+  // 表示の切り替え（代表だけ）
+  const { data: viewStores } = staff.canViewAs ? await createAdminClient().from("stores").select("id, name").eq("is_active", true).order("sort_order", { nullsFirst: false }) : { data: [] };
+  const viewStoreName = viewStores?.find((s) => s.id === staff.viewStoreId)?.name;
 
   return (
     <div className="min-h-screen bg-canvas lg:flex print:block print:bg-white">
@@ -41,6 +47,11 @@ export async function AppShell({ staff, children }: { staff: CurrentStaff; child
         <div className="min-h-0 flex-1 overflow-y-auto pb-6">
           <SidebarNav sections={sections} />
         </div>
+        {staff.canViewAs && (
+          <div className="border-t border-white/10 px-5 py-3">
+            <ViewSwitch current={staff.viewAs ?? ""} storeId={staff.viewStoreId ?? null} stores={viewStores ?? []} />
+          </div>
+        )}
         <div className="flex items-center gap-3 border-t border-white/10 px-5 py-4">
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-sm font-bold text-white">{initial}</span>
           <div className="min-w-0 flex-1 leading-tight">
@@ -66,6 +77,21 @@ export async function AppShell({ staff, children }: { staff: CurrentStaff; child
             <span className="grid size-8 place-items-center rounded-full bg-brand text-sm font-bold text-white">{initial}</span>
           </Link>
         </header>
+        {staff.viewAs && (
+          <div className="no-print flex flex-wrap items-center justify-between gap-2 bg-amber-100 px-4 py-2 text-sm text-amber-900 lg:px-10">
+            <span>
+              いま「<b>{VIEW_LABELS[staff.viewAs]}</b>」の表示です{viewStoreName ? `（${viewStoreName}）` : ""}。この立場と同じ権限で動きます
+            </span>
+            <span className="lg:hidden">
+              <ViewSwitch current={staff.viewAs} storeId={staff.viewStoreId ?? null} stores={viewStores ?? []} tone="light" />
+            </span>
+          </div>
+        )}
+        {staff.canViewAs && !staff.viewAs && (
+          <div className="no-print px-4 pt-3 lg:hidden">
+            <ViewSwitch current="" storeId={null} stores={viewStores ?? []} tone="light" />
+          </div>
+        )}
         <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-6 lg:px-10 lg:pb-12 lg:pt-8 print:p-0">{children}</main>
       </div>
 

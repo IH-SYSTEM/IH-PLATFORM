@@ -24,11 +24,13 @@ const md = (d: string) =>
 async function todayWork(me: CurrentStaff) {
   const admin = createAdminClient();
   const today = businessDayJST();
-  const { data: self } = await admin
+  const { data: dbSelf } = await admin
     .from("staff")
     .select("role")
     .eq("id", me.id)
     .single();
+  // 代表の表示の切り替え中は、切り替えた立場の雇用区分で出す
+  const self = me.viewAs ? { role: me.role } : dbSelf;
   const [shifts, punch] = await Promise.all([
     visibleShifts(me.id, self?.role ?? null, today, today),
     punchStatus(me.id),

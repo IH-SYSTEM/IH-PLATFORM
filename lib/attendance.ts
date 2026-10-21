@@ -12,6 +12,8 @@ import { monthRange, workedMinutes } from "@/lib/business-day";
 export type AttendanceScope = { all: boolean; storeIds: string[] };
 
 export const attendanceScope = cache(async function attendanceScope(me: CurrentStaff): Promise<AttendanceScope | null> {
+  // 代表の表示の切り替え：店長の表示は選んだ店だけ、アルバイト・正社員の表示は店長の画面なし
+  if (me.viewAs) return me.viewAs === "manager" && me.viewStoreId ? { all: false, storeIds: [me.viewStoreId] } : null;
   if (me.isAdmin) return { all: true, storeIds: [] };
   const admin = createAdminClient();
   const [{ data: managed }, { data: shiftManaged }, { data: self }] = await Promise.all([

@@ -19,7 +19,8 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
   const me = await requireStaff();
   const { p } = await searchParams;
   const admin = createAdminClient();
-  const { data: self } = await admin.from("staff").select("role, store_id, shift_default_start, shift_default_end").eq("id", me.id).single();
+  const { data: dbSelf } = await admin.from("staff").select("role, store_id, shift_default_start, shift_default_end").eq("id", me.id).single();
+  const self = me.viewAs && dbSelf ? { ...dbSelf, role: me.role, store_id: me.viewStoreId ?? dbSelf.store_id } : dbSelf;
   const type = periodTypeFor(self?.role);
   // シフト希望を出さない雇用区分（役員・業務委託・管理部）はメニューにも出さず、開いてもスケジュールへ
   if (!type) redirect("/shifts/mine");
