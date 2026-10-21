@@ -25,7 +25,7 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
   const admin = createAdminClient();
   const today = businessDayJST();
 
-  let storesQuery = admin.from("stores").select("id, name, open_time, close_time, work_roles, shift_manager_staff_id").eq("is_active", true).order("sort_order", { nullsFirst: false });
+  let storesQuery = admin.from("stores").select("id, name, open_time, close_time, work_roles, shift_manager_staff_id, fulltime_weekly, monthly_holidays").eq("is_active", true).order("sort_order", { nullsFirst: false });
   if (!scope.all) storesQuery = storesQuery.in("id", scope.storeIds);
   const { data: stores } = await storesQuery;
   const store = (stores ?? []).find((s) => s.id === sp.store) ?? (stores ?? [])[0];
@@ -158,11 +158,22 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
           );
         })}
         <div className="rounded-md border border-line bg-white p-4 text-sm">
-          <p className="font-bold text-slate-800">アルバイトのこの週</p>
-          <p className="text-xs text-slate-500">確定期限：{md(weekDeadlines(monday).decide)}</p>
-          <DecideButton storeId={store.id} type="week" start={monday} decidedAt={decided.get(`week:${monday}`) ?? null} label="この週のアルバイトを確定済み" />
+          <p className="font-bold text-slate-800">{store.fulltime_weekly ? "この週（社員・アルバイト）" : "アルバイトのこの週"}</p>
+          <p className="text-xs text-slate-500">
+            確定期限：{md(weekDeadlines(monday).decide)}
+            {store.fulltime_weekly && "。確定すると、社員に1週間の勤務が LINE で届きます"}
+          </p>
+          <DecideButton
+            storeId={store.id}
+            type="week"
+            start={monday}
+            decidedAt={decided.get(`week:${monday}`) ?? null}
+            label={store.fulltime_weekly ? "この週を確定（社員に LINE で知らせる）" : "この週のアルバイトを確定済み"}
+          />
         </div>
       </div>
+
+      {store.fulltime_weekly && <WeekCheck storeId={store.id} days={days} people={people.filter((p) => periodTypeFor(p.role) === "month").map((p) => ({ id: p.id, name: p.name }))} monthlyHolidays={store.monthly_holidays} />}
 
       {unsubmitted.length > 0 && (
         <p className="rounded-md bg-accent-soft px-4 py-3 text-sm text-accent">
@@ -209,5 +220,58 @@ export default async function ShiftsPage({ searchParams }: PageProps<"/shifts">)
         <button className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-medium hover:border-brand">追加</button>
       </form>
     </div>
+  );
+}
+
+/**
+ * 社員を週ごとに確定する店の、週の見張り（2026-10-21）。社員ごとに、この週の勤務時間（予定・休憩込み）・1日10時間を超える日・今月の公休の数。
+ * 1週間単位の非定型的変形労働時間制：週40時間・1日10時間まで。週の中で入れ替えても、月の公休の数は変えない
+ */
+async function WeekCheck({ storeId, days, people, monthlyHolidays }: { storeId: string; days: string[]; people: { id: string; name: string }[]; monthlyHolidays: number | null }) {
+  if (!people.length) return null;
+  const admin = createAdminClient();
+  const month = days[3].slice(0, 7);
+  const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate();
+  const { data: rows } = await admin
+    .from("shift_schedule")
+    .select("staff_id, work_date, shift_type, planned_start, planned_end")
+    .eq("store_id", storeId)
+    .in("staff_id", people.map((p) => p.id))
+    .or(`work_date.in.(${days.join(",")}),and(work_date.gte.${month}-01,work_date.lte.${month}-${last})`);
+  const minutes = (a: string | null, b: string | null) => {
+    if (!a || !b) return 0;
+    const [ah, am] = a.split(":").map(Number);
+    const [bh, bm] = b.split(":").map(Number);
+    let m = bh * 60 + bm - (ah * 60 + am);
+    if (m <= 0) m += 24 * 60;
+    return m;
+  };
+  const list = people.map((p) => {
+    const mine = (rows ?? []).filter((r) => r.staff_id === p.id);
+    const week = mine.filter((r) => days.includes(r.work_date) && r.shift_type === "work");
+    const total = week.reduce((a, r) => a + minutes(r.planned_start, r.planned_end), 0);
+    const long = week.filter((r) => minutes(r.planned_start, r.planned_end) > 600).map((r) => r.work_date);
+    const off = mine.filter((r) => r.work_date.startsWith(month) && r.shift_type === "off").length;
+    return { ...p, total, long, off };
+  });
+  const h = (m: number) => `${Math.floor(m / 60)}時間${m % 60 ? `${m % 60}分` : ""}`;
+  return (
+    <section className="rounded-md border border-line bg-white p-4 text-sm">
+      <p className="font-bold text-slate-800">社員のこの週（予約に合わせた入れ替えの確認）</p>
+      <p className="text-xs text-slate-500">勤務時間はシフトの予定（休憩込み）。週40時間・1日10時間まで、月の公休の数は変えない</p>
+      <ul className="mt-2 divide-y divide-slate-100">
+        {list.map((p) => (
+          <li key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2">
+            <span className="w-28 font-bold text-slate-800">{p.name}</span>
+            <span className={p.total > 40 * 60 ? "font-bold text-accent" : "text-slate-700"}>今週 {h(p.total)}</span>
+            {p.long.length > 0 && <span className="font-bold text-accent">10時間超：{p.long.map((d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`).join("・")}</span>}
+            <span className={monthlyHolidays !== null && p.off < monthlyHolidays ? "text-amber-700" : "text-slate-500"}>
+              {Number(month.slice(5))}月の公休 {p.off}
+              {monthlyHolidays !== null ? ` / ${monthlyHolidays}日` : "日"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

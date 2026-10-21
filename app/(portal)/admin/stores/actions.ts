@@ -97,7 +97,7 @@ export async function saveStore(storeId: string | null, _prev: StoreSaveState, f
       default_paid_leave: num("default_paid_leave", "有給休暇の初期日数", { max: 40 }),
       target_labor_cost_rate: percent("target_labor_cost_rate", "目標人件費率"),
       target_food_cost_rate: percent("target_food_cost_rate", "目標原価率"),
-      ...(storeId ? { inventory_enabled: fd.get("inventory_enabled") === "on" } : {}),
+      ...(storeId ? { inventory_enabled: fd.get("inventory_enabled") === "on", fulltime_weekly: fd.get("fulltime_weekly") === "on" } : {}),
       rosai_rate: percent("rosai_rate", "労災保険料率"),
       scheduled_clock_out: time("scheduled_clock_out", "定時退勤時刻"),
       notification_delay_min: num("notification_delay_min", "退勤忘れ通知", { max: 600 }),

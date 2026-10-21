@@ -34,7 +34,7 @@ export async function buildShiftNotices(today = toJSTDateString(new Date()), ori
     admin.from("org_units").select("id, name, store_id, head_staff_ids").eq("kind", "unit").not("store_id", "is", null).order("sort_order"),
     admin.from("staff").select("id, name, role, store_id, permission, line_user_id").eq("retired", false),
   ]);
-  const { data: managed } = await admin.from("stores").select("id, manager_staff_ids, requested_off_limit");
+  const { data: managed } = await admin.from("stores").select("id, manager_staff_ids, requested_off_limit, fulltime_weekly");
   const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
   const dom = Number(today.slice(8, 10));
   const periods = periodsAround(today);
@@ -111,7 +111,7 @@ export async function buildShiftNotices(today = toJSTDateString(new Date()), ori
               to: id,
               unit: u.name,
               kind: "decide",
-              text: `【シフト確定】${u.name}：今日 ${md(p.decide)} は${periodName(p)}${type === "week" ? "（アルバイト）" : "（社員）"}のシフト確定日です。\n${missing.length ? `まだ希望を出していない人：${missing.map((m) => short(m.name)).join("・")}` : "全員が希望を出しています"}\n${origin}/shifts`,
+              text: `【シフト確定】${u.name}：今日 ${md(p.decide)} は${periodName(p)}${type === "week" ? ((managed ?? []).find((x) => x.id === u.store_id)?.fulltime_weekly ? "（社員・アルバイト）" : "（アルバイト）") : "（社員）"}のシフト確定日です。\n${missing.length ? `まだ希望を出していない人：${missing.map((m) => short(m.name)).join("・")}` : "全員が希望を出しています"}\n${origin}/shifts`,
             });
         }
       }
