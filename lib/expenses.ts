@@ -5,6 +5,7 @@ import type { ApplyContext } from "@/lib/reports/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pushLine } from "@/lib/line-push";
 import { findVendorRule } from "@/lib/vendor-rules";
+import { accountGuide, accountTitleNames } from "@/lib/account-titles";
 
 /**
  * 店の経費（2026-10-16）。
@@ -12,32 +13,7 @@ import { findVendorRule } from "@/lib/vendor-rules";
  *   AI は、お店・日付・合計・登録番号（T＋13桁）と、勘定科目×税率ごとの内訳（税込）を入れる。気になる点は ai_note に
  *   （前のやり方：報告窓口の「経費の報告」を承認したとき recordExpense で入れる。残っている報告のために残す）
  */
-// 勘定科目は、マネーフォワードの仕訳帳（見本）で使っている名前に合わせる（2026-10-16）
-export const ACCOUNT_TITLES = [
-  "材料仕入",
-  "酒類仕入",
-  "店舗消耗品費",
-  "消耗備品費",
-  "事務用品費",
-  "衛生費",
-  "修繕費",
-  "通信費",
-  "水道光熱費",
-  "車両費",
-  "旅費交通費",
-  "支払手数料",
-  "広告宣伝費",
-  "接待交際費",
-  "会議費",
-  "福利厚生費",
-  "新聞図書費",
-  "荷造運賃",
-  "租税公課",
-  "管理諸費",
-  "雑費",
-] as const;
-
-export const isAccountTitle = (s: unknown): s is string => typeof s === "string" && (ACCOUNT_TITLES as readonly string[]).includes(s);
+// 勘定科目は、勘定科目マスタ（lib/account-titles.ts・本部 › 勘定科目）から読む。名前はマネーフォワードと同じ（2026-10-22）
 
 const client = new Anthropic();
 const IMAGE = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -55,16 +31,11 @@ export type ReadResult = {
   due_date: string | null; // 支払期日（請求書）
 };
 
-const GUIDE = `勘定科目は次のどれか：${ACCOUNT_TITLES.join("・")}
-  目安：食材・調味料・米 → 材料仕入／酒・ジュース・お茶など飲み物 → 酒類仕入／店で使ってなくなるもの（ラップ・ペーパー・洗剤・割り箸・おしぼり・ゴミ袋・電池） → 店舗消耗品費／
-  長く使う道具・器・家電（10万円未満） → 消耗備品費／文房具・コピー用紙・インク → 事務用品費／掃除の道具・害虫対策・手洗い・消毒 → 衛生費／
-  修理・部品 → 修繕費／切手・電話 → 通信費／ガス・電気・水道 → 水道光熱費／ガソリン・駐車場・高速 → 車両費／電車・バス・タクシー → 旅費交通費／
-  振込手数料 → 支払手数料／チラシ・印刷・広告 → 広告宣伝費／お客様・取引先との飲食・お土産 → 接待交際費／スタッフのまかない以外の飲食・差し入れ → 福利厚生費／
-  本・雑誌 → 新聞図書費／宅配便・送料 → 荷造運賃／収入印紙・証紙 → 租税公課／どれにも当たらない → 雑費`;
 
 /** レシート（領収書）の写真を読む。読めないときは null */
 export async function readReceipt(fileId: string, hint: { memo?: string | null; storeName?: string | null; invoice?: boolean; stores?: string[] }): Promise<ReadResult | null> {
   const admin = createAdminClient();
+  const [guide, names] = await Promise.all([accountGuide(), accountTitleNames()]);
   const { data: f } = await admin.from("files").select("path, content_type").eq("id", fileId).maybeSingle();
   if (!f || !(IMAGE.has(f.content_type) || f.content_type === "application/pdf")) return null;
   const { data: blob } = await admin.storage.from(BUCKET).download(f.path);
@@ -104,7 +75,7 @@ lines の決まり：
 - 勘定科目×税率ごとに1行にまとめる（品目ごとではない）。lines の amount を全部足すと total と同じにする（値引き・ポイント利用は、その行から引く）
 - 8% は軽減税率（食品・テイクアウト。※印や「軽」の印の品）。酒・外食・日用品は10%。印紙・切手・ゴミ処理券など消費税がかからないものは0
 - レシートの「8%対象」「10%対象」の合計欄があれば、それに合わせる
-${GUIDE}`,
+${guide}`,
           },
         ],
       },
@@ -114,7 +85,7 @@ ${GUIDE}`,
   const j = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as Partial<ReadResult>;
   const lines = (Array.isArray(j.lines) ? j.lines : [])
     .map((l) => ({
-      account_title: isAccountTitle(l?.account_title) ? l.account_title : null,
+      account_title: typeof l?.account_title === "string" && names.includes(l.account_title) ? l.account_title : null,
       tax_rate: (l?.tax_rate === 8 || l?.tax_rate === 0 ? l.tax_rate : 10) as 0 | 8 | 10,
       amount: Math.round(Number(l?.amount)),
       item: String(l?.item ?? "").slice(0, 200),
