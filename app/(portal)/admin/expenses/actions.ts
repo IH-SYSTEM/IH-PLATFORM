@@ -7,6 +7,7 @@ import { audit } from "@/lib/audit";
 import { hasDuty } from "@/lib/duties";
 import { isAccountTitle, readExpense } from "@/lib/expenses";
 import { pushLine } from "@/lib/line-push";
+import { learnVendorRule } from "@/lib/vendor-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type ExpenseInput = {
@@ -26,7 +27,7 @@ const fail = (error: string): SaveResult => ({ error, at: Date.now() });
 export async function nextPendingId(exceptId?: string, afterCreated?: string): Promise<string | null> {
   const admin = createAdminClient();
   const base = () => {
-    let q = admin.from("expenses").select("id").eq("status", "pending").order("created_at").limit(1);
+    let q = admin.from("expenses").select("id").in("status", ["pending", "question"]).order("created_at").limit(1);
     if (exceptId) q = q.neq("id", exceptId);
     return q;
   };
@@ -46,7 +47,7 @@ export async function saveExpense(id: string, input: ExpenseInput, approve: bool
   const me = await requireAdmin();
   if (!hasDuty(me, "keiri_input", "keiri_approve")) return fail(DENIED);
   const admin = createAdminClient();
-  const { data: e } = await admin.from("expenses").select("id, status, exported_at, created_at").eq("id", id).maybeSingle();
+  const { data: e } = await admin.from("expenses").select("id, status, exported_at, created_at, doc_type").eq("id", id).maybeSingle();
   if (!e) return fail("経費が見つかりません");
   if (e.exported_at) return fail("マネーフォワードに書き出したあとは直せません");
   const lines = input.lines
@@ -80,13 +81,17 @@ export async function saveExpense(id: string, input: ExpenseInput, approve: bool
       account_title: lines[0]?.account_title ?? null,
       item: lines.map((l) => l.item).filter(Boolean).join("、").slice(0, 200) || null,
       updated_at: now,
-      ...(approve ? { status: "approved", approved_by: me.id, approved_at: now, reject_reason: null } : e.status === "reading" ? { status: "pending" } : {}),
+      ...(approve ? { status: "approved", approved_by: me.id, approved_at: now, reject_reason: null, question: null } : e.status === "reading" ? { status: "pending" } : {}),
     })
     .eq("id", id)
     .is("exported_at", null);
   if (error) return fail("保存できませんでした");
   await admin.from("expense_lines").delete().eq("expense_id", id);
   if (lines.length) await admin.from("expense_lines").insert(lines.map((l, i) => ({ expense_id: id, sort: i, ...l })));
+  // 請求書：確かめた（または直した）店・勘定科目を、その取引先の決まりとして覚える。次からは自動で振り分ける（2026-10-22）
+  if (e.doc_type === "invoice" && (approve || e.status === "approved")) {
+    await learnVendorRule({ id, invoice_number: inv || null, vendor: input.vendor.trim() || null, store_id: store.id, account_title: lines[0]?.account_title ?? null, tax_rate: lines[0]?.tax_rate ?? null }, me.id);
+  }
   await audit({ actor: me.id, action: "update", targetType: "expense", targetId: id, detail: { approve, total, lines: lines.length } });
   revalidatePath("/admin/expenses");
   const nextId = approve ? await nextPendingId(id) : undefined;
@@ -100,7 +105,7 @@ export async function rejectExpense(id: string, reason: string): Promise<SaveRes
   const text = reason.trim().slice(0, 200);
   if (!text) return fail("差し戻す理由を書いてください");
   const admin = createAdminClient();
-  const { data: e } = await admin.from("expenses").update({ status: "rejected", reject_reason: text, updated_at: new Date().toISOString() }).eq("id", id).in("status", ["reading", "pending"]).select("reporter_id, created_at").maybeSingle();
+  const { data: e } = await admin.from("expenses").update({ status: "rejected", reject_reason: text, updated_at: new Date().toISOString() }).eq("id", id).in("status", ["reading", "pending", "question"]).select("reporter_id, created_at").maybeSingle();
   if (!e) return fail("差し戻せませんでした（承認済みか、見つかりません）");
   await audit({ actor: me.id, action: "update", targetType: "expense", targetId: id, detail: { reject: text } });
   if (e.reporter_id) {
@@ -115,7 +120,7 @@ export async function rejectExpense(id: string, reason: string): Promise<SaveRes
 export async function rereadExpense(id: string): Promise<SaveResult> {
   const me = await requireAdmin();
   if (!hasDuty(me, "keiri_input", "keiri_approve")) return fail(DENIED);
-  const { data } = await createAdminClient().from("expenses").update({ status: "reading" }).eq("id", id).in("status", ["reading", "pending"]).select("id");
+  const { data } = await createAdminClient().from("expenses").update({ status: "reading" }).eq("id", id).in("status", ["reading", "pending", "question"]).select("id");
   if (!data?.length) return fail("読み直せません");
   after(() => readExpense(id));
   return { ok: "AI が読み直しています（30秒ほどで再読み込みしてください）", at: Date.now() };

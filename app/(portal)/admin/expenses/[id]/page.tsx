@@ -9,7 +9,7 @@ import { ExpenseEditor, ReceiptView, type EditorExpense } from "./expense-editor
 export const metadata = { title: "経費の確認" };
 export const maxDuration = 120;
 
-const STATUS: Record<string, string> = { reading: "AI が読んでいます", pending: "確認待ち", approved: "承認済み", rejected: "差し戻し" };
+const STATUS: Record<string, string> = { reading: "AI が読んでいます", pending: "確認待ち", question: "質問中（店・勘定科目を選んでください）", approved: "承認済み", rejected: "差し戻し" };
 const when = (iso: string) => new Date(iso).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /** 経費1件：左にレシートの写真、右に AI が入れた内容（直せる）。?q=1 は「確認待ちを順に処理」の途中 */
@@ -57,6 +57,8 @@ export default async function ExpenseDetail({ params, searchParams }: PageProps<
             <p>
               送った人：<span className="font-bold text-slate-800">{who?.name ?? "—"}</span>・{when(e.created_at)}
             </p>
+            {e.doc_type === "invoice" && <p className="font-bold text-slate-800">請求書{e.due_date ? `・支払期日 ${e.due_date}` : ""}</p>}
+            {e.question && e.status === "question" && <p className="rounded bg-accent-soft/60 px-2 py-1.5 text-sm font-bold text-accent">AI から：{e.question} 店と勘定科目を選んで「承認」してください。次からは自動で振り分けます</p>}
             {e.staff_memo && <p>店からのメモ：{e.staff_memo}</p>}
             {e.ai_error && <p className="font-bold text-accent">{e.ai_error}</p>}
             {e.ai_note && <p className="font-bold text-amber-700">AI：{e.ai_note}</p>}
