@@ -15,7 +15,7 @@ export default async function ExpenseReviewQueue() {
   const { data: rows } = await admin
     .from("expenses")
     .select("id, status, expense_date, amount, vendor, store_id, reporter_id, ai_note, ai_error, created_at")
-    .in("status", ["reading", "pending"])
+    .in("status", ["reading", "pending", "question"])
     .order("created_at")
     .limit(300);
   const [{ data: stores }, { data: people }] = await Promise.all([
@@ -24,7 +24,7 @@ export default async function ExpenseReviewQueue() {
   ]);
   const storeName = new Map((stores ?? []).map((s) => [s.id, s.name]));
   const name = new Map((people ?? []).map((p) => [p.id, p.name]));
-  const pending = (rows ?? []).filter((r) => r.status === "pending");
+  const pending = (rows ?? []).filter((r) => r.status === "pending" || r.status === "question");
   const reading = (rows ?? []).filter((r) => r.status === "reading");
 
   return (

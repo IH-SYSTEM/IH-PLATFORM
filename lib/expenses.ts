@@ -3,6 +3,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { BUCKET } from "@/lib/files";
 import type { ApplyContext } from "@/lib/reports/types";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { pushLine } from "@/lib/line-push";
+import { findVendorRule } from "@/lib/vendor-rules";
 
 /**
  * 店の経費（2026-10-16）。
@@ -49,6 +51,8 @@ export type ReadResult = {
   invoice_number: string | null;
   lines: ReadLine[];
   note: string;
+  store: string | null; // 請求先の店（請求書のとき。分からなければ null）
+  due_date: string | null; // 支払期日（請求書）
 };
 
 const GUIDE = `勘定科目は次のどれか：${ACCOUNT_TITLES.join("・")}
@@ -59,7 +63,7 @@ const GUIDE = `勘定科目は次のどれか：${ACCOUNT_TITLES.join("・")}
   本・雑誌 → 新聞図書費／宅配便・送料 → 荷造運賃／収入印紙・証紙 → 租税公課／どれにも当たらない → 雑費`;
 
 /** レシート（領収書）の写真を読む。読めないときは null */
-export async function readReceipt(fileId: string, hint: { memo?: string | null; storeName?: string | null }): Promise<ReadResult | null> {
+export async function readReceipt(fileId: string, hint: { memo?: string | null; storeName?: string | null; invoice?: boolean; stores?: string[] }): Promise<ReadResult | null> {
   const admin = createAdminClient();
   const { data: f } = await admin.from("files").select("path, content_type").eq("id", fileId).maybeSingle();
   if (!f || !(IMAGE.has(f.content_type) || f.content_type === "application/pdf")) return null;
@@ -83,7 +87,7 @@ export async function readReceipt(fileId: string, hint: { memo?: string | null; 
           block,
           {
             type: "text",
-            text: `飲食店（和食・居酒屋）・美容室を営む会社の、店の経費のレシート（領収書）の写真です。${hint.storeName ? `店：${hint.storeName}。` : ""}${hint.memo ? `送った人のメモ：「${hint.memo}」。` : ""}
+            text: `飲食店（和食・居酒屋）・美容室を営む会社の、${hint.invoice ? "取引先から届いた請求書" : "店の経費のレシート（領収書）の写真"}です。${hint.storeName ? `店：${hint.storeName}。` : ""}${hint.memo ? `送った人のメモ：「${hint.memo}」。` : ""}
 経理がマネーフォワードに入れるため、次の JSON だけを返してください（前後に文を付けない）。
 {
   "is_receipt": レシート・領収書・請求書として読めるなら true（ぼやけて読めない・関係ない写真なら false）,
@@ -91,6 +95,8 @@ export async function readReceipt(fileId: string, hint: { memo?: string | null; 
   "date": "日付 YYYY-MM-DD（読めなければ null）",
   "total": 合計（税込・円の整数。読めなければ null）,
   "invoice_number": "登録番号 T＋13桁（例 T1234567890123。なければ null）",
+  "store": ${hint.stores?.length ? `"請求先（宛名・届け先）の店。${hint.stores.join("・")} のどれか。会社あてで店が分からなければ null"` : "null"},
+  "due_date": "支払期日 YYYY-MM-DD（書いてあれば。なければ null）",
   "lines": [ { "account_title": "勘定科目", "tax_rate": 10 か 8 か 0, "amount": 税込の金額（円の整数）, "item": "何を買ったか（短く。例：鶏もも・玉ねぎ、キッチンペーパー）" } ],
   "note": "経理が気をつける点（例：合計が読みにくい、手書きの領収書で但し書きがない、個人的な買い物が混ざっていそう、日付が古い。なければ空）"
 }
@@ -124,19 +130,23 @@ ${GUIDE}`,
     invoice_number: /^T\d{13}$/.test(inv) ? inv : null,
     lines,
     note: String(j.note ?? "").slice(0, 300),
+    store: typeof j.store === "string" ? j.store.slice(0, 60) : null,
+    due_date: typeof j.due_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(j.due_date) ? j.due_date : null,
   };
 }
 
 /** 届いた経費1件を AI に読ませ、結果を入れて「確認待ち」にする（読めなくても確認待ちにして、人が入れる） */
 export async function readExpense(expenseId: string) {
   const admin = createAdminClient();
-  const { data: e } = await admin.from("expenses").select("id, receipt_file_id, staff_memo, store_id, status").eq("id", expenseId).maybeSingle();
-  if (!e?.receipt_file_id || (e.status !== "reading" && e.status !== "pending")) return;
+  const { data: e } = await admin.from("expenses").select("id, receipt_file_id, staff_memo, store_id, status, doc_type, reporter_id").eq("id", expenseId).maybeSingle();
+  if (!e?.receipt_file_id || !["reading", "pending", "question"].includes(e.status)) return;
+  const invoice = e.doc_type === "invoice";
   const { data: store } = e.store_id ? await admin.from("stores").select("name").eq("id", e.store_id).maybeSingle() : { data: null };
+  const { data: allStores } = invoice ? await admin.from("stores").select("id, name, company_id").eq("is_active", true) : { data: [] };
   let r: ReadResult | null = null;
   let err: string | null = null;
   try {
-    r = await readReceipt(e.receipt_file_id, { memo: e.staff_memo, storeName: store?.name });
+    r = await readReceipt(e.receipt_file_id, { memo: e.staff_memo, storeName: store?.name, invoice, stores: invoice ? (allStores ?? []).map((s) => s.name) : undefined });
     if (!r) err = "写真を読めませんでした（形式が違う・届いていない）";
   } catch (x) {
     console.error("readExpense failed", expenseId, x);
@@ -153,10 +163,38 @@ export async function readExpense(expenseId: string) {
     if (dup?.length) notes.push("同じ日・同じ金額の経費がもう1件あります（二重に送っていないか確かめてください）");
   }
   if (r?.date && r.date < new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10)) notes.push("3か月より前の日付です");
+
+  // 請求書：一度確かめた取引先なら、店・勘定科目を自動で振り分けて承認する（あとから直せる）。分からなければ、アップした人に聞く（2026-10-22）
+  let status: "pending" | "question" | "approved" = "pending";
+  let storeId: string | null = e.store_id;
+  let question: string | null = null;
+  let ruleId: string | null = null;
+  if (invoice && r) {
+    const rule = await findVendorRule(r.invoice_number, r.vendor);
+    if (rule?.store_id && rule.account_title) {
+      storeId = rule.store_id;
+      ruleId = rule.id;
+      for (const l of r.lines) l.account_title = rule.account_title as ReadLine["account_title"];
+      status = sum && r.total && sum !== r.total ? "pending" : "approved";
+      notes.unshift("前回の内容で自動で振り分けました（違えば直してください）");
+    } else {
+      const guess = r.store;
+      if (!storeId && guess) storeId = (allStores ?? []).find((s) => s.name === guess || s.name.includes(guess) || guess.includes(s.name))?.id ?? null;
+      const unknownAccount = !r.lines.length || r.lines.some((l) => !l.account_title);
+      if (!storeId || unknownAccount) {
+        status = "question";
+        question = `これは${!storeId ? "どこの店の" : ""}${unknownAccount ? "何の" : ""}経費ですか？（${r.vendor ?? "取引先不明"}・${(r.total ?? sum).toLocaleString()}円${r.date ? `・${r.date}` : ""}）`;
+      }
+    }
+  }
+  const storeRow = storeId ? (allStores ?? []).find((s) => s.id === storeId) : null;
   await admin
     .from("expenses")
     .update({
-      status: "pending",
+      status,
+      ...(invoice
+        ? { store_id: storeId, company_id: storeRow?.company_id ?? null, due_date: r?.due_date ?? null, question, auto_rule_id: ruleId, ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}) }
+        : {}),
       vendor: r?.vendor ?? null,
       expense_date: r?.date ?? null,
       amount: r?.total ?? (sum || null),
@@ -170,9 +208,14 @@ export async function readExpense(expenseId: string) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", expenseId)
-    .in("status", ["reading", "pending"]);
+    .in("status", ["reading", "pending", "question"]);
   await admin.from("expense_lines").delete().eq("expense_id", expenseId);
   if (r?.lines.length) await admin.from("expense_lines").insert(r.lines.map((l, i) => ({ expense_id: expenseId, sort: i, ...l })));
+  // 分からないことを、アップした人に LINE で聞く（画面にも出る）
+  if (status === "question" && e.reporter_id) {
+    const { data: who } = await admin.from("staff").select("line_user_id").eq("id", e.reporter_id).single();
+    await pushLine([who?.line_user_id], `【請求書】${question}\n店と勘定科目を選んでください\nhttps://portal.ikkou-holdings.co.jp/admin/expenses/${expenseId}`, "other");
+  }
 }
 
 /** 前のやり方：報告窓口の「経費の報告」を承認したとき、経費のデータに入れる（AI の案つき） */
