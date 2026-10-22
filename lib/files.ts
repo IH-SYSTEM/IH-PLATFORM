@@ -105,8 +105,9 @@ export async function signedUploadFor(path: string) {
 }
 
 /** 閲覧用の、短時間だけ有効なURL */
-export async function signedDownloadFor(path: string, name: string, seconds = 60) {
-  const { data, error } = await createAdminClient().storage.from(BUCKET).createSignedUrl(path, seconds, { download: name });
+export async function signedDownloadFor(path: string, name: string, seconds = 60, inline = false) {
+  // inline：画面の中に表示する（PDF を <object> で見せるとき）。ふつうはダウンロード
+  const { data, error } = await createAdminClient().storage.from(BUCKET).createSignedUrl(path, seconds, inline ? undefined : { download: name });
   if (error || !data) throw new Error(error?.message ?? "signed url failed");
   return data.signedUrl;
 }

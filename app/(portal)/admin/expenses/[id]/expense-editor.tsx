@@ -25,7 +25,15 @@ const num = (s: string) => Number(String(s).replace(/[,，\s円¥]/g, "")) || 0;
 export function ReceiptView({ src, pdf }: { src: string; pdf: boolean }) {
   const [zoom, setZoom] = useState(false);
   const [rot, setRot] = useState(0);
-  if (pdf) return <object data={src} type="application/pdf" className="h-[75vh] w-full rounded-md border border-line" aria-label="レシート" />;
+  if (pdf)
+    return (
+      <div className="space-y-2">
+        <iframe src={`${src}?inline=1`} title="請求書・レシート" className="h-[75vh] w-full rounded-md border border-line bg-white" />
+        <a href={`${src}?inline=1`} target="_blank" rel="noreferrer" className="block text-center text-xs text-slate-500 underline">
+          別の画面で開く
+        </a>
+      </div>
+    );
   return (
     <div className="space-y-2">
       <div className={`overflow-auto rounded-md border border-line bg-slate-900/5 ${zoom ? "h-[75vh]" : "max-h-[75vh]"}`}>

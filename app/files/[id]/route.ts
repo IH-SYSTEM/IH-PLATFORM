@@ -13,5 +13,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/files/[id]">) {
   const { data: f } = await createAdminClient().from("files").select("*").eq("id", id).maybeSingle<FileRow>();
   if (!f || !canView(me, f)) return new Response("この書類は表示できません", { status: 404 });
   await audit({ actor: me.id, action: "download", targetType: "file", targetId: f.id, subject: f.owner_staff_id, detail: { category: f.category, name: f.name } });
-  return Response.redirect(await signedDownloadFor(f.path, f.name), 302);
+  // ?inline=1 なら画面の中に表示する（請求書・レシートの PDF の確認画面）
+  const inline = _req.nextUrl.searchParams.get("inline") === "1";
+  return Response.redirect(await signedDownloadFor(f.path, f.name, inline ? 300 : 60, inline), 302);
 }
