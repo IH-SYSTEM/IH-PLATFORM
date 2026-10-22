@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { hasDuty } from "@/lib/duties";
-import { ACCOUNT_TITLES } from "@/lib/expenses";
+import { accountTitleNames } from "@/lib/account-titles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ExpenseEditor, ReceiptView, type EditorExpense } from "./expense-editor";
 
@@ -66,7 +66,7 @@ export default async function ExpenseDetail({ params, searchParams }: PageProps<
             {e.status === "rejected" && e.reject_reason && <p className="font-bold text-accent">差し戻しの理由：{e.reject_reason}</p>}
           </div>
           <div className="rounded-md border border-line bg-white p-4">
-            <ExpenseEditor key={e.id + e.updated_at} e={editor} titles={[...ACCOUNT_TITLES]} stores={stores ?? []} queue={queue} />
+            <ExpenseEditor key={e.id + e.updated_at} e={editor} titles={await accountTitleNames()} stores={stores ?? []} queue={queue} />
           </div>
         </div>
       </div>

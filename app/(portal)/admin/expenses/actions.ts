@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { audit } from "@/lib/audit";
 import { hasDuty } from "@/lib/duties";
-import { isAccountTitle, readExpense } from "@/lib/expenses";
+import { readExpense } from "@/lib/expenses";
+import { accountTitleNames } from "@/lib/account-titles";
 import { pushLine } from "@/lib/line-push";
 import { learnVendorRule } from "@/lib/vendor-rules";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -54,7 +55,8 @@ export async function saveExpense(id: string, input: ExpenseInput, approve: bool
     .map((l) => ({ account_title: l.account_title || null, tax_rate: Number(l.tax_rate), amount: Math.round(Number(l.amount)), item: String(l.item ?? "").trim().slice(0, 200) }))
     .filter((l) => l.amount);
   if (lines.some((l) => ![0, 8, 10].includes(l.tax_rate))) return fail("税率を選んでください");
-  if (lines.some((l) => l.account_title && !isAccountTitle(l.account_title))) return fail("勘定科目を選んでください");
+  const titles = await accountTitleNames();
+  if (lines.some((l) => l.account_title && !titles.includes(l.account_title))) return fail("勘定科目を選んでください");
   const date = /^\d{4}-\d{2}-\d{2}$/.test(input.expense_date) ? input.expense_date : null;
   const inv = input.invoice_number.replace(/[^\dTt]/g, "").toUpperCase();
   if (inv && !/^T\d{13}$/.test(inv)) return fail("登録番号は T と13桁の数字です");
