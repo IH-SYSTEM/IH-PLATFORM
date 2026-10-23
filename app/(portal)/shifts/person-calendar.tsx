@@ -78,6 +78,7 @@ export function PersonCalendar({
                             start={c.request?.a === "partial" || c.request?.urgent ? c.request.s : defaults.start}
                             end={c.request?.a === "partial" || c.request?.urgent ? c.request.e : defaults.end}
                             roles={roles}
+                            allDay={defaults}
                           />
                         )}
                       </td>
