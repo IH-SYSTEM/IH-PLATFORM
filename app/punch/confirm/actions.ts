@@ -27,7 +27,7 @@ export async function punch(ticket: string, action: PunchAction, _prev: PunchRes
   const admin = createAdminClient();
   const status = await punchStatus(t.staffId);
 
-  // ワークボード：その打刻の前のお知らせを全部確認していなければ止める（画面を飛ばして送られても、ここで止まる）
+  // ワークハブ：その打刻の前のお知らせを全部確認していなければ止める（画面を飛ばして送られても、ここで止まる）
   const { data: tok } = await admin.from("punch_tokens").select("store_id").eq("token", t.token).maybeSingle();
   const pending = await pendingNotices({ staffId: t.staffId, storeId: tok?.store_id ?? null, timing: action, today: businessDayJST() });
   if (pending.length) return { ok: false, error: `まだ確認していないお知らせが${pending.length}件あります。確認してから押してください` };
@@ -120,7 +120,7 @@ export async function punch(ticket: string, action: PunchAction, _prev: PunchRes
   return { ok: true, action, at: now.toISOString() };
 }
 
-/** ワークボードのお知らせを「確認しました」にする（打刻の確認画面から。本人の札で確かめる） */
+/** ワークハブのお知らせを「確認しました」にする（打刻の確認画面から。本人の札で確かめる） */
 export async function confirmPunchNotice(ticket: string, noticeId: string): Promise<{ ok: boolean; error?: string }> {
   const t = verifyTicket(ticket);
   if (!t) return { ok: false, error: EXPIRED };

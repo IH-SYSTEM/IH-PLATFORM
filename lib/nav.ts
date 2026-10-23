@@ -30,10 +30,11 @@ export const NAV: NavSection[] = [
   {
     title: "店舗",
     items: [
+      { href: "/workboard", label: "ワークボード", icon: "clock", audience: "all" },
       { href: "/shifts", label: "シフト確定", icon: "clock", audience: "manager" },
       { href: "/attendance", label: "勤怠", icon: "chart", audience: "manager" },
       { href: "/leave/review", label: "有給の承認", icon: "clock", audience: "manager" },
-      { href: "/workboard", label: "ワークボード", icon: "book", audience: "all", module: "workboard" },
+      { href: "/workhub", label: "ワークハブ", icon: "book", audience: "all", module: "workboard" },
     ],
   },
   {

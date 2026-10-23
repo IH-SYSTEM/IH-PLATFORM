@@ -39,7 +39,7 @@ export default async function PunchConfirmPage({ searchParams }: PageProps<"/pun
     );
   }
 
-  // ワークボード：この打刻の前に確かめてもらうお知らせと、退勤チェックリスト
+  // ワークハブ：この打刻の前に確かめてもらうお知らせと、退勤チェックリスト
   const mode = status.kind === "working" ? "check_out" : "check_in";
   // シフト：出勤はシフト開始の15分前から。退勤はシフトの終わりから15分以上なら残業の理由が要る（2026-10-16）
   const shiftDate = status.kind === "working" ? ((await admin.from("attendance").select("date").eq("id", status.attendanceId).single()).data?.date ?? businessDayJST()) : businessDayJST();

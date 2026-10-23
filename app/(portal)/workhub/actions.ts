@@ -12,12 +12,12 @@ import { IMPORTANCE, workboardStores } from "@/lib/workboard";
 export type WbState = { ok?: string; error?: string; at?: number } | undefined;
 const fail = (error: string): WbState => ({ error, at: Date.now() });
 
-/** ワークボードを使える人か。使えなければ理由を返す */
+/** ワークハブを使える人か。使えなければ理由を返す */
 type Scope = { all: boolean; storeIds: string[]; level: number };
 
 async function gate(): Promise<{ me: CurrentStaff; scope: Scope } | { error: string }> {
   const me = await requireStaff();
-  if (!(await canUse(me, "workboard"))) return { error: "ワークボードを使う権限がありません（権限付与で割り当てます）" };
+  if (!(await canUse(me, "workboard"))) return { error: "ワークハブを使う権限がありません（権限付与で割り当てます）" };
   const scope = await workboardStores(me);
   if (scope.level < 2 || (!scope.all && !scope.storeIds.length)) return { error: "配下のスタッフがいないため、お知らせは出せません" };
   return { me, scope };
@@ -81,7 +81,7 @@ export async function createNotice(_prev: WbState, fd: FormData): Promise<WbStat
   } catch (e) {
     return fail(e instanceof Error ? e.message : "保存できませんでした");
   }
-  revalidatePath("/workboard");
+  revalidatePath("/workhub");
   return { ok: "お知らせを出しました。対象の人は、次の打刻のときに確認します", at: Date.now() };
 }
 
@@ -95,7 +95,7 @@ export async function stopNotice(id: string) {
   if (!g.scope.all && (n.audience === "all" || (n.audience === "store" && n.audience_ids.some((s: string) => !g.scope.storeIds.includes(s))))) throw new Error("自分の店のお知らせだけ止められます");
   await admin.from("workboard_notices").update({ is_active: false }).eq("id", id);
   await audit({ actor: g.me.id, action: "update", targetType: "workboard_notice", targetId: id, detail: { stop: true } });
-  revalidatePath("/workboard");
+  revalidatePath("/workhub");
 }
 
 /** 定期配信を作る（毎月◯日・毎週◯曜・指定日の1回） */
@@ -116,7 +116,7 @@ export async function createSchedule(_prev: WbState, fd: FormData): Promise<WbSt
   } catch (e) {
     return fail(e instanceof Error ? e.message : "保存できませんでした");
   }
-  revalidatePath("/workboard");
+  revalidatePath("/workhub");
   return { ok: "定期配信を作りました。その日の最初の打刻のときに、お知らせが出ます", at: Date.now() };
 }
 
@@ -132,13 +132,13 @@ async function ownSchedule(id: string) {
 export async function toggleSchedule(id: string, active: boolean) {
   await ownSchedule(id);
   await createAdminClient().from("workboard_schedules").update({ is_active: active }).eq("id", id);
-  revalidatePath("/workboard");
+  revalidatePath("/workhub");
 }
 
 export async function deleteSchedule(id: string) {
   await ownSchedule(id);
   await createAdminClient().from("workboard_schedules").delete().eq("id", id);
-  revalidatePath("/workboard");
+  revalidatePath("/workhub");
 }
 
 /** 退勤チェックリストに項目を足す（店ごと。全店共通は本部だけ） */
@@ -152,7 +152,7 @@ export async function addChecklistItem(_prev: WbState, fd: FormData): Promise<Wb
   if (storeId && !g.scope.all && !g.scope.storeIds.includes(storeId)) return fail("自分の店にだけ足せます");
   const { count } = await createAdminClient().from("workboard_checklist_items").select("id", { count: "exact", head: true });
   await createAdminClient().from("workboard_checklist_items").insert({ label, store_id: storeId, sort_order: (count ?? 0) + 1 });
-  revalidatePath("/workboard");
+  revalidatePath("/workhub");
   return { ok: "足しました", at: Date.now() };
 }
 
@@ -164,5 +164,5 @@ export async function removeChecklistItem(id: string) {
   if (!item) return;
   if (!g.scope.all && (!item.store_id || !g.scope.storeIds.includes(item.store_id))) throw new Error("自分の店の項目だけ外せます");
   await admin.from("workboard_checklist_items").update({ is_active: false }).eq("id", id);
-  revalidatePath("/workboard");
+  revalidatePath("/workhub");
 }
