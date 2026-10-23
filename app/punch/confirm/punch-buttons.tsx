@@ -11,7 +11,7 @@ const MARK: Record<string, string> = { 重要: "🔴", 確認: "🟠", 指示: "
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 
 /**
- * 打刻のボタン。ワークボードのお知らせ（出勤前・退勤前）を全部「確認しました」にし、
+ * 打刻のボタン。ワークハブのお知らせ（出勤前・退勤前）を全部「確認しました」にし、
  * 退勤のときは退勤チェックリストに全部チェックを入れると、ボタンが押せるようになる
  */
 export function PunchButtons({

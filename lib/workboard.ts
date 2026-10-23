@@ -4,7 +4,7 @@ import { loadOrg, myLevel, myScope } from "@/lib/org";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * ワークボード（打刻のときに必ず確かめてもらうお知らせ。COOKIE for MEN の CRM から移植・2026-10-13）。
+ * ワークハブ（打刻のときに必ず確かめてもらうお知らせ。COOKIE for MEN の CRM から移植・2026-10-13）。
  * 出勤前のお知らせを全部「確認しました」にしないと出勤できない。退勤前のお知らせと退勤チェックリストを済ませないと退勤できない。
  * 定期配信（毎月◯日・毎週◯曜・指定日）は、その日の最初の打刻のときにお知らせを作る（毎朝の自動処理を増やさない）
  */
@@ -104,7 +104,7 @@ export async function checklistFor(storeId: string | null): Promise<{ id: string
   return (data ?? []).map((i) => ({ id: i.id, label: i.label }));
 }
 
-/** ワークボードで扱える範囲（組織図の配下の店。社長・部長・経理主任は全社）と、自分の段 */
+/** ワークハブで扱える範囲（組織図の配下の店。社長・部長・経理主任は全社）と、自分の段 */
 export async function workboardStores(me: CurrentStaff): Promise<{ all: boolean; storeIds: string[]; level: number }> {
   // 代表の表示の切り替え中は、切り替えた立場の範囲と段
   const [scope, level] = await Promise.all([myScope(me), myLevel(me)]);
