@@ -19,7 +19,7 @@ const dow = (ymd: string) => "日月火水木金土"[new Date(`${ymd}T00:00:00Z`
 export function RequestMark({ r, partTime }: { r: Cell["request"]; partTime?: boolean }) {
   if (!r) return <span className="text-slate-300">{partTime ? "希望なし" : "未提出"}</span>;
   if (r.urgent) return <span className="font-bold text-accent">急募 {r.s}〜{r.e}</span>;
-  if (r.a === "all") return <span className="text-emerald-700">○</span>;
+  if (r.a === "all") return <span className="font-bold text-emerald-700">終日OK</span>;
   // 正社員の休みの希望は2段階（動かせない／調整OK）。店休日は「店休」
   if (r.a === "off" && r.note === "店休日") return <span className="text-slate-400">店休</span>;
   if (r.a === "off" && r.firm === "fixed") return <span className="font-bold text-accent">休（動かせない）</span>;
@@ -112,6 +112,7 @@ export function ShiftGrid({
                             start={c.request?.a === "partial" || c.request?.urgent ? c.request.s : defaults.start}
                             end={c.request?.a === "partial" || c.request?.urgent ? c.request.e : defaults.end}
                             roles={roles}
+                            allDay={defaults}
                           />
                         )}
                       </td>
@@ -202,8 +203,8 @@ export function CellEditor({
 }) {
   const [state, action, pending] = useActionState<ShiftState, FormData>(saveShift.bind(null, storeId, row.id, cell.date), undefined);
   const [type, setType] = useState(cell.shift?.type ?? (cell.request?.a === "off" ? "off" : "work"));
-  const start = cell.shift?.s || (cell.request?.a === "partial" ? cell.request.s : defaults.start);
-  const end = cell.shift?.e || (cell.request?.a === "partial" ? cell.request.e : defaults.end);
+  const [start, setStart] = useState(cell.shift?.s || (cell.request?.a === "partial" ? cell.request.s : defaults.start));
+  const [end, setEnd] = useState(cell.shift?.e || (cell.request?.a === "partial" ? cell.request.e : defaults.end));
 
   useEffect(() => {
     if (state?.ok) onClose();
@@ -235,10 +236,22 @@ export function CellEditor({
         </div>
         <input type="hidden" name="type" value={type} />
         {type === "work" && (
-          <div className="flex items-center gap-2">
-            <input type="time" name="start" defaultValue={start} required className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-base" />
-            〜
-            <input type="time" name="end" defaultValue={end} required className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-base" />
+          <div className="space-y-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setStart(defaults.start);
+                setEnd(defaults.end);
+              }}
+              className={`w-full rounded-md py-1.5 text-xs font-bold ${start === defaults.start && end === defaults.end ? "bg-brand text-white" : "bg-slate-100 text-slate-600"}`}
+            >
+              終日（開店〜閉店 {defaults.start}〜{defaults.end}）
+            </button>
+            <div className="flex items-center gap-2">
+              <input type="time" name="start" value={start} onChange={(e) => setStart(e.target.value)} required className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-base" />
+              〜
+              <input type="time" name="end" value={end} onChange={(e) => setEnd(e.target.value)} required className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-base" />
+            </div>
           </div>
         )}
         {type === "work" && <p className="text-xs text-slate-400">終了が開始より前なら、翌日（日をまたぐ）として扱います</p>}

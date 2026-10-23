@@ -16,6 +16,7 @@ export function InlineApprove({
   start,
   end,
   roles,
+  allDay,
 }: {
   storeId: string;
   staffId: string;
@@ -23,7 +24,10 @@ export function InlineApprove({
   start: string;
   end: string;
   roles: string[];
+  allDay?: { start: string; end: string }; // 終日＝開店〜閉店
 }) {
+  const [s, setS] = useState(start);
+  const [e, setE] = useState(end);
   const [state, action, pending] = useActionState<ShiftState, FormData>(saveShift.bind(null, storeId, staffId, date), undefined);
   const [rejecting, startReject] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +35,20 @@ export function InlineApprove({
   return (
     <form action={action} className="flex w-full flex-col gap-1 rounded-md border border-amber-300 bg-amber-50/60 p-1">
       <input type="hidden" name="type" value="work" />
-      <input type="time" name="start" defaultValue={start} required aria-label="開始" className={time} />
-      <input type="time" name="end" defaultValue={end} required aria-label="終了" className={time} />
+      {allDay && (
+        <button
+          type="button"
+          onClick={() => {
+            setS(allDay.start);
+            setE(allDay.end);
+          }}
+          className={`rounded py-0.5 text-[10px] font-bold ${s === allDay.start && e === allDay.end ? "bg-brand text-white" : "bg-white text-slate-600 ring-1 ring-slate-300"}`}
+        >
+          終日
+        </button>
+      )}
+      <input type="time" name="start" value={s} onChange={(x) => setS(x.target.value)} required aria-label="開始" className={time} />
+      <input type="time" name="end" value={e} onChange={(x) => setE(x.target.value)} required aria-label="終了" className={time} />
       {roles.length > 0 && (
         <select name="role" required defaultValue="" aria-label="役割" className={time}>
           <option value="" disabled>

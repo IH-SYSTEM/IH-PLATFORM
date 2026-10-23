@@ -5,9 +5,9 @@ import { Toast } from "@/app/toast";
 import type { RequestState } from "./actions";
 
 type Day = { date: string; label: string; weekend: boolean };
-type Pick = { on: boolean; s: string; e: string; urgent?: boolean };
+type Pick = { on: boolean; all: boolean; s: string; e: string; urgent?: boolean };
 
-/** アルバイトの希望：入れる日を押すと「いつもの時間」が入る。選ばなかった日は入れない日 */
+/** アルバイトの希望：入れる日を押して「終日OK」か「時間を指定」を選ぶ（2026-10-23）。選ばなかった日は入れない日 */
 export function PartTimeForm({
   days,
   initial,
@@ -15,13 +15,13 @@ export function PartTimeForm({
   action,
 }: {
   days: Day[];
-  initial: Record<string, { s: string; e: string; urgent: boolean }>;
+  initial: Record<string, { s: string; e: string; urgent: boolean; all?: boolean }>;
   defaults: { start: string; end: string };
   action: (p: RequestState, fd: FormData) => Promise<RequestState>;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const [picks, setPicks] = useState<Record<string, Pick>>(() =>
-    Object.fromEntries(days.map((d) => [d.date, initial[d.date] ? { on: true, ...initial[d.date] } : { on: false, s: defaults.start, e: defaults.end }])),
+    Object.fromEntries(days.map((d) => [d.date, initial[d.date] ? { on: true, all: !!initial[d.date].all, ...initial[d.date] } : { on: false, all: false, s: defaults.start, e: defaults.end }])),
   );
   const set = (date: string, patch: Partial<Pick>) => setPicks((v) => ({ ...v, [date]: { ...v[date], ...patch } }));
   const count = days.filter((d) => picks[d.date].on).length;
@@ -42,16 +42,29 @@ export function PartTimeForm({
                 {d.label}
               </button>
               {p.on ? (
-                <div className="flex items-center gap-2 text-sm">
-                  <input type="time" value={p.s} onChange={(e) => set(d.date, { s: e.target.value })} className="rounded-md border border-slate-300 bg-white px-2 py-1" />
-                  〜
-                  <input type="time" value={p.e} onChange={(e) => set(d.date, { e: e.target.value })} className="rounded-md border border-slate-300 bg-white px-2 py-1" />
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="flex overflow-hidden rounded-md border border-slate-300 text-xs font-bold">
+                    <button type="button" onClick={() => set(d.date, { all: true })} className={`px-2.5 py-1 ${p.all ? "bg-brand text-white" : "bg-white text-slate-600"}`}>
+                      終日OK
+                    </button>
+                    <button type="button" onClick={() => set(d.date, { all: false })} className={`px-2.5 py-1 ${!p.all ? "bg-brand text-white" : "bg-white text-slate-600"}`}>
+                      時間
+                    </button>
+                  </span>
+                  {!p.all && (
+                    <>
+                      <input type="time" value={p.s} onChange={(e) => set(d.date, { s: e.target.value })} className="rounded-md border border-slate-300 bg-white px-2 py-1" />
+                      〜
+                      <input type="time" value={p.e} onChange={(e) => set(d.date, { e: e.target.value })} className="rounded-md border border-slate-300 bg-white px-2 py-1" />
+                    </>
+                  )}
                   {p.urgent && <span className="rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-bold text-accent">急募に応募</span>}
                 </div>
               ) : (
                 <span className="text-xs text-slate-400">入れない</span>
               )}
               <input type="hidden" name={`on:${d.date}`} value={p.on ? "1" : ""} />
+              <input type="hidden" name={`all:${d.date}`} value={p.on && p.all ? "1" : ""} />
               <input type="hidden" name={`s:${d.date}`} value={p.s} />
               <input type="hidden" name={`e:${d.date}`} value={p.e} />
             </li>

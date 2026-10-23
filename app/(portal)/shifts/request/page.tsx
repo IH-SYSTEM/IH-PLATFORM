@@ -138,7 +138,7 @@ export default async function ShiftRequestPage({ searchParams }: PageProps<"/shi
                   initial={Object.fromEntries(
                     (existing ?? [])
                       .filter((r) => r.availability !== "off")
-                      .map((r) => [r.work_date, { s: hm(r.preferred_start) || defaults.start, e: hm(r.preferred_end) || defaults.end, urgent: r.source === "urgent" }]),
+                      .map((r) => [r.work_date, { s: hm(r.preferred_start) || defaults.start, e: hm(r.preferred_end) || defaults.end, urgent: r.source === "urgent", all: r.availability === "all" }]),
                   )}
                   defaults={defaults}
                   action={submitPartTimeRequests.bind(null, period.start)}

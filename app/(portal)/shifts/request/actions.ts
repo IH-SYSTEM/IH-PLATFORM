@@ -34,20 +34,25 @@ export async function submitPartTimeRequests(periodStart: string, _prev: Request
   const period = partTimeWeeks(businessDayJST()).find((p) => p.start === periodStart);
   if (!period) return fail("この週は、もう希望を出せません（週が始まっているか、4週より先です）");
 
-  const picked: { work_date: string; preferred_start: string; preferred_end: string }[] = [];
+  const picked: { work_date: string; preferred_start: string | null; preferred_end: string | null; availability: "all" | "partial" }[] = [];
   for (const date of period.days) {
     if (fd.get(`on:${date}`) !== "1") continue;
+    // 終日OK（開店〜閉店ならいつでも）。2026-10-23
+    if (fd.get(`all:${date}`) === "1") {
+      picked.push({ work_date: date, preferred_start: null, preferred_end: null, availability: "all" });
+      continue;
+    }
     const start = String(fd.get(`s:${date}`) ?? "");
     const end = String(fd.get(`e:${date}`) ?? "");
     if (!TIME.test(start) || !TIME.test(end) || start === end) return fail(`${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))} の時間を「19:00」の形式で入れてください`);
-    picked.push({ work_date: date, preferred_start: start, preferred_end: end });
+    picked.push({ work_date: date, preferred_start: start, preferred_end: end, availability: "partial" });
   }
 
   const now = new Date().toISOString();
   if (picked.length) {
     const { error } = await admin
       .from("shift_requests")
-      .upsert(picked.map((p) => ({ ...p, staff_id: me.id, availability: "partial", source: "request", updated_at: now })), { onConflict: "staff_id,work_date" });
+      .upsert(picked.map((p) => ({ ...p, staff_id: me.id, source: "request", updated_at: now })), { onConflict: "staff_id,work_date" });
     if (error) {
       console.error("submitPartTimeRequests failed", error);
       return fail("保存できませんでした。時間をおいてもう一度お試しください");
