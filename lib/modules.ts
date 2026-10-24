@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * モジュール（付けたり外したりできる機能。2026-10-13）。誰が使えるかは「立場」「担当」「個人」のどれかへの割り当てで決まる。
  * 割り当ては［権限付与］の画面（システム担当か代表）で変える。ここはアプリで使う名前の一覧
  */
-export type ModuleKey = "workboard";
+export type ModuleKey = "workboard" | "reel";
 
 export const POSITION_LABELS: Record<string, string> = { member: "一般スタッフ", store: "店長", admin: "管理者" };
 /** 段での割り当て（その段以上が使える） */

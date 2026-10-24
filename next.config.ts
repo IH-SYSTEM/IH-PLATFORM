@@ -4,7 +4,9 @@ const nextConfig: NextConfig = {
   // レジのCSV（1か月分で数MB）を取り込めるように
   experimental: { serverActions: { bodySizeLimit: "8mb" } },
   // 証明書のPDFに使う日本語フォント（報告の受付で「承認して発行する」を押したときに読む）
-  outputFileTracingIncludes: { "/admin/reports": ["./assets/fonts/*.ttf"] },
+  // リール作成：動画の書き出しに使う ffmpeg と、テロップの日本語フォント
+  outputFileTracingIncludes: { "/admin/reports": ["./assets/fonts/*.ttf"], "/reels": ["./assets/fonts/*.ttf", "./node_modules/ffmpeg-static/ffmpeg"] },
+  serverExternalPackages: ["ffmpeg-static"],
   // 移した画面の前のアドレス（ブックマークや開いたままの画面から来ても迷わないように）
   async redirects() {
     return [
