@@ -21,8 +21,8 @@ create table if not exists reel_bgm (
 
 create table if not exists reels (
   id uuid primary key default gen_random_uuid(),
-  staff_id uuid not null references staff(id),
-  store_id uuid references stores(id),
+  staff_id text not null references staff(id),
+  store_id text references stores(id),
   status text not null default 'uploading',   -- uploading → processing → done / error
   stage text,                                 -- いまの段階（画面に出す）
   target_seconds int not null,
