@@ -23,7 +23,7 @@ const isManagerOf = cache(async (me: CurrentStaff) => (await attendanceScope(me)
 export async function sectionsFor(me: CurrentStaff) {
   const [isManager, modules, level, invStores] = await Promise.all([isManagerOf(me), myModules(me), myLevel(me), inventoryStores(me)]);
   // シフト希望は、出す雇用区分（アルバイト・正社員・契約社員）だけにメニューを出す
-  return navFor({ isAdmin: me.isAdmin, isManager, modules, level, duties: me.duties, canRequestShift: periodTypeFor(me.role) !== null, paidLeave: isPaidLeaveRole(me.role), inventory: invStores.length > 0 });
+  return navFor({ isAdmin: me.isAdmin, isSuperadmin: !me.viewAs && me.permission === "superadmin", isManager, modules, level, duties: me.duties, canRequestShift: periodTypeFor(me.role) !== null, paidLeave: isPaidLeaveRole(me.role), inventory: invStores.length > 0 });
 }
 
 /**
