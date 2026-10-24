@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node node_modules/ffmpeg-static/install.js && next build",
+    "build": "node node_modules/ffmpeg-static/install.js && node -e \"console.log(require('child_process').execFileSync(require('ffmpeg-static'),['-version']).toString().split('\\n')[0])\" && next build",
     "start": "next start",
     "lint": "eslint"
   },
