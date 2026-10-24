@@ -54,6 +54,11 @@ export async function moduleStatesFor(p: Person, levelOverride?: number): Promis
 
 /** その人が使えるモジュールの一覧（1回の表示の中では1回だけ読む）。人ごとの設定があればそれを優先 */
 export const myModules = cache(async function myModules(me: CurrentStaff): Promise<Set<ModuleKey>> {
+  // 特別管理者は、すべての機能を使える（2026-10-25 黒田さん。表示の切り替え中は、その立場のまま）
+  if (!me.viewAs && me.permission === "superadmin") {
+    const { data } = await createAdminClient().from("modules").select("key");
+    return new Set((data ?? []).map((m) => m.key as ModuleKey));
+  }
   // 代表の表示の切り替え中は、切り替えた立場の段で決める（人ごとの設定は使わない）
   const states = await moduleStatesFor({ id: me.viewAs ? `view:${me.viewAs}` : me.id, permission: me.permission, duties: me.duties }, me.viewAs ? VIEW_LEVEL[me.viewAs] : undefined);
   return new Set(Object.entries(states).filter(([, v]) => v.on).map(([k]) => k as ModuleKey));

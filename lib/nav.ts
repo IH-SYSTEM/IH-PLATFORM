@@ -8,7 +8,8 @@ import type { AppIcon } from "@/lib/apps";
 //   shiftRequest … シフト希望を出す雇用区分（アルバイト・正社員・契約社員）だけに出す
 //   paidLeave … 有給の申請の対象（正社員）だけに出す
 //   inventory … 棚卸しシステムを使える人だけに出す（本部の経理・総務と代表、オープンした店の店長）
-export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin"; module?: string; minLevel?: number; duties?: string[]; shiftRequest?: boolean; paidLeave?: boolean; inventory?: boolean };
+//   superadmin … 特別管理者だけに出す（同じページがほかの区分にもあるときは、あとの区分の1つだけ出す）
+export type NavItem = { href: string; label: string; icon: AppIcon | "home" | "user"; audience: "all" | "manager" | "admin"; superadmin?: boolean; module?: string; minLevel?: number; duties?: string[]; shiftRequest?: boolean; paidLeave?: boolean; inventory?: boolean };
 export type NavSection = { title: string; items: NavItem[] };
 
 export const NAV: NavSection[] = [
@@ -55,6 +56,7 @@ export const NAV: NavSection[] = [
       { href: "/admin/reports", label: "報告の受付", icon: "history", audience: "admin" },
       { href: "/admin/announcements", label: "お知らせ", icon: "book", audience: "admin" },
       { href: "/admin/line", label: "LINE配信", icon: "history", audience: "admin" },
+      { href: "/reels", label: "リール作成", icon: "history", audience: "admin", superadmin: true },
       { href: "/admin/reel-bgm", label: "リールのBGM", icon: "history", audience: "admin" },
       { href: "/admin/ai-logs", label: "AI取説の記録", icon: "chart", audience: "admin" },
       { href: "/admin/salary", label: "給与入力", icon: "yen", audience: "admin" },
@@ -77,9 +79,11 @@ export const NAV: NavSection[] = [
 ];
 
 /** その人に見せるメニュー。空になった区分は出さない */
-export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Set<string>; level: number; duties: string[]; canRequestShift: boolean; paidLeave: boolean; inventory: boolean }): NavSection[] {
+export function navFor(opts: { isAdmin: boolean; isSuperadmin?: boolean; isManager: boolean; modules: Set<string>; level: number; duties: string[]; canRequestShift: boolean; paidLeave: boolean; inventory: boolean }): NavSection[] {
   const ok = (i: NavItem) =>
-    i.inventory
+    i.superadmin
+      ? !!opts.isSuperadmin
+      : i.inventory
       ? opts.inventory
       : i.paidLeave
       ? opts.paidLeave
@@ -92,7 +96,10 @@ export function navFor(opts: { isAdmin: boolean; isManager: boolean; modules: Se
         : i.module
           ? opts.modules.has(i.module)
           : i.audience === "all" || opts.isAdmin || (i.audience === "manager" && opts.isManager);
-  return NAV.map((s) => ({ ...s, items: s.items.filter(ok) })).filter((s) => s.items.length);
+  const sections = NAV.map((s) => ({ ...s, items: s.items.filter(ok) }));
+  // 同じページは1か所だけ（あとの区分を残す。例：特別管理者のリール作成は「本部」に）
+  const last = new Map(sections.flatMap((s, si) => s.items.map((i) => [i.href, si] as const)));
+  return sections.map((s, si) => ({ ...s, items: s.items.filter((i) => last.get(i.href) === si) })).filter((s) => s.items.length);
 }
 
 /** いま開いているページに当たるメニュー（いちばん長く一致するもの） */
