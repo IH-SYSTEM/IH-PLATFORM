@@ -1,14 +1,62 @@
 // リール作成（2026-10-25）の、秒数・切り出し・テロップの計算と、ffmpeg のフィルタの組み立て。
 // テストから Node で直接読むため、ここでは他のファイルを import しない
 
-export type Seg = { start: number; end: number; caption?: string | null };
+export type Seg = { start: number; end: number; caption?: string | null; emotion?: string | null };
 export type Speech = { start: number; end: number; text: string };
-export type Telop = { start: number; end: number; text: string; kind: "catch" | "speech" };
+export type Telop = { start: number; end: number; text: string; kind: "catch" | "speech"; font: string };
+/** AI が切り分けた「それだけで意味が通るまとまり」（話の1文〜数文、動作の始まりから終わりまで）。priority は 1 がいちばん大事 */
+export type Unit = Seg & { priority: number; role?: "opening" | "main" | "ending" | null };
 
 export const W = 1080;
 export const H = 1920;
 const MIN_SEG = 0.8;
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** 気持ちに合わせたテロップのフォント（assets/fonts。どれも SIL Open Font License） */
+export const EMOTION_FONTS: Record<string, string> = {
+  力強い: "DelaGothicOne-Regular.ttf",
+  やさしい: "ZenMaruGothic-Bold.ttf",
+  楽しい: "YuseiMagic-Regular.ttf",
+  上品: "ShipporiMinchoB1-Bold.ttf",
+};
+export const EMOTIONS = Object.keys(EMOTION_FONTS);
+/** 話した言葉の字幕は、読みやすい丸ゴシック */
+export const SPEECH_FONT = "ZenMaruGothic-Bold.ttf";
+const fontFor = (emotion: string | null | undefined) => EMOTION_FONTS[emotion ?? ""] ?? EMOTION_FONTS["力強い"];
+
+/**
+ * まとまりを、大事なものから順に、仕上がりの秒数に収まるだけ残す（2026-10-26 黒田さん：完結するように逆算する）。
+ *   - まとまりの途中では切らない（話や動作の途中で終わらないように）
+ *   - 始まり（opening）と締め（ending）は、入るなら先に入れる
+ *   - 入らないまとまりは飛ばし、次に大事で短いものを試す。並びは元の時刻の順
+ *   - どれも入らないほど長いときだけ、いちばん大事なまとまりを秒数で切る
+ */
+export function selectUnits(raw: Unit[], duration: number, target: number): Seg[] {
+  const goal = Math.min(target, duration);
+  const slack = 0.3;
+  const units = raw
+    .map((u) => ({ ...u, start: Math.max(0, Number(u.start) || 0), end: Math.min(duration, Number(u.end) || 0), priority: Number(u.priority) || 5 }))
+    .filter((u) => u.end - u.start >= 0.3)
+    .sort((a, b) => a.priority - b.priority || a.start - b.start);
+  const chosen: Unit[] = [];
+  const total = () => chosen.reduce((a, u) => a + (u.end - u.start), 0);
+  const overlaps = (u: Unit) => chosen.some((c) => u.start < c.end && c.start < u.end);
+  const tryAdd = (u: Unit | undefined) => {
+    if (!u || chosen.includes(u) || overlaps(u)) return;
+    if (total() + (u.end - u.start) <= goal + slack) chosen.push(u);
+  };
+  tryAdd(units.find((u) => u.role === "opening"));
+  tryAdd(units.find((u) => u.role === "ending"));
+  for (const u of units) tryAdd(u);
+  if (!chosen.length) {
+    const top = units[0];
+    if (!top) return [{ start: 0, end: round2(goal) }];
+    return [{ start: round2(top.start), end: round2(Math.min(top.end, top.start + goal)), caption: top.caption ?? null, emotion: top.emotion ?? null }];
+  }
+  return chosen
+    .sort((a, b) => a.start - b.start)
+    .map((u) => ({ start: round2(u.start), end: round2(u.end), caption: u.caption ?? null, emotion: u.emotion ?? null }));
+}
 
 /**
  * AI が選んだ場面を、元の動画の長さの中に収め、重なりを除いて、合計を仕上がりの秒数にそろえる。
@@ -109,7 +157,7 @@ export function buildTelops(segs: Seg[], speech: Speech[]): Telop[] {
   let acc = 0;
   for (const s of segs) {
     const len = s.end - s.start;
-    if (s.caption?.trim()) out.push({ start: round2(acc + 0.1), end: round2(acc + len - 0.05), text: wrapJa(s.caption.trim(), 11).slice(0, 2).join("\n"), kind: "catch" });
+    if (s.caption?.trim()) out.push({ start: round2(acc + 0.1), end: round2(acc + len - 0.05), text: wrapJa(s.caption.trim(), 11).slice(0, 2).join("\n"), kind: "catch", font: fontFor(s.emotion) });
     for (const sp of speech) {
       const a = Math.max(sp.start, s.start);
       const b = Math.min(sp.end, s.end);
@@ -118,7 +166,7 @@ export function buildTelops(segs: Seg[], speech: Speech[]): Telop[] {
       const chunks: string[] = [];
       for (let i = 0; i < lines.length; i += 2) chunks.push(lines.slice(i, i + 2).join("\n"));
       const per = (b - a) / chunks.length;
-      chunks.forEach((c, i) => out.push({ start: round2(acc + (a - s.start) + per * i), end: round2(acc + (a - s.start) + per * (i + 1)), text: c, kind: "speech" }));
+      chunks.forEach((c, i) => out.push({ start: round2(acc + (a - s.start) + per * i), end: round2(acc + (a - s.start) + per * (i + 1)), text: c, kind: "speech", font: SPEECH_FONT }));
     }
     acc += len;
   }
@@ -142,25 +190,28 @@ export function fitVertical(input: string, label: string, portrait: boolean) {
  *   0..n-1 … 場面ごとの動画（-ss/-t で切り出したもの）
  *   n..2n-1 … 音のない動画のときだけ、場面ごとの無音
  *   最後   … BGM（あれば。-stream_loop -1 で繰り返す）
- * テロップは textfile（1枚ずつのテキストファイル）で渡す
+ * テロップは textfile（1枚ずつのテキストファイル）で渡す。フォントは fontDir の中の、テロップごとのファイル
+ * 終わりは映像と音を少しずつ消して、締めくくった感じにする（つなぎ目の音も、ぷつっと鳴らないように少しだけ消す）
  */
 export function buildFilter(opts: {
   segs: Seg[];
   portrait: boolean;
   hasAudio: boolean;
-  telops: { start: number; end: number; file: string; kind: "catch" | "speech" }[];
-  font: string;
+  telops: { start: number; end: number; file: string; kind: "catch" | "speech"; font: string }[];
+  fontDir: string;
   bgm: boolean;
   speechMain: boolean; // 話している動画なら、元の音を大きく・BGMを小さく
 }) {
-  const { segs, portrait, hasAudio, telops, font, bgm, speechMain } = opts;
+  const { segs, portrait, hasAudio, telops, fontDir, bgm, speechMain } = opts;
   const n = segs.length;
   const total = round2(segs.reduce((a, s) => a + (s.end - s.start), 0));
+  const endFade = Math.min(0.6, total / 6);
   const parts: string[] = [];
-  segs.forEach((_, i) => {
+  segs.forEach((s, i) => {
     parts.push(fitVertical(`${i}:v`, `v${i}`, portrait));
     const a = hasAudio ? `${i}:a` : `${n + i}:a`;
-    parts.push(`[${a}]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[a${i}]`);
+    const len = round2(s.end - s.start);
+    parts.push(`[${a}]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,afade=t=in:d=0.03,afade=t=out:st=${round2(Math.max(0, len - 0.03))}:d=0.03[a${i}]`);
   });
   parts.push(`${segs.map((_, i) => `[v${i}][a${i}]`).join("")}concat=n=${n}:v=1:a=1[vc][ac]`);
 
@@ -169,23 +220,35 @@ export function buildFilter(opts: {
   telops.forEach((t, i) => {
     const big = t.kind === "catch";
     const style = big
-      ? `fontsize=88:fontcolor=white:borderw=8:bordercolor=black@0.85:line_spacing=18:y=h*0.16`
+      ? `fontsize=92:fontcolor=white:borderw=9:bordercolor=black@0.85:line_spacing=18:y=h*0.16`
       : `fontsize=60:fontcolor=white:borderw=6:bordercolor=black@0.9:line_spacing=12:y=h*0.74`;
-    parts.push(`[${v}]drawtext=fontfile='${esc(font)}':textfile='${esc(t.file)}':x=(w-text_w)/2:${style}:enable='between(t,${t.start},${t.end})'[t${i}]`);
+    parts.push(`[${v}]drawtext=fontfile='${esc(`${fontDir}/${t.font}`)}':textfile='${esc(t.file)}':x=(w-text_w)/2:${style}:enable='between(t,${t.start},${t.end})'[t${i}]`);
     v = `t${i}`;
   });
-  parts.push(`[${v}]null[vout]`);
+  parts.push(`[${v}]fade=t=out:st=${round2(total - endFade)}:d=${endFade}[vout]`);
 
+  const voiceEnd = `afade=t=out:st=${round2(total - endFade)}:d=${endFade}`;
   if (bgm) {
     const bi = hasAudio ? n : 2 * n;
     const voice = speechMain ? 1.0 : 0.35;
     const music = speechMain ? 0.18 : 0.7;
     const fade = Math.min(1.5, total / 4);
-    parts.push(`[ac]volume=${voice}[av]`);
+    parts.push(`[ac]volume=${voice},${voiceEnd}[av]`);
     parts.push(`[${bi}:a]atrim=0:${total},asetpts=PTS-STARTPTS,aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,afade=t=in:d=0.5,afade=t=out:st=${round2(total - fade)}:d=${fade},volume=${music}[am]`);
     parts.push(`[av][am]amix=inputs=2:duration=first:normalize=0[aout]`);
-  } else parts.push(`[ac]anull[aout]`);
+  } else parts.push(`[ac]${voiceEnd}[aout]`);
   return { filter: parts.join(";"), total };
+}
+
+/** 1週間に作れる本数（1人あたり。2026-10-26 黒田さん）。作れなかったものは数えない */
+export const WEEKLY_LIMIT = 10;
+
+/** その時刻を含む週（月曜0時〜、日本時間）の始まり。UTC の ISO で返す */
+export function weekStartJST(now: Date): string {
+  const jst = new Date(now.getTime() + 9 * 3_600_000);
+  const back = (jst.getUTCDay() + 6) % 7; // 月曜から何日たったか
+  const monday = Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate() - back);
+  return new Date(monday - 9 * 3_600_000).toISOString();
 }
 
 /** ffmpeg の -i の出力から、長さ・縦横・回転・音の有無を読む */
