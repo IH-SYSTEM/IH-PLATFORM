@@ -9,7 +9,7 @@ const SECONDS = [15, 30, 45, 60, 90];
 type Result = { url: string | null; downloadUrl: string | null; fileName: string };
 
 /** リールを作る：動画を選ぶ → 秒数・BGM を決める → スタート → できたら見て保存 */
-export function ReelMaker({ bgm }: { bgm: { id: string; name: string; mood: string }[] }) {
+export function ReelMaker({ bgm, disabled = false }: { bgm: { id: string; name: string; mood: string }[]; disabled?: boolean }) {
   const router = useRouter();
   const pick = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -184,8 +184,8 @@ export function ReelMaker({ bgm }: { bgm: { id: string; name: string; mood: stri
           <p className="mt-1 text-xs font-normal">1〜3分かかります。この画面を開いたまま待ってください</p>
         </div>
       ) : (
-        <button onClick={start} disabled={!file} className="w-full rounded-lg bg-brand px-4 py-3 text-base font-bold text-white disabled:opacity-40">
-          スタート
+        <button onClick={start} disabled={!file || disabled} className="w-full rounded-lg bg-brand px-4 py-3 text-base font-bold text-white disabled:opacity-40">
+          {disabled ? "今週はもう作れません（月曜から）" : "スタート"}
         </button>
       )}
     </div>

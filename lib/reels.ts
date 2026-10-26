@@ -6,7 +6,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import ffmpegPath from "ffmpeg-static";
-import { buildFilter, buildTelops, fitSegments, parseProbe, type Seg, type Speech } from "@/lib/reel-plan";
+import { buildFilter, buildTelops, EMOTIONS, parseProbe, selectUnits, weekStartJST, type Speech, type Unit } from "@/lib/reel-plan";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -23,7 +23,7 @@ export const MAX_SOURCE = 300 * 1024 * 1024;
 export const SECONDS = [15, 30, 45, 60, 90] as const;
 export const MOODS = ["明るい", "落ち着いた", "おしゃれ", "元気"] as const;
 
-const FONT = path.join(process.cwd(), "assets/fonts/NotoSansJP_400Regular.ttf");
+const FONT_DIR = path.join(process.cwd(), "assets/fonts");
 const client = new Anthropic();
 
 function ffmpeg(args: string[], allowFail = false): Promise<string> {
@@ -59,10 +59,13 @@ async function transcribe(audioFile: string): Promise<Speech[]> {
   return (j.segments ?? []).filter((s) => (s.no_speech_prob ?? 0) < 0.6 && s.text.trim()).map((s) => ({ start: s.start, end: s.end, text: s.text.trim() }));
 }
 
-type Plan = { segments: Seg[]; mood: string; title: string };
+type Plan = { units: Unit[]; mood: string; title: string };
 
-/** AI が見どころの場面・キャッチコピー・BGM の雰囲気を決める */
-async function plan(frames: { t: number; file: string }[], speech: Speech[], duration: number, target: number, store: string | null, memo: string | null): Promise<Plan> {
+/**
+ * AI が動画を「それだけで意味が通るまとまり」に切り分け、大事な順に順位を付ける（2026-10-26 黒田さん）。
+ * どれを残すかは AI ではなく selectUnits が、順位の高いものから秒数に収まるだけ選ぶ（話や動作の途中で終わらないように）
+ */
+async function plan(frames: { t: number; file: string }[], speech: Speech[], duration: number, target: number, store: string | null, memo: string | null, rules: string[]): Promise<Plan> {
   const content: Anthropic.Beta.BetaContentBlockParam[] = [];
   for (const f of frames) {
     content.push({ type: "text", text: `${f.t.toFixed(1)}秒` });
@@ -71,25 +74,26 @@ async function plan(frames: { t: number; file: string }[], speech: Speech[], dur
   content.push({
     type: "text",
     text: `${store ? `「${store}」（` : "（"}飲食店・美容室を営む会社の店）の Instagram リール用に、動画を編集します。上は元の動画（全${duration.toFixed(1)}秒）から一定の間隔で取ったコマです。
-${speech.length ? `話している言葉（秒は元の動画の時刻）：\n${speech.map((s) => `${s.start.toFixed(1)}〜${s.end.toFixed(1)}秒「${s.text}」`).join("\n")}` : "話している言葉はありません（または読み取れません）。"}
+${speech.length ? `話している言葉の文字起こし（秒は元の動画の時刻）：\n${speech.map((s) => `${s.start.toFixed(1)}〜${s.end.toFixed(1)}秒「${s.text}」`).join("\n")}` : "話している言葉はありません（または読み取れません）。"}
 ${memo ? `担当者のメモ：「${memo}」` : ""}
+${rules.length ? `\nこの担当者の編集ルール（必ず守る）：\n${rules.map((r) => `- ${r}`).join("\n")}\n` : ""}
+仕上がりは ${Math.min(target, duration).toFixed(0)} 秒以内です。編集のしかた：
+1. 動画を「それだけで意味が通るまとまり」に切り分ける。話している所は、文字起こしの文の区切り（start・end は文字起こしの秒に合わせる）で、1文〜数文をひとまとまりに。動作は、始まりから終わりまで（盛り付け始め〜盛り付け終わり、など）
+2. まとまりに、大事な順の順位（priority：1 がいちばん大事。同じ順位があってよい）を付ける。順位の高いものから順に、${Math.min(target, duration).toFixed(0)} 秒に収まるだけ残すので、上位だけを並べても話が通じて、見て完結する動画になるように順位を付ける
+3. 冒頭にふさわしいまとまり1つに role "opening"（目を引く・何の動画か分かる）、締めにふさわしいまとまり1つに role "ending"（店の雰囲気・仕上がり・あいさつなど）を付ける
+4. 使わない方がよい所（動きのない所・ぶれた所・間延びした所・関係ない所・話の途中で切れる所）は、まとまりに入れない
 
-仕上がりは ${Math.min(target, duration).toFixed(0)} 秒です。次の JSON だけを返してください（前後に文を付けない）。
+次の JSON だけを返してください（前後に文を付けない）。
 {
-  "segments": [ { "start": 元の動画の開始秒, "end": 終了秒, "caption": "その場面に出すキャッチコピー（全角12文字以内。なければ null）" } ],
+  "units": [ { "start": 開始秒, "end": 終了秒, "priority": 1〜9, "role": "opening" か "ending" か null, "caption": "そのまとまりに出すキャッチコピー（全角12文字以内。なければ null）", "emotion": "キャッチコピーの気持ち。${EMOTIONS.join("・")} のどれか" } ],
   "mood": "BGM の雰囲気。${MOODS.join("・")} のどれか",
   "title": "この動画の短い題（20文字以内）"
 }
-決まり：
-- 見どころ（料理の湯気・盛り付け・仕上がり・笑顔・店の雰囲気・before/after など）を残し、動きのない所・ぶれた所・間延びした所・関係ない所を切る
-- segments は時刻の順、重ならないように。1場面は1.5〜6秒くらい。合計がちょうど仕上がりの秒数になるように
-- 話している場面を使うときは、言葉の途中で切らない（話の区切りで切る）
-- 最初の2秒で目を引く場面を置く。最後は店の雰囲気や仕上がりなど、締めになる場面
-- キャッチコピーは、見る人が「行きたい」と思う短い言葉。全部の場面に付けなくてよい（3〜5個くらい）。話している場面には付けない（字幕と重なるため）。うそや大げさな表現（日本一 など）は使わない`,
+キャッチコピーの決まり：見る人が「行きたい」「食べたい」と思う短い言葉。3〜5個くらい。話しているまとまりには付けない（字幕と重なるため）。うそや大げさな表現（日本一 など）は使わない。emotion はその言葉で見る人に伝えたい気持ちで選ぶ（力強い＝迫力・驚き、やさしい＝あたたかさ・安心、楽しい＝わくわく・にぎやか、上品＝落ち着き・こだわり）。フォントがそれに合わせて変わる`,
   });
   const res = await client.beta.messages.create({
     model: "claude-opus-5-5",
-    max_tokens: 4000,
+    max_tokens: 6000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
     output_config: { effort: "low" },
@@ -97,14 +101,21 @@ ${memo ? `担当者のメモ：「${memo}」` : ""}
   });
   const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
   try {
-    const j = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as Partial<Plan>;
+    const j = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as { units?: Partial<Unit>[]; mood?: unknown; title?: unknown };
     return {
-      segments: (Array.isArray(j.segments) ? j.segments : []).map((s) => ({ start: Number(s.start), end: Number(s.end), caption: typeof s.caption === "string" ? s.caption.slice(0, 24) : null })),
+      units: (Array.isArray(j.units) ? j.units : []).map((u) => ({
+        start: Number(u.start),
+        end: Number(u.end),
+        priority: Number(u.priority) || 5,
+        role: u.role === "opening" || u.role === "ending" ? u.role : null,
+        caption: typeof u.caption === "string" ? u.caption.slice(0, 24) : null,
+        emotion: typeof u.emotion === "string" && EMOTIONS.includes(u.emotion) ? u.emotion : null,
+      })),
       mood: typeof j.mood === "string" ? j.mood : "明るい",
       title: typeof j.title === "string" ? j.title.slice(0, 40) : "",
     };
   } catch {
-    return { segments: [], mood: "明るい", title: "" };
+    return { units: [], mood: "明るい", title: "" };
   }
 }
 
@@ -120,10 +131,21 @@ export async function resultUrls(resultPath: string, createdAt: string) {
 export async function processReel(id: string) {
   const admin = createAdminClient();
   const dir = await mkdtemp(path.join(tmpdir(), "reel-"));
+  // どこに時間がかかったか（秒。plan に残して、遅いときに見直す）
+  const timings: Record<string, number> = {};
+  let t0 = Date.now();
+  const lap = (k: string) => {
+    timings[k] = Math.round((Date.now() - t0) / 100) / 10;
+    t0 = Date.now();
+  };
   try {
     const { data: r } = await admin.from("reels").select("id, chunk_count, target_seconds, bgm_mode, bgm_id, memo, store_id, staff_id").eq("id", id).single();
     if (!r) throw new Error("見つかりません");
-    const { data: store } = r.store_id ? await admin.from("stores").select("name").eq("id", r.store_id).single() : { data: null };
+    const [{ data: store }, { data: ruleRows }] = await Promise.all([
+      r.store_id ? admin.from("stores").select("name").eq("id", r.store_id).single() : Promise.resolve({ data: null }),
+      admin.from("reel_rules").select("body").eq("staff_id", r.staff_id).eq("is_active", true).order("sort_order").order("created_at"),
+    ]);
+    const rules = (ruleRows ?? []).map((x) => x.body);
 
     // 1. つなぐ
     await stage(id, "processing", "動画を読み込んでいます");
@@ -138,6 +160,7 @@ export async function processReel(id: string) {
     await new Promise<void>((ok) => out.end(ok));
     const probe = parseProbe(await ffmpeg(["-i", src], true));
     if (!probe.duration || !probe.width) throw new Error("動画として読めませんでした");
+    lap("download");
 
     // 2. 文字起こし
     let speech: Speech[] = [];
@@ -147,17 +170,20 @@ export async function processReel(id: string) {
       await ffmpeg(["-i", src, "-vn", "-ac", "1", "-ar", "16000", "-b:a", "48k", mp3]);
       speech = await transcribe(mp3).catch(() => []);
     }
+    lap("transcribe");
 
-    // 3. AI が場面を選ぶ
+    // 3. AI がまとまりに切り分けて順位を付け、順位の高いものから秒数に収まるだけ残す
     await stage(id, "processing", "AIが見どころを選んでいます");
     const count = Math.min(36, Math.max(8, Math.round(probe.duration)));
     const frames = Array.from({ length: count }, (_, i) => ({ t: Math.min(probe.duration - 0.1, (probe.duration * (i + 0.5)) / count), file: path.join(dir, `f${i}.jpg`) }));
     for (let i = 0; i < frames.length; i += 6) {
       await Promise.all(frames.slice(i, i + 6).map((f) => ffmpeg(["-ss", f.t.toFixed(2), "-i", src, "-frames:v", "1", "-vf", "scale=360:-2", "-q:v", "6", f.file])));
     }
-    const p = await plan(frames, speech, probe.duration, r.target_seconds, store?.name ?? null, r.memo);
-    const segs = fitSegments(p.segments, probe.duration, r.target_seconds);
+    lap("frames");
+    const p = await plan(frames, speech, probe.duration, r.target_seconds, store?.name ?? null, r.memo, rules);
+    const segs = selectUnits(p.units, probe.duration, r.target_seconds);
     const telops = buildTelops(segs, speech);
+    lap("ai");
 
     // BGM：おまかせ＝雰囲気が合う曲、曲を選んだときはその曲、なしは付けない
     let bgmFile: string | null = null;
@@ -177,15 +203,16 @@ export async function processReel(id: string) {
     }
 
     // 4. 書き出す
-    await stage(id, "processing", "動画を書き出しています", { plan: { segments: segs, mood: p.mood, title: p.title, speech: speech.length } });
+    const planLog = { units: p.units, segments: segs, mood: p.mood, title: p.title, speech: speech.length, rules: rules.length, source: { duration: probe.duration, width: probe.width, height: probe.height }, timings };
+    await stage(id, "processing", "動画を書き出しています", { plan: planLog });
     const telopFiles = await Promise.all(
       telops.map(async (t, i) => {
         const file = path.join(dir, `t${i}.txt`);
         await writeFile(file, t.text);
-        return { start: t.start, end: t.end, file, kind: t.kind };
+        return { start: t.start, end: t.end, file, kind: t.kind, font: t.font };
       }),
     );
-    const { filter, total } = buildFilter({ segs, portrait: probe.height >= probe.width, hasAudio: probe.hasAudio, telops: telopFiles, font: FONT, bgm: !!bgmFile, speechMain: speech.length > 0 });
+    const { filter, total } = buildFilter({ segs, portrait: probe.height >= probe.width, hasAudio: probe.hasAudio, telops: telopFiles, fontDir: FONT_DIR, bgm: !!bgmFile, speechMain: speech.length > 0 });
     const filterFile = path.join(dir, "filter.txt");
     await writeFile(filterFile, filter);
     const inputs: string[] = [];
@@ -202,15 +229,28 @@ export async function processReel(id: string) {
       "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
       result,
     ]);
+    lap("render");
     const resultPath = `${id}/reel.mp4`;
     const { error: upErr } = await admin.storage.from(REEL_BUCKET).upload(resultPath, await readFile(result), { contentType: "video/mp4", upsert: true });
     if (upErr) throw new Error("できた動画を保存できませんでした");
-    await stage(id, "done", "できました", { result_path: resultPath, duration: total, title: p.title || null });
+    lap("upload");
+    await stage(id, "done", "できました", { result_path: resultPath, duration: total, title: p.title || null, plan: planLog });
     // 元の動画は消す（容量を食うため。できた動画は残す）
     await admin.storage.from(REEL_BUCKET).remove(Array.from({ length: r.chunk_count }, (_, i) => `${id}/source.${i}`));
   } catch (e) {
-    await stage(id, "error", "作れませんでした", { error: (e as Error).message.slice(0, 500) });
+    await stage(id, "error", "作れませんでした", { error: (e as Error).message.slice(0, 500), plan: { timings } });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/** 今週（月曜0時〜、日本時間）作った本数。作れなかったもの・送っている途中のものは数えない */
+export async function madeThisWeek(staffId: string) {
+  const { count } = await createAdminClient()
+    .from("reels")
+    .select("id", { count: "exact", head: true })
+    .eq("staff_id", staffId)
+    .in("status", ["processing", "done"])
+    .gte("created_at", weekStartJST(new Date()));
+  return count ?? 0;
 }
